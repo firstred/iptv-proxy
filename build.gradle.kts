@@ -44,7 +44,7 @@ kotlin {
 
 if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) jib {
     to {
-        image = "ghcr.io/firstred/iptv-proxy"
+        image = "${localProperties["org.opencontainers.image.location"]}"
         tags = setOf("latest", "$version")
     }
     from {

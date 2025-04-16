@@ -1,0 +1,7 @@
+org.opencontainers.image.title="iptv-proxy"
+org.opencontainers.image.description="IPTV proxy"
+org.opencontainers.image.authors="User <info@example.com>"
+org.opencontainers.image.url="https://github.com/<user>/iptv-proxy"
+org.opencontainers.image.location="ghcr.io/<user>/<package>"
+org.opencontainers.image.vendor="https://github.com/<user>"
+org.opencontainers.image.licenses="Apache-2.0"
