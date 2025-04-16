@@ -2,6 +2,8 @@
 shadow = "8.1.1"
 versions = "0.51.0"
 versionsFilter = "0.1.16"
+kotlin = "2.1.20"
+jib = "3.4.0"
 
 slf4j = "2.0.16"
 logback = "1.5.12"
@@ -12,6 +14,8 @@ snakeYaml = "2.3"
 jackson = "2.18.2"
 
 [plugins]
+kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
 shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
 versionsFilter = { id = "se.ascp.gradle.gradle-versions-filter", version.ref = "versionsFilter" }
