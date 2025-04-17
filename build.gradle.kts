@@ -45,7 +45,17 @@ kotlin {
 if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) jib {
     to {
         image = "${localProperties["org.opencontainers.image.location"]}"
-        tags = setOf("latest", "$version")
+
+        // Convert major.minor.patch into ["$major", "$major.$minor", "$major.$minor.$patch", "latest"]
+        tags = "$version"
+            .split(".")
+            .foldIndexed (listOf<String>()) { index, acc, s ->
+                acc + if (index == 0) s else acc[index - 1] + "." + s
+            }
+            .let {
+                it + "latest"
+            }
+            .toSet()
     }
     from {
         image = "docker.io/bellsoft/liberica-openjdk-alpine"
