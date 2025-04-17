@@ -9,6 +9,7 @@ channels_retry_delay_ms: 1000
 xmltv_timeout_sec: 30
 xmltv_total_timeout_sec: 120
 xmltv_retry_delay_ms: 1000
+sort_channels: true
 use_http2: false
 servers:
   - name: someiptv-1

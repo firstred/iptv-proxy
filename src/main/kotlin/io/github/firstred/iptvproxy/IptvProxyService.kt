@@ -481,8 +481,10 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
             .add(Headers.CONTENT_DISPOSITION, "attachment; filename=playlist.m3u")
             .add(HttpUtils.ACCESS_CONTROL, "*")
 
-        val chs: List<IptvChannel> = ArrayList(channels.values)
-            .sortedBy { obj: IptvChannel -> obj.name }
+        val chs: List<IptvChannel> = ArrayList(channels.values).let {
+            if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
+            else it
+        }
 
         val sb = StringBuilder()
         sb.append("#EXTM3U\n")
