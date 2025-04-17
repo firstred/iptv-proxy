@@ -24,8 +24,7 @@ class IptvChannel(
     }
 
     fun acquire(userId: String?): IptvServerChannel? {
-        val scs: List<IptvServerChannel> = ArrayList(serverChannels)
-        Collections.shuffle(scs, rand)
+        val scs: List<IptvServerChannel> = ArrayList(serverChannels).shuffled()
 
         for (sc in scs) {
             if (sc.acquire(userId)) {
