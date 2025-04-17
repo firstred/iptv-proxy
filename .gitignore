@@ -4,5 +4,6 @@ build/
 tmp/
 out/
 .kotlin/
+*.m3u8
 local.properties
 config.yml
