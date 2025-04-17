@@ -99,6 +99,7 @@ dependencies {
     implementation(libs.slf4j.jul)
     implementation(libs.logback)
     implementation(libs.janino)
+    implementation(libs.kotlin.coroutines)
 
     // app specific
     implementation(libs.undertow)

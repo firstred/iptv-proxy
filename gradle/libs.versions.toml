@@ -15,6 +15,7 @@ jackson = "2.18.2"
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
 shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
@@ -27,6 +28,7 @@ slf4j-jul = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 slf4j-jcl = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 janino = { module = "org.codehaus.janino:janino", version.ref = "janino" }
+kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.10.2" }
 
 undertow = { module = "io.undertow:undertow-core", version.ref = "undertow" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeYaml" }
