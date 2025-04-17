@@ -33,7 +33,6 @@ import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.function.Consumer
-import java.util.function.Function
 import java.util.regex.Pattern
 import kotlin.concurrent.Volatile
 
@@ -196,9 +195,7 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
                     }
                 }
 
-                if (xmltv == null && sg.xmltvCache != null) {
-                    xmltv = XmltvUtils.parseXmltv(sg.xmltvCache)
-                }
+                if (xmltv == null) xmltv = XmltvUtils.parseXmltv(sg.xmltvCache)
             }
 
             val xmltvById: MutableMap<String?, XmltvChannel?> = HashMap()
@@ -311,7 +308,11 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
                         try {
                             serverChannel = IptvServerChannel(
                                 server,
-                                url!!, baseUrl.forPath("/$id"), id, c.name!!, scheduler
+                                url,
+                                baseUrl.forPath("/$id"),
+                                id,
+                                c.name,
+                                scheduler,
                             )
                         } catch (e: URISyntaxException) {
                             throw RuntimeException("error creating server channel", e)
@@ -319,7 +320,7 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
                     }
 
                     channel.addServerChannel(serverChannel)
-                    LOG.info("Add server channel for channel: {}, url: {}", c.name!!, url)
+                    LOG.info("Add server channel for channel: {}, url: {}", c.name, url)
 
                     chs[id] = channel
                     byUrl[url] = serverChannel
@@ -334,7 +335,7 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
                 ) {
                     val newId = xmltvIds[p!!.channel]
                     if (newId != null) {
-                        newXmltv.programmes?.add(p!!.copy().setChannel(newId))
+                        newXmltv.programmes?.add(p.copy().setChannel(newId))
                     }
                 }
             })
@@ -463,14 +464,10 @@ class IptvProxyService(config: IptvProxyConfig) : HttpHandler {
         val idx = path.indexOf('/')
         if (idx >= 0) {
             user = path.substring(idx + 1)
-            if (!allowedUsers.contains(user)) {
-                user = null
-            }
+            if (!allowedUsers.contains(user)) user = null
         }
 
-        if (user == null && allowAnonymous) {
-            user = generateUser()
-        }
+        if (user == null && allowAnonymous) user = generateUser()
 
         if (user == null) {
             LOG.warn("user not defined for request: {}", exchange.requestPath)
