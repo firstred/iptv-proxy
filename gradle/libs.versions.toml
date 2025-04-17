@@ -4,9 +4,10 @@ versions = "0.51.0"
 versionsFilter = "0.1.16"
 kotlin = "2.1.20"
 jib = "3.4.0"
+ktor = "3.1.2"
 
 slf4j = "2.0.16"
-logback = "1.5.12"
+logback = "1.5.18"
 janino = "3.1.12"
 
 undertow = "2.3.18.Final"
@@ -28,6 +29,8 @@ slf4j-jul = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 slf4j-jcl = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 janino = { module = "org.codehaus.janino:janino", version.ref = "janino" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.10.2" }
 
 undertow = { module = "io.undertow:undertow-core", version.ref = "undertow" }

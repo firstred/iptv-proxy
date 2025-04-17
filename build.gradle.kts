@@ -99,7 +99,6 @@ dependencies {
     implementation(libs.slf4j.jul)
     implementation(libs.logback)
     implementation(libs.janino)
-    implementation(libs.kotlin.coroutines)
 
     // app specific
     implementation(libs.undertow)
@@ -108,4 +107,11 @@ dependencies {
     implementation(libs.jackson.datatype.jsr310)
     implementation(libs.jackson.dataformat.yaml)
     implementation(libs.jackson.dataformat.xml)
+
+    // ktor
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.okhttp)
+
+    // kotlin
+    implementation(libs.kotlin.coroutines)
 }
