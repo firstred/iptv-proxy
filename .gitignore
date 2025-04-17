@@ -7,3 +7,6 @@ out/
 *.m3u8
 local.properties
 config.yml
+*_orig.xml
+*_orig.m3u
+*_orig.m3u8
