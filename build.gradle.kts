@@ -38,6 +38,11 @@ repositories {
     mavenCentral()
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
+}
+
 kotlin {
     jvmToolchain(21)
 }
@@ -88,11 +93,6 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
     }
 }
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
-
 configurations.forEach {
     it.exclude("org.apache.httpcomponents", "httpclient")
     it.exclude("org.apache.httpcomponents", "httpcore")
@@ -124,4 +124,5 @@ dependencies {
 
     // kotlin
     implementation(libs.kotlin.coroutines)
+    implementation("io.ktor:ktor-client-okhttp-jvm:3.1.2")
 }
