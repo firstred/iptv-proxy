@@ -1,6 +1,8 @@
-.idea
-.gradle
-build
-tmp
-out
+.idea/
+.gradle/
+build/
+tmp/
+out/
+.kotlin/
 local.properties
+config.yml
