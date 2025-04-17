@@ -22,6 +22,7 @@ shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
 versionsFilter = { id = "se.ascp.gradle.gradle-versions-filter", version.ref = "versionsFilter" }
 
+
 [libraries]
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-log4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
