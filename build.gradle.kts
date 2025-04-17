@@ -51,7 +51,7 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
     to {
         image = "${localProperties["org.opencontainers.image.location"]}"
 
-        // Convert major.minor.patch into ["$major", "$major.$minor", "$major.$minor.$patch", "latest"]
+        // Convert major.minor.patch to ["$major", "$major.$minor", "$major.$minor.$patch", "latest"]
         tags = "$version"
             .split(".")
             .foldIndexed (listOf<String>()) { index, acc, s ->
