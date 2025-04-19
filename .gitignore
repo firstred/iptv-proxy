@@ -3,6 +3,9 @@
 build/
 tmp/
 out/
+.cache/
+.download/
+public/
 .kotlin/
 *.m3u8
 local.properties
