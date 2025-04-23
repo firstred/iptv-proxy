@@ -12,7 +12,7 @@ data class IptvServerAccountConfig(
     val password: String? = null,
     val xtreamUsername: String? = null,
     val xtreamPassword: String? = null,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxUserConnections: Int = defaultMaxConnections,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxChannelConnections: Int = defaultMaxConnections,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxRequestsPerHost: Int = defaultMaxConnections,
+    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequests: Int = defaultMaxConnections,
+    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerHost: Int = defaultMaxConnections,
+    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerChannel: Int = defaultMaxConnections, // Unused -- reserved for future use
 )

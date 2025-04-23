@@ -57,7 +57,7 @@ val httpClientModule = module {
     }
 }
 
-private fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
+fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
     val okDispatcher = Dispatcher()
     okDispatcher.maxRequestsPerHost = maxRequestsPerHost
 
@@ -71,7 +71,7 @@ private fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int 
     }
 }
 
-private fun HttpClientConfig<OkHttpConfig>.defaults() {
+fun HttpClientConfig<OkHttpConfig>.defaults() {
     expectSuccess = true
     followRedirects = true
 
@@ -86,7 +86,7 @@ private fun HttpClientConfig<OkHttpConfig>.defaults() {
     }
 }
 
-private fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
+fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
     retryOnExceptionIf { _, cause ->
         cause is ServerResponseException ||
                 cause is ClientRequestException

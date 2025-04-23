@@ -9,10 +9,12 @@ class IptvServer(
     val config: IptvServerConfig,
     private val connections: MutableList<IptvServerConnection>,
 ) {
-    suspend fun withConnection(action: suspend () -> Unit) {
+    suspend fun withConnection(
+        action: suspend (connection: IptvServerConnection) -> Unit
+    ) {
         val connection = acquire()
         try {
-            action()
+            action(connection)
         } finally {
             connection.release()
         }

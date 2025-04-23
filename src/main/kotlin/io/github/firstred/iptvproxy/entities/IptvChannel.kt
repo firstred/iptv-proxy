@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.entities
 
+import io.ktor.client.request.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
@@ -19,21 +20,12 @@ class IptvChannel(
     val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
 
     suspend fun getPlaylist(outputStream: OutputStream, username: String) {
-//        server.withConnection { connection ->
-//            LOG.info("[{}] loading channel: {}, url: {}", username, name, reference)
-//
-//
-//            connection.httpClient.request() { request ->
-//                request.headers["User-Agent"] = "TiviMate/5.1.6 (Android 12)"
-//            }.use { response ->
-//                if (response.status.value == 200) {
-//                    response.bodyAsChannel().copyTo(outputStream)
-//                } else {
-//                    LOG.warn("[{}] failed to load channel: {}, url: {}, status: {}", username, name, reference, response.status.value)
-//                }
-//            }
-//
-//        }
+        server.withConnection { connection ->
+            LOG.info("[{}] loading channel: {}, url: {}", username, name, reference)
+
+
+            val response = connection.httpClient.get(url.toString())
+        }
     }
 
     private suspend fun loadInfo(retryNo: Int, expireTime: Long, username: String) {

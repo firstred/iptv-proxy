@@ -45,10 +45,11 @@ http_proxy: null # http://<username>:<password>@server_host:port
 servers:
   - name: someiptv-1
     connections:
-      - url: https://someiptv.com/playlist.m3u
-        xtream_code: 1234567890abcdef # Xtream code
-        max_user_connections: 3
-        max_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+      - url: https://someiptv.com/          # Xtream API server without the `.get.php`, `api.php`, `xmltv.php`, etc.
+        xtream_username: 1234567890abcdef   # Xtream username
+        xtream_password: aslkdfadsf         # Xtream password
+        max_concurrent_requests: 3          # General max requests for this account
+        max_concurrent_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
       - url: https://someiptv.com/playlist.m3u
         login: account # HTTP Basic Auth login
         password: password # HTTP Basic Auth password
