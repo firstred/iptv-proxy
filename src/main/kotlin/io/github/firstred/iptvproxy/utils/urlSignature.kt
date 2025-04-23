@@ -1,11 +1,11 @@
 package io.github.firstred.iptvproxy.utils
 
-import com.sun.jndi.toolkit.url.Uri
 import io.github.firstred.iptvproxy.config
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import java.net.URI
 import java.util.*
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -31,7 +31,7 @@ fun String.pathSignature(): String {
 
     return signature
 }
-fun Uri.pathSignature(): String = path.pathSignature()
+fun URI.pathSignature(): String = path.pathSignature()
 
 fun String.verifyPathSignature(
     signature: String,

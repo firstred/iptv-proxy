@@ -53,7 +53,7 @@ data class IptvProxyConfig(
 //        return this
 //    }
 
-    fun getCacheDirectory(subdir: String?): String {
+    fun getCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
             checkDir(getTempDirectory() + "/cache")
 
@@ -61,7 +61,7 @@ data class IptvProxyConfig(
         } ?: checkDir(getTempDirectory() + "/cache")
     }
 
-    fun getHttpCacheDirectory(subdir: String?): String {
+    fun getHttpCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
             checkDir(getTempDirectory() + "/http_cache")
 
@@ -69,7 +69,7 @@ data class IptvProxyConfig(
         } ?: checkDir(getTempDirectory() + "/http_cache")
     }
 
-    fun getDownloadDirectory(subdir: String?): String {
+    fun getDownloadDirectory(subdir: String? = null): String {
         return subdir?.let {
             checkDir(getTempDirectory() + "/download")
 

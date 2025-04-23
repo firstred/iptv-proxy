@@ -22,34 +22,33 @@ class IptvChannel(
     val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
 
     suspend fun retrieveChannelPlaylist(): InputStream {
-        LOG.info("[{}] channel: {}",  username, id)
-        val startNanos = System.nanoTime()
-
-        val sb = StringBuilder()
-
-        loadCachedInfo({ streams: Streams?, statusCode: Int, retryNo: Int ->
-            if (streams == null) {
-                IptvServerConnection.LOG.warn("[{}] error loading streams info: {}, retries: {}", username, statusCode, retryNo)
-                throw RuntimeException("error loading streams info")
-            } else {
-                val duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
-                if (duration > 500 || retryNo > 0) {
-                    IptvServerConnection.LOG.warn("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
-                } else {
-                    IptvServerConnection.LOG.info("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
-                }
-
-                streams.streams.forEach { stream: Stream ->
-                    buffer.write(
-                        "${stream.prefix}${config.baseUrl}/${username.generateUserToken()}/${stream.path}\n".toByteArray(
-                            StandardCharsets.UTF_8
-                        )
-                    )
-                }
-            }
-        }, userStream)
-
-        return sb.toString()
+        TODO()
+//        LOG.info("[{}] channel: {}",  username, id)
+//        val startNanos = System.nanoTime()
+//
+//        val sb = StringBuilder()
+//
+//        loadCachedInfo({ streams: Streams?, statusCode: Int, retryNo: Int ->
+//            if (streams == null) {
+//                IptvServerConnection.LOG.warn("[{}] error loading streams info: {}, retries: {}", username, statusCode, retryNo)
+//                throw RuntimeException("error loading streams info")
+//            } else {
+//                val duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
+//                if (duration > 500 || retryNo > 0) {
+//                    IptvServerConnection.LOG.warn("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
+//                } else {
+//                    IptvServerConnection.LOG.info("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
+//                }
+//
+//                streams.streams.forEach { stream: Stream ->
+//                    buffer.write(
+//                        "${stream.prefix}${config.baseUrl}/${username.generateUserToken()}/${stream.path}\n".toByteArray()
+//                    )
+//                }
+//            }
+//        }, userStream)
+//
+//        return sb.toString()
     }
 
     private suspend fun loadInfo(retryNo: Int, expireTime: Long, username: String) {
