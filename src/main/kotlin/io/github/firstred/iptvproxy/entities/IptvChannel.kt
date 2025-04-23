@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.entities
 
 import io.ktor.client.request.*
+import io.ktor.http.Headers
+import io.ktor.http.Parameters
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.OutputStream
@@ -19,10 +21,14 @@ class IptvChannel(
 ) {
     val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
 
-    suspend fun getPlaylist(outputStream: OutputStream, username: String) {
+    suspend fun getPlaylist(
+        outputStream: OutputStream,
+        username: String,
+        additionalHeaders: Headers,
+        additionalParams: Parameters,
+    ) {
         server.withConnection { connection ->
             LOG.info("[{}] loading channel: {}, url: {}", username, name, reference)
-
 
             val response = connection.httpClient.get(url.toString())
         }
