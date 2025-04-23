@@ -1,7 +1,7 @@
-package io.github.firstred.iptvproxy.di
+package io.github.firstred.iptvproxy.di.modules
 
-import io.github.firstred.iptvproxy.IptvUser
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.managers.UserManager
 import org.koin.dsl.module
 

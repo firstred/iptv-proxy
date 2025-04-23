@@ -27,7 +27,7 @@ fun Route.epg() {
 
             call.respondOutputStream {
                 use { output ->
-                    xmltvUtils.xmltvInputStream(compressed = false).use { input -> input.copyTo(output) }
+                    XmltvUtils.xmltvInputStream(compressed = false).use { input -> input.copyTo(output) }
                 }
             }
         }

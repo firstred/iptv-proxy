@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.plugins
 
-import io.github.firstred.iptvproxy.IptvServerConnection
-import io.github.firstred.iptvproxy.di.IptvUsersByName
+import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
+import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.managers.UserManager
 import io.ktor.http.*
 import io.ktor.server.response.*

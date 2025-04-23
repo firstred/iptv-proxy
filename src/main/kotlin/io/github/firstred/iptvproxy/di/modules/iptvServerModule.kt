@@ -1,7 +1,7 @@
-package io.github.firstred.iptvproxy.di
+package io.github.firstred.iptvproxy.di.modules
 
-import io.github.firstred.iptvproxy.IptvServer
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.entities.IptvServer
 import org.koin.dsl.module
 
 class IptvServersByName : LinkedHashMap<String, IptvServer>()

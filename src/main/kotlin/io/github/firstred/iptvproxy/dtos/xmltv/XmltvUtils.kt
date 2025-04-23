@@ -20,71 +20,71 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
 
 class XmltvUtils {
-    private val LOG: Logger = LoggerFactory.getLogger(XmltvUtils::class.java)
-
-    fun parseXmltv(data: InputStreamReader): XmltvDoc {
-        return xml.decodeFromReader<XmltvDoc>(xmlStreaming.newReader(data))
-    }
-
-    fun parseXmltv(data: InputStream): XmltvDoc {
-        return xml.decodeFromReader<XmltvDoc>(xmlStreaming.newReader(InputStreamReader(data, UTF_8)))
-    }
-
-    @Deprecated("Use parseXmltv(data: InputStream) instead")
-    fun parseXmltv(data: ByteArray): XmltvDoc {
-        val input = InputStreamReader(ByteArrayInputStream(data), UTF_8)
-        return parseXmltv(input)
-    }
-
-    @Throws(IOException::class)
-    fun xmltvInputStream(
-        compressed: Boolean = true,
-        file: File = getCachedXmltvFile(compressed = true),
-    ): InputStream {
-        val inputStream = file.inputStream()
-        val peekInputStream = File(file.toURI()).inputStream()
-        val data = peekInputStream.use { it.readNBytes(2) }
-        val isFileCompressed = data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()
-
-        if (compressed && !isFileCompressed) {
-            val pipedOutputStream = PipedOutputStream()
-            val pipedInputStream = PipedInputStream(pipedOutputStream)
-
-            val gzipOutput = GZIPOutputStream(pipedOutputStream, true)
-            inputStream.use { it.copyTo(gzipOutput) }
-
-            return pipedInputStream
-        } else if (!compressed && isFileCompressed) {
-            return GZIPInputStream(inputStream)
-        }
-
-        return inputStream
-    }
-
-    fun writeXmltv(
-        xmltv: XmltvDoc,
-        compressed: Boolean = true,
-        output: OutputStream = getCachedXmltvFile(compressed).outputStream(),
-    ) {
-        try {
-            val outputStream = if (compressed) {
-                GZIPOutputStream(output, true).bufferedWriter()
-            } else {
-                output.bufferedWriter()
-            }
-            outputStream.use {
-                outputStream.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n")
-
-                val writer = XmlStreaming.newWriter(outputStream)
-                xml.encodeToWriter(writer, XmltvDoc.serializer(), xmltv)
-            }
-        } catch (e: IOException) {
-            LOG.error("error serializing EPG data", e)
-            throw RuntimeException(e)
-        }
-    }
-
     companion object {
+        private val LOG: Logger = LoggerFactory.getLogger(XmltvUtils::class.java)
+
+        fun parseXmltv(data: InputStreamReader): XmltvDoc {
+            return xml.decodeFromReader<XmltvDoc>(xmlStreaming.newReader(data))
+        }
+
+        fun parseXmltv(data: InputStream): XmltvDoc {
+            return xml.decodeFromReader<XmltvDoc>(xmlStreaming.newReader(InputStreamReader(data, UTF_8)))
+        }
+
+        @Deprecated("Use parseXmltv(data: InputStream) instead")
+        fun parseXmltv(data: ByteArray): XmltvDoc {
+            val input = InputStreamReader(ByteArrayInputStream(data), UTF_8)
+            return parseXmltv(input)
+        }
+
+        @Throws(IOException::class)
+        fun xmltvInputStream(
+            compressed: Boolean = true,
+            file: File = getCachedXmltvFile(compressed = true),
+        ): InputStream {
+            val inputStream = file.inputStream()
+            val peekInputStream = File(file.toURI()).inputStream()
+            val data = peekInputStream.use { it.readNBytes(2) }
+            val isFileCompressed = data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()
+
+            if (compressed && !isFileCompressed) {
+                val pipedOutputStream = PipedOutputStream()
+                val pipedInputStream = PipedInputStream(pipedOutputStream)
+
+                val gzipOutput = GZIPOutputStream(pipedOutputStream, true)
+                inputStream.use { it.copyTo(gzipOutput) }
+
+                return pipedInputStream
+            } else if (!compressed && isFileCompressed) {
+                return GZIPInputStream(inputStream)
+            }
+
+            return inputStream
+        }
+
+        fun writeXmltv(
+            xmltv: XmltvDoc,
+            compressed: Boolean = true,
+            output: OutputStream = getCachedXmltvFile(compressed).outputStream(),
+        ) {
+            try {
+                val outputStream = if (compressed) {
+                    GZIPOutputStream(output, true).bufferedWriter()
+                } else {
+                    output.bufferedWriter()
+                }
+                outputStream.use {
+                    outputStream.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n")
+
+                    val writer = XmlStreaming.newWriter(outputStream)
+                    xml.encodeToWriter(writer, XmltvDoc.serializer(), xmltv)
+                }
+            } catch (e: IOException) {
+                LOG.error("error serializing EPG data", e)
+                throw RuntimeException(e)
+            }
+        }
+
         fun getCachedXmltvFile(compressed: Boolean = true): File {
             return File(config.getCacheDirectory() + "/xmltv.xml" + if (compressed) ".gz" else "")
         }

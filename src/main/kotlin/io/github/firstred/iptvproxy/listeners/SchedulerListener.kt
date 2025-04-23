@@ -1,18 +1,20 @@
-package io.github.firstred.iptvproxy
+package io.github.firstred.iptvproxy.listeners
 
+import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnStartHook
+import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
-class IptvUpdateScheduler : KoinComponent {
-    private val scheduledExecutorService: ScheduledExecutorService by inject()
+class SchedulerListener : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook {
+    private val scheduledExecutorService: ScheduledExecutorService  by inject()
     private val channelManager: ChannelManager by inject()
 
-    fun start() {
+    override fun onApplicationStartHook() {
         LOG.info("Scheduler starting")
 
         scheduleUpdateChannels()
@@ -20,7 +22,7 @@ class IptvUpdateScheduler : KoinComponent {
         LOG.info("Scheduler started")
     }
 
-    fun stop() {
+    override fun onApplicationTerminateHook() {
         LOG.info("Scheduler stopping")
 
         try {
@@ -55,6 +57,6 @@ class IptvUpdateScheduler : KoinComponent {
     }
 
     companion object {
-        private val LOG: Logger = LoggerFactory.getLogger(IptvUpdateScheduler::class.java)
+        private val LOG = LoggerFactory.getLogger(SchedulerListener::class.java)
     }
 }

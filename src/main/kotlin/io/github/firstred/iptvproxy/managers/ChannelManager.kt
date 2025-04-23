@@ -1,20 +1,21 @@
 package io.github.firstred.iptvproxy.managers
 
-import io.github.firstred.iptvproxy.IptvChannel
-import io.github.firstred.iptvproxy.IptvServer
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.di.IptvChannelsByReference
-import io.github.firstred.iptvproxy.di.IptvServersByName
+import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
+import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvIcon
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
+import io.github.firstred.iptvproxy.entities.IptvChannel
+import io.github.firstred.iptvproxy.entities.IptvServer
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
-import io.github.firstred.iptvproxy.events.EventBus
+import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
+import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.generateUserToken
 import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.pathSignature
@@ -34,8 +35,6 @@ import java.util.regex.Pattern
 class ChannelManager : KoinComponent {
     private val serversByName: IptvServersByName by inject()
     private val channelsByReference: IptvChannelsByReference by inject()
-    private val xmltvUtils: XmltvUtils by inject()
-    private val eventBus: EventBus by inject()
 
     fun updateChannels() {
         LOG.info("Updating channels")
@@ -63,7 +62,7 @@ class ChannelManager : KoinComponent {
 
                 xmltvLoads[server]?.let { inputStream ->
                     LOG.info("Parsing xmltv data")
-                    inputStream.use { xmltv = xmltvUtils.parseXmltv(it) }
+                    inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
                 }
             }
 
@@ -175,6 +174,7 @@ class ChannelManager : KoinComponent {
                             groups = m3uChannel.groups,
                             xmltvId = xmltvId.toString(),
                             catchupDays = days,
+                            url = URI.create(m3uChannel.url),
                             server = server,
                         )
                     })
@@ -196,13 +196,13 @@ class ChannelManager : KoinComponent {
         }
 
         // Write new XMLTV file
-        xmltvUtils.writeXmltv(newXmltv)
+        XmltvUtils.writeXmltv(newXmltv)
 
         // Update channels list
         channelsByReference.clear()
         channelsByReference.putAll(newChannelsByReference)
 
-        eventBus.dispatch(ChannelsUpdatedEvent())
+        dispatchHook(HasOnApplicationEventHook::class, ChannelsUpdatedEvent())
 
         LOG.info("{} channels updated", channelsByReference.size)
     }
@@ -245,6 +245,7 @@ class ChannelManager : KoinComponent {
     fun getChannelPlaylist(channelId: String): String
     {
         TODO()
+
 //        return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId")).getPlaylist()
     }
 

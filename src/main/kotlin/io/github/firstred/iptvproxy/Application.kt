@@ -5,14 +5,13 @@ import com.charleskorn.kaml.YamlException
 import com.github.ajalt.clikt.core.CliktCommand
 import io.github.cdimascio.dotenv.Dotenv
 import io.github.cdimascio.dotenv.dotenv
-import io.github.firstred.iptvproxy.di.appModule
+import io.github.firstred.iptvproxy.di.modules.appModule
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyConfig
 import io.github.firstred.iptvproxy.plugins.appMicrometerRegistry
 import io.github.firstred.iptvproxy.plugins.configureRouting
-import io.github.firstred.iptvproxy.plugins.configureScheduler
-import io.github.firstred.iptvproxy.plugins.init
 import io.github.firstred.iptvproxy.plugins.installHealthCheckRoute
 import io.github.firstred.iptvproxy.plugins.installMetricsRoute
+import io.github.firstred.iptvproxy.plugins.lifecycleHooks
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
 import io.ktor.server.application.*
@@ -36,7 +35,6 @@ lateinit var config: IptvProxyConfig
 lateinit var dotenv: Dotenv
 
 private val LOG: Logger = LoggerFactory.getLogger(Application::class.java)
-
 
 fun main(args: Array<String>) {
     try {
@@ -114,12 +112,11 @@ private fun startServer() {
                     deflate { priority = .3 }
                 }
 
-                init()
-
-                configureScheduler()
                 configureRouting()
                 installHealthCheckRoute()
                 installMetricsRoute()
+
+                lifecycleHooks()
             }
         },
         configure = {

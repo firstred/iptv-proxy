@@ -1,14 +1,15 @@
-package io.github.firstred.iptvproxy.di
+package io.github.firstred.iptvproxy.di.modules
 
+import io.github.firstred.iptvproxy.di.httpClientModule
 import org.koin.dsl.module
 
 val appModule = module {
     includes(
         coreModule,
-        schedulerModule,
         httpClientModule,
         userModule,
         iptvServerModule,
         channelModule,
+        listenersModule,
     )
 }

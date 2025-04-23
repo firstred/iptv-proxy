@@ -1,54 +1,39 @@
-package io.github.firstred.iptvproxy
+package io.github.firstred.iptvproxy.entities
 
-import io.github.firstred.iptvproxy.utils.generateUserToken
-import io.ktor.server.routing.*
-import io.ktor.utils.io.core.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.InputStream
+import java.io.OutputStream
+import java.net.URI
 import java.util.*
-import java.util.concurrent.TimeUnit
-import kotlin.text.toByteArray
 
 class IptvChannel(
     val reference: String,
     val name: String,
     val logo: String,
     val xmltvId: String,
+    val url: URI,
     val catchupDays: Int,
     val server: IptvServer,
     groups: Collection<String>,
 ) {
     val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
 
-    suspend fun retrieveChannelPlaylist(): InputStream {
-        TODO()
-//        LOG.info("[{}] channel: {}",  username, id)
-//        val startNanos = System.nanoTime()
+    suspend fun getPlaylist(outputStream: OutputStream, username: String) {
+//        server.withConnection { connection ->
+//            LOG.info("[{}] loading channel: {}, url: {}", username, name, reference)
 //
-//        val sb = StringBuilder()
 //
-//        loadCachedInfo({ streams: Streams?, statusCode: Int, retryNo: Int ->
-//            if (streams == null) {
-//                IptvServerConnection.LOG.warn("[{}] error loading streams info: {}, retries: {}", username, statusCode, retryNo)
-//                throw RuntimeException("error loading streams info")
-//            } else {
-//                val duration = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
-//                if (duration > 500 || retryNo > 0) {
-//                    IptvServerConnection.LOG.warn("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
+//            connection.httpClient.request() { request ->
+//                request.headers["User-Agent"] = "TiviMate/5.1.6 (Android 12)"
+//            }.use { response ->
+//                if (response.status.value == 200) {
+//                    response.bodyAsChannel().copyTo(outputStream)
 //                } else {
-//                    IptvServerConnection.LOG.info("[{}] channel success: {}ms, retries: {}", username, duration, retryNo)
-//                }
-//
-//                streams.streams.forEach { stream: Stream ->
-//                    buffer.write(
-//                        "${stream.prefix}${config.baseUrl}/${username.generateUserToken()}/${stream.path}\n".toByteArray()
-//                    )
+//                    LOG.warn("[{}] failed to load channel: {}, url: {}, status: {}", username, name, reference, response.status.value)
 //                }
 //            }
-//        }, userStream)
 //
-//        return sb.toString()
+//        }
     }
 
     private suspend fun loadInfo(retryNo: Int, expireTime: Long, username: String) {
@@ -174,6 +159,8 @@ class IptvChannel(
 //            }
 //        }
     }
+
+    fun isHls(): Boolean = url.toString().endsWith(".m3u8") || url.toString().endsWith(".m3u")
 
     companion object {
         private val LOG: Logger = LoggerFactory.getLogger(IptvChannel::class.java)

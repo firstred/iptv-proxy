@@ -1,8 +1,8 @@
 package io.github.firstred.iptvproxy.managers
 
-import io.github.firstred.iptvproxy.IptvUser
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.di.IptvUsersByName
+import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
+import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.utils.hash
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject

@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.dtos.config
 
-import io.github.firstred.iptvproxy.IptvServer
-import io.github.firstred.iptvproxy.IptvServerConnection
+import io.github.firstred.iptvproxy.entities.IptvServer
+import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
 import kotlinx.serialization.Serializable
 import java.util.regex.Pattern
