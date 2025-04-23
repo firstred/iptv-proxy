@@ -40,22 +40,4 @@ fun Route.icon() {
             }
         }
     }
-
-    get("test-bytes") {
-        if (isNotMainEndpoint()) return@get
-
-        httpClient.request {
-            url("https://httpbin.org/bytes/40880")
-            method = HttpMethod.Get
-        }.let { response ->
-            call.response.headers.apply {
-                response.contentLength()?.let { append(HttpHeaders.ContentLength, it.toString()) }
-                response.contentType()?.let { append(HttpHeaders.ContentType, it.toString()) }
-            }
-
-            call.respondBytesWriter { use {
-                response.bodyAsChannel().copyAndClose(this)
-            } }
-        }
-    }
 }
