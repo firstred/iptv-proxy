@@ -142,7 +142,7 @@ class ChannelManager : KoinComponent {
 
                             val pathSignature = uri.path.pathSignature()
 
-                            logo = "${config.baseUrl}/${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
+                            logo = "${config.baseUrl}${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
                         }
 
                         var days = 0
