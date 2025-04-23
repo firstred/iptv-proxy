@@ -120,6 +120,18 @@ if ((localProperties["sentry.auth.token"] as String).isNotEmpty()) sentry {
     // code as part of your stack traces in Sentry.
     includeSourceContext = true
 
+    // Includes the source code of native code when uploading native symbols for Sentry.
+    // This executes sentry-cli with the --include-sources param. automatically so
+    // you don't need to do it manually. This only works with uploadNativeSymbols enabled.
+    //
+    // Default is disabled.
+    includeNativeSources = true
+    // Enables the automatic configuration of Native Symbols for Sentry.
+    // This executes sentry-cli automatically so you don't need to do it manually.
+    //
+    // Default is disabled.
+    uploadNativeSymbols = true
+
     org = localProperties["sentry.org"].toString()
     projectName = localProperties["sentry.project"].toString()
     authToken = localProperties["sentry.auth.token"].toString()
