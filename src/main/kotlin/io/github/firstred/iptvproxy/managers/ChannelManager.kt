@@ -8,13 +8,16 @@ import io.github.firstred.iptvproxy.di.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
+import io.github.firstred.iptvproxy.dtos.xmltv.XmltvIcon
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
 import io.github.firstred.iptvproxy.events.EventBus
 import io.github.firstred.iptvproxy.parsers.M3uParser
+import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.generateUserToken
 import io.github.firstred.iptvproxy.utils.hash
+import io.github.firstred.iptvproxy.utils.pathSignature
 import kotlinx.datetime.Clock
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -24,6 +27,8 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import java.net.URI
+import java.net.URISyntaxException
 import java.util.regex.Pattern
 
 class ChannelManager : KoinComponent {
@@ -118,6 +123,29 @@ class ChannelManager : KoinComponent {
                             xmltvCh.icon?.src?.let { logo = it }
                         }
 
+                        // Redirect logo URI
+                        logo?.let {
+                            // Find basename and extension of image URL with regex
+                            val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
+                            val matchResult = regex.find(it)
+                            val basename = matchResult?.groups?.get("basename")?.value ?: "logo"
+                            val extension = matchResult?.groups?.get("extension")?.value ?: "png"
+
+                            val newUrl = "${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}"
+
+                            val uri = try {
+                                URI.create(newUrl)
+                            } catch (e: URISyntaxException) {
+                                buildNewLogoURI(it, extension)
+                            } catch (e: IllegalArgumentException) {
+                                buildNewLogoURI(it, extension)
+                            } ?: return
+
+                            val pathSignature = uri.path.pathSignature()
+
+                            logo = "${newUrl.substringBeforeLast('/')}/$pathSignature/${newUrl.substringAfterLast('/')}"
+                        }
+
                         var days = 0
                         var daysStr = m3uChannel.props["tvg-rec"]
                         if (daysStr == null) {
@@ -135,7 +163,7 @@ class ChannelManager : KoinComponent {
                         if (xmltvId != null) {
                             val newId = (server.name + '-' + xmltvId).hash()
                             if (xmltvIds.putIfAbsent(xmltvId, newId) == null) {
-                                newXmltv.channels?.add(xmltvCh!!.copy(id = newId))
+                                newXmltv.channels?.add(xmltvCh!!.copy(id = newId, icon = logo?.let { XmltvIcon(it) }))
                             }
                             xmltvId = newId
                         }
@@ -178,6 +206,18 @@ class ChannelManager : KoinComponent {
 
         LOG.info("{} channels updated", channelsByReference.size)
     }
+
+    private fun buildNewLogoURI(it: String, extension: String): URI? = URI.create(
+        "${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
+            "jpg"  -> "jpeg"
+            "jpeg" -> "jpg"
+            "gif"  -> "gif"
+            "png"  -> "png"
+            "webp" -> "webp"
+            "avif" -> "avif"
+            else   -> "png"
+        }
+    )
 
     private fun loadXmltv(server: IptvServer): InputStream {
         return File("epg_orig.xml").inputStream()

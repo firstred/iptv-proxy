@@ -17,6 +17,8 @@ koin-bom = "4.1.0-Beta7"
 slf4j = "2.0.16"
 logback = "1.5.18"
 janino = "3.1.12"
+
+apache-commons-codec = "1.18.0"
 apache-commons-io = "2.19.0"
 apache-commons-text = "1.13.1"
 
@@ -79,6 +81,7 @@ dotenv = { module  = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv"
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 
+apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
 apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text"}
 

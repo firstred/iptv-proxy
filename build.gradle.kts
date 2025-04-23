@@ -140,6 +140,7 @@ dependencies {
     implementation(libs.ipaddress)
 
     // commons
+    implementation(libs.apache.commons.codec)
     implementation(libs.apache.commons.io)
     implementation(libs.apache.commons.text)
 

@@ -35,10 +35,10 @@ val httpClientModule = module {
     }
 
     // Client used to retrieve icons
-    single<HttpClient> {
+    single<HttpClient>(named("icon")) {
         HttpClient(OkHttp) {
             defaults()
-            okHttpConfig()
+            okHttpConfig(maxRequestsPerHost = 64)
 
             install(HttpCache) {
                 publicStorage(FileStorage(File(config.getHttpCacheDirectory("icons"))))
@@ -55,21 +55,7 @@ val httpClientModule = module {
             }
         }
     }
-
-    config.servers.forEach { playlistConfig -> playlistConfig.accounts?.forEachIndexed { idx, connection ->
-        // Clients used for channel playlist files - referred to as `servers[].info_*` in the configuration
-        single<HttpClient>(named("server-${playlistConfig.name}-$idx")) {
-            HttpClient(OkHttp) {
-                defaults()
-
-                install(ContentEncoding) {
-                    deflate(.9f)
-                    gzip(.8f)
-                }
-            }
-        }
-    }
-} }
+}
 
 private fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
     val okDispatcher = Dispatcher()
