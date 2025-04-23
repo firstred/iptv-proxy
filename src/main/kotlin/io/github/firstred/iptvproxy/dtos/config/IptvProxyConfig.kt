@@ -33,6 +33,8 @@ data class IptvProxyConfig(
 
     val tmpDirectory: String? = System.getProperty("java.io.tmpdir"),
 
+    val cors: IptvProxyCorsConfig = IptvProxyCorsConfig(),
+
     val sentry: IptvProxyConfigSentry? = null,
 ) {
     private fun getTempDirectory(): String {

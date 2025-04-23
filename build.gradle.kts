@@ -175,6 +175,7 @@ dependencies {
     implementation(libs.ktor.client.engine.okhttp)
     implementation(libs.ktor.client.logging)
 
+    implementation(libs.ktor.server.autoHeadResponse)
     implementation(libs.ktor.server.callLogging)
     implementation(libs.ktor.server.compression)
     implementation(libs.ktor.server.core)

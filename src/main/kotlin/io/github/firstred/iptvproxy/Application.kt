@@ -14,12 +14,15 @@ import io.github.firstred.iptvproxy.plugins.installMetricsRoute
 import io.github.firstred.iptvproxy.plugins.lifecycleHooks
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
+import io.ktor.http.HttpMethod
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.metrics.micrometer.*
+import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
+import io.ktor.server.plugins.cors.routing.CORS
 import io.sentry.Sentry
 import org.apache.commons.text.StringSubstitutor
 import org.koin.ktor.plugin.Koin
@@ -98,6 +101,7 @@ private fun startServer() {
                     slf4jLogger()
                     modules(appModule)
                 }
+                install(AutoHeadResponse)
                 install(CallLogging) {
                     logger = LOG
                     level = Level.INFO
@@ -110,6 +114,28 @@ private fun startServer() {
                 install(Compression) {
                     gzip { priority = .5 }
                     deflate { priority = .3 }
+                }
+                if (config.cors.enabled) install(CORS) {
+                    allowCredentials = config.cors.allowCredentials
+                    allowNonSimpleContentTypes = true
+                    config.cors.allowHeaders.forEach { allowHeader(it) }
+                    config.cors.allowHeaderPrefixes.forEach { allowHeadersPrefixed(it) }
+                    config.cors.allowMethods.forEach { allowMethod(when(it) {
+                        "GET"     -> HttpMethod.Get
+                        "POST"    -> HttpMethod.Post
+                        "PUT"     -> HttpMethod.Put
+                        "DELETE"  -> HttpMethod.Delete
+                        "OPTIONS" -> HttpMethod.Options
+                        "HEAD"    -> HttpMethod.Head
+                        else      -> throw IllegalArgumentException("Invalid CORS allow method in configuration: $it")
+                    }) }
+                    config.cors.exposeHeaders.forEach { exposeHeader(it) }
+                    maxAgeInSeconds = config.cors.maxAgeInSeconds
+                    if (config.cors.allowOrigins.contains("*")) {
+                        anyHost()
+                    } else {
+                        config.cors.allowOrigins.forEach { allowHost(it) }
+                    }
                 }
 
                 configureRouting()

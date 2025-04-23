@@ -42,6 +42,25 @@ scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist
 sort_channels: false
 socks_proxy: null # socks5://<username>:<password>@server_host:port
 http_proxy: null # http://<username>:<password>@server_host:port
+cors: # Configure CORS response from the server - e.g. for direct access to the API from a web browser
+  enabled: true
+  allow_origins: ["*"]
+  allow_headers:
+    - "Content-Type"
+    - "Authorization"
+    - "X-Requested-With"
+    - "Accept"
+    - "Origin"
+    - "User-Agent"
+  allow_header_prefixes:
+    - "X-Custom-"
+  allow_methods:
+    - GET
+    - OPTIONS
+  allow_credentials: true
+  max_age: 3600
+  expose_headers:
+    - "X-Total-Count"
 servers:
   - name: someiptv-1
     connections:
