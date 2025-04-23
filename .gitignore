@@ -9,6 +9,7 @@ public/
 .kotlin/
 .env
 *.m3u8
+gradle.properties
 local.properties
 config.yml
 *_orig.xml
