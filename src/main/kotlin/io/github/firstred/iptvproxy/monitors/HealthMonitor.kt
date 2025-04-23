@@ -22,8 +22,12 @@ class HealthMonitor : KoinComponent, HasOnApplicationEventHook {
     }
 
     override fun <T : Any> onApplicationEvent(event: T) {
-        if (event is ChannelsUpdatedEvent) {
-            channelsAvailable = true
+        println(event)
+
+        when (event) {
+            is ChannelsUpdatedEvent -> {
+                channelsAvailable = true
+            }
         }
     }
 }

@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.di
+package io.github.firstred.iptvproxy.di.modules
 
 import io.github.firstred.iptvproxy.config
 import io.ktor.client.*

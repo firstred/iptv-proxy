@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.di.modules
+package io.github.firstred.iptvproxy.di
 
 import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnStartHook

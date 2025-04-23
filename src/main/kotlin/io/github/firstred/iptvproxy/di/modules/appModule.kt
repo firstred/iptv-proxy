@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.di.modules
 
-import io.github.firstred.iptvproxy.di.httpClientModule
 import org.koin.dsl.module
 
 val appModule = module {
@@ -10,6 +9,5 @@ val appModule = module {
         userModule,
         iptvServerModule,
         channelModule,
-        listenersModule,
     )
 }

@@ -14,6 +14,8 @@ import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServer
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
 import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnStartHook
+import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook
@@ -31,14 +33,17 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
+import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import kotlin.text.Charsets.UTF_8
 
-class ChannelManager : KoinComponent {
+class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook {
     private val serversByName: IptvServersByName by inject()
     private val channelsByReference: IptvChannelsByReference by inject()
+    private val scheduledExecutorService: ScheduledExecutorService by inject()
 
-    fun updateChannels() {
+    private fun updateChannels() {
         LOG.info("Updating channels")
 
         val newChannelsByReference = IptvChannelsByReference()
@@ -307,6 +312,48 @@ class ChannelManager : KoinComponent {
         val outputStream = ByteArrayOutputStream()
         getAllChannelsPlaylist(outputStream, username)
         return outputStream.toString("UTF-8")
+    }
+
+    override fun onApplicationStartHook() {
+        LOG.info("Scheduler starting")
+
+        scheduleUpdateChannels()
+
+        LOG.info("Scheduler started")
+    }
+
+    override fun onApplicationTerminateHook() {
+        LOG.info("Scheduler stopping")
+
+        try {
+            scheduledExecutorService.shutdownNow()
+            if (!scheduledExecutorService.awaitTermination(1, TimeUnit.MINUTES)) {
+                LOG.warn("Scheduler is still running...")
+                scheduledExecutorService.shutdownNow()
+            }
+        } catch (e: InterruptedException) {
+            LOG.error("Interrupted while stopping scheduler")
+        }
+
+        LOG.info("Scheduler stopped")
+    }
+
+    private fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
+        scheduledExecutorService.schedule(
+            Thread {
+                try {
+                    updateChannels()
+                    scheduleUpdateChannels(config.updateInterval.inWholeMinutes)
+                } catch (e: InterruptedException) {
+                    LOG.info("Scheduler interrupted while updating channels", e)
+                } catch (e: Exception) {
+                    LOG.error("Error while updating channels", e)
+                    scheduleUpdateChannels(1)
+                }
+            },
+            delay,
+            unit,
+        )
     }
 
     companion object {
