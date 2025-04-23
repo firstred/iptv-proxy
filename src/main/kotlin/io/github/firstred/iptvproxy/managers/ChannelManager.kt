@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.managers
 
+import java.net.URLDecoder
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
@@ -31,6 +32,7 @@ import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
 import java.util.regex.Pattern
+import kotlin.text.Charsets.UTF_8
 
 class ChannelManager : KoinComponent {
     private val serversByName: IptvServersByName by inject()
@@ -127,13 +129,11 @@ class ChannelManager : KoinComponent {
                             // Find basename and extension of image URL with regex
                             val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
                             val matchResult = regex.find(it)
-                            val basename = matchResult?.groups?.get("basename")?.value ?: "logo"
-                            val extension = matchResult?.groups?.get("extension")?.value ?: "png"
-
-                            val newUrl = "${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}"
+                            val basename = URLDecoder.decode(matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()).filterNot { it.isWhitespace() }
+                            val extension = URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }
 
                             val uri = try {
-                                URI.create(newUrl)
+                                URI.create("${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}")
                             } catch (e: URISyntaxException) {
                                 buildNewLogoURI(it, extension)
                             } catch (e: IllegalArgumentException) {
@@ -142,7 +142,7 @@ class ChannelManager : KoinComponent {
 
                             val pathSignature = uri.path.pathSignature()
 
-                            logo = "${newUrl.substringBeforeLast('/')}/$pathSignature/${newUrl.substringAfterLast('/')}"
+                            logo = "${config.baseUrl}/${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
                         }
 
                         var days = 0
