@@ -1,42 +1,85 @@
 [versions]
+kotlin = "2.1.20"
+kotlin-coroutines = "1.10.2"
+kotlinx-datetime = "0.4.0"
+kotlinx-serialization-json = "1.8.0"
+kotlinx-serialization-yaml = "0.77.0"
+kotlinx-serialization-xml = "0.91.0"
+kotlinx-io = "0.7.0"
+sentry = "3.12.0"
 shadow = "8.1.1"
 versions = "0.51.0"
 versionsFilter = "0.1.16"
-kotlin = "2.1.20"
-jib = "3.4.0"
+jib = "3.4.5"
 ktor = "3.1.2"
+koin-bom = "4.1.0-Beta7"
 
 slf4j = "2.0.16"
 logback = "1.5.18"
 janino = "3.1.12"
+apache-commons-io = "2.19.0"
+apache-commons-text = "1.13.1"
 
-undertow = "2.3.18.Final"
-snakeYaml = "2.3"
-jackson = "2.18.2"
+dotenv = "6.5.1"
+ipaddress = "5.5.1"
+clikt = "4.3.0"
+prometheus = "1.14.6"
+
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+sentry = { id = "io.sentry.jvm.gradle", version.ref = "sentry" }
 
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
 shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
 versionsFilter = { id = "se.ascp.gradle.gradle-versions-filter", version.ref = "versionsFilter" }
 
-
 [libraries]
+kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
+kotlinx-io = { module ="org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
+kotlinx-serialization-yaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kotlinx-serialization-yaml" }
+kotlinx-serialization-xml = { module = "io.github.pdvrieze.xmlutil:serialization", version.ref = "kotlinx-serialization-xml" }
+kotlinx-serialization-xml-core = { module = "io.github.pdvrieze.xmlutil:core", version.ref = "kotlinx-serialization-xml" }
+
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
 slf4j-log4j = { module = "org.slf4j:log4j-over-slf4j", version.ref = "slf4j" }
 slf4j-jul = { module = "org.slf4j:jul-to-slf4j", version.ref = "slf4j" }
 slf4j-jcl = { module = "org.slf4j:jcl-over-slf4j", version.ref = "slf4j" }
 logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 janino = { module = "org.codehaus.janino:janino", version.ref = "janino" }
-ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
-ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
-kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version = "1.10.2" }
 
-undertow = { module = "io.undertow:undertow-core", version.ref = "undertow" }
-snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeYaml" }
-jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
-jackson-datatype-jsr310 = { module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310", version.ref = "jackson" }
-jackson-dataformat-yaml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml", version.ref = "jackson" }
-jackson-dataformat-xml = { module = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml", version.ref = "jackson" }
+ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
+ktor-client-contentNegotiation-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
+ktor-client-contentNegotiation-xml = { module = "io.ktor:ktor-serialization-kotlinx-xml", version.ref = "ktor" }
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-encoding = { module = "io.ktor:ktor-client-encoding", version.ref = "ktor" }
+ktor-client-engine-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
+ktor-client-engine-okhttp = { module = "io.ktor:ktor-client-okhttp-jvm", version.ref = "ktor" }
+ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "ktor" }
+
+ktor-server-callLogging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
+ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
+ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
+ktor-server-defaultHeaders = { module = "io.ktor:ktor-server-default-headers", version.ref = "ktor" }
+ktor-server-engine-cio = { module = "io.ktor:ktor-server-cio-jvm", version.ref = "ktor" }
+ktor-server-metrics-micrometer = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
+micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "prometheus" }
+
+koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
+koin-core = { module = "io.insert-koin:koin-core" }
+koin-ktor = { module = "io.insert-koin:koin-ktor3" }
+koin-logger = { module = "io.insert-koin:koin-logger-slf4j" }
+
+dotenv = { module  = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
+clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
+ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
+
+apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
+apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text"}
+
+

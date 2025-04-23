@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.m3u
 
-import io.github.firstred.iptvproxy.m3u.M3uParser.parse
+import io.github.firstred.iptvproxy.parsers.M3uParser.parse
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.nio.file.Files

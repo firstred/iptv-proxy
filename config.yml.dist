@@ -1,47 +1,74 @@
-host: 127.0.0.1
-port: 8080
-base_url: http://127.0.0.1:8080
-forwarded_pass: password
-token_salt: 6r8bt67ta5e87tg7afn
-channels_timeout_sec: 5
-channels_total_timeout_sec: 60
-channels_retry_delay_ms: 1000
-xmltv_timeout_sec: 30
-xmltv_total_timeout_sec: 120
-xmltv_retry_delay_ms: 1000
-sort_channels: true
-use_http2: false
+x-default-timeouts: &default-timeouts
+  connect_milliseconds: 5_000
+  socket_milliseconds: 60_000
+  total_milliseconds: 300_000
+  retry_delay_milliseconds: 1_000
+  max_retries: 3
+
+x-channel-playlist-timeouts: &channel-playlist-timeouts
+  connect_milliseconds: 5_000
+  socket_milliseconds: 60_000
+  total_milliseconds: 300_000
+  retry_delay_milliseconds: 1_000
+  max_retries: 3
+
+x-vod-timeouts: &vod-timeouts
+  connect_milliseconds: 3_000
+  socket_milliseconds: 10_000
+  total_milliseconds: 30_000
+  retry_delay_milliseconds: 1_000
+  max_retries: 3
+
+x-stream-timeouts: &stream-timeouts
+  connect_milliseconds: 2_000
+  socket_milliseconds: 5_000
+  total_milliseconds: 10_000
+  retry_delay_milliseconds: 1_000
+  max_retries: 3
+
+host: 127.0.0.1 # IPv4 or IPv6 address to bind to, use `::` (dual-stack) or `0.0.0.0` (IPv4 only) to bind to all interfaces
+port: ${PORT:-8080}
+base_url: http://127.0.0.1:8888
+app_secret: "Changeme!"
+log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
+timeouts:
+  playlist: *default-timeouts
+  epg: *default-timeouts
+  icon: *default-timeouts
+max_requests_per_host: 1 # Max requests per hosts when requesting playlists and EPG
+client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
+update_interval: PT6H
+scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG
+sort_channels: false
+socks_proxy: null # socks5://<username>:<password>@server_host:port
+http_proxy: null # http://<username>:<password>@server_host:port
 servers:
   - name: someiptv-1
     connections:
       - url: https://someiptv.com/playlist.m3u
-        max_connections: 1
-  - name: someiptv-2
-    connections:
-      - url: https://iptv-proxy.example.com/playlist.m3u
-        max_connections: 4
-      - url: https://iptv-proxy.example.com/playlist2.m3u
-        max_connections: 2
-        login: mylogin
-        password: mypassword
-    xmltv_url: https://epg.example.com/epg.xml.gz
-    xmltv_before: p5d
-    xmltv_after: p1d
+        xtream_code: 1234567890abcdef # Xtream code
+        max_user_connections: 3
+        max_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+      - url: https://someiptv.com/playlist.m3u
+        login: account # HTTP Basic Auth login
+        password: password # HTTP Basic Auth password
+        max_user_connections: 3
+        max_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+    epg_url: https://epg.example.com/epg.xml.gz
+    epg_before: P5D
+    epg_after: P1D
     send_user: true
     proxy_stream: true
-    channel_failed_ms: 1000
-    info_timeout_ms: 1000
-    info_total_timeout_ms: 2000
-    info_retry_delay_ms: 100
-    catchup_timeout_ms: 1000
-    catchup_total_timeout_ms: 2000
-    catchup_retry_delay_ms: 100
-    stream_start_timeout_ms: 1000
-    stream_read_timeout_ms: 1000
-    group_filters:
-      - 'movies'
-      - 'vid.*'
-allow_anonymous: false
+    timeouts:
+      playlist: *channel-playlist-timeouts
+      catchup: *vod-timeouts
+      vod: *vod-timeouts
+      stream: *stream-timeouts
 users:
-  - 65182_login1
-  - 97897_login2
+  - username: 12345
+    password: login1
+    max_connections: 4 # Default is 1
+  - username: 123456
+    password: login2
+  - username: 1234567
+    password: login3

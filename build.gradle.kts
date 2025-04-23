@@ -6,6 +6,8 @@ plugins {
     java
     application
     alias(libs.plugins.kotlin)
+    alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.sentry)
     alias(libs.plugins.shadow)
     alias(libs.plugins.jib)
     alias(libs.plugins.versions)
@@ -16,10 +18,10 @@ val localProperties = Properties()
 localProperties.load(FileInputStream(rootProject.file("local.properties")))
 
 group = "io.github.firstred"
-version = "0.2.0"
+version = "0.3.0"
 
 application {
-    mainClass.set("$group.iptvproxy.App")
+    mainClass.set("$group.iptvproxy.ApplicationKt")
 
     val isDevelopment: Boolean = project.ext.has("development")
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
@@ -65,6 +67,17 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
     from {
         image = "docker.io/bellsoft/liberica-openjdk-alpine"
         version = "21"
+
+        platforms {
+            platform {
+                architecture = "amd64"
+                os = "linux"
+            }
+            platform {
+                architecture = "arm64"
+                os = "linux"
+            }
+        }
     }
     container {
         labels = mapOf(
@@ -101,6 +114,17 @@ configurations.forEach {
     it.exclude("javax.activation", "activation")
 }
 
+if ((localProperties["sentry.auth.token"] as String).isNotEmpty()) sentry {
+    // Generates a JVM (Java, Kotlin, etc.) source bundle and uploads your source code to Sentry.
+    // This enables source context, allowing you to see your source
+    // code as part of your stack traces in Sentry.
+    includeSourceContext = true
+
+    org = localProperties["sentry.org"].toString()
+    projectName = localProperties["sentry.project"].toString()
+    authToken = localProperties["sentry.auth.token"].toString()
+}
+
 dependencies {
     // logging
     implementation(libs.slf4j.api)
@@ -111,18 +135,45 @@ dependencies {
     implementation(libs.janino)
 
     // app specific
-    implementation(libs.undertow)
-    implementation(libs.snakeyaml)
-    implementation(libs.jackson.databind)
-    implementation(libs.jackson.datatype.jsr310)
-    implementation(libs.jackson.dataformat.yaml)
-    implementation(libs.jackson.dataformat.xml)
+    implementation(libs.dotenv)
+    implementation(libs.clikt)
+    implementation(libs.ipaddress)
 
-    // ktor
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
+    // commons
+    implementation(libs.apache.commons.io)
+    implementation(libs.apache.commons.text)
 
     // kotlin
     implementation(libs.kotlin.coroutines)
-    implementation("io.ktor:ktor-client-okhttp-jvm:3.1.2")
+    implementation(libs.kotlinx.datetime)
+    implementation(libs.kotlinx.io)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.serialization.yaml)
+    implementation(libs.kotlinx.serialization.xml)
+    implementation(libs.kotlinx.serialization.xml.core)
+
+    // ktor
+    implementation(libs.ktor.client.contentNegotiation)
+    implementation(libs.ktor.client.contentNegotiation.json)
+    implementation(libs.ktor.client.contentNegotiation.xml)
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.encoding)
+    implementation(libs.ktor.client.engine.java)
+    implementation(libs.ktor.client.engine.okhttp)
+    implementation(libs.ktor.client.logging)
+
+    implementation(libs.ktor.server.callLogging)
+    implementation(libs.ktor.server.compression)
+    implementation(libs.ktor.server.core)
+    implementation(libs.ktor.server.cors)
+    implementation(libs.ktor.server.defaultHeaders)
+    implementation(libs.ktor.server.engine.cio)
+    implementation(libs.ktor.server.metrics.micrometer)
+    implementation(libs.micrometer.prometheus)
+
+    // koin
+    implementation(libs.koin.core)
+    implementation(libs.koin.ktor)
+    implementation(libs.koin.logger)
+    implementation(platform(libs.koin.bom))
 }

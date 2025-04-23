@@ -1,0 +1,111 @@
+package io.github.firstred.iptvproxy.di
+
+import io.github.firstred.iptvproxy.config
+import io.ktor.client.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.cache.*
+import io.ktor.client.plugins.cache.storage.*
+import io.ktor.client.plugins.compression.*
+import io.ktor.client.plugins.logging.*
+import io.ktor.http.*
+import okhttp3.Dispatcher
+import org.koin.core.qualifier.named
+import org.koin.dsl.module
+import java.io.File
+
+val httpClientModule = module {
+    // Client used for all other requests - referred to as `channels_*` in the configuration
+    single<HttpClient> {
+        HttpClient(OkHttp) {
+            defaults()
+            okHttpConfig(config.maxRequestsPerHost)
+
+            install(HttpRequestRetry) {
+                defaultRetryHandler {
+                    delayMillis { config.timeouts.playlist.retryDelayMilliseconds }
+                }
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = config.timeouts.playlist.connectMilliseconds
+                socketTimeoutMillis = config.timeouts.playlist.connectMilliseconds
+                requestTimeoutMillis = config.timeouts.playlist.totalMilliseconds
+            }
+        }
+    }
+
+    // Client used to retrieve icons
+    single<HttpClient> {
+        HttpClient(OkHttp) {
+            defaults()
+            okHttpConfig()
+
+            install(HttpCache) {
+                publicStorage(FileStorage(File(config.getHttpCacheDirectory("icons"))))
+            }
+            install(HttpRequestRetry) {
+                defaultRetryHandler {
+                    delayMillis { config.timeouts.icon.retryDelayMilliseconds }
+                }
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = config.timeouts.icon.connectMilliseconds
+                socketTimeoutMillis = config.timeouts.icon.connectMilliseconds
+                requestTimeoutMillis = config.timeouts.icon.totalMilliseconds
+            }
+        }
+    }
+
+    config.servers.forEach { playlistConfig -> playlistConfig.accounts?.forEachIndexed { idx, connection ->
+        // Clients used for channel playlist files - referred to as `servers[].info_*` in the configuration
+        single<HttpClient>(named("server-${playlistConfig.name}-$idx")) {
+            HttpClient(OkHttp) {
+                defaults()
+
+                install(ContentEncoding) {
+                    deflate(.9f)
+                    gzip(.8f)
+                }
+            }
+        }
+    }
+} }
+
+private fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
+    val okDispatcher = Dispatcher()
+    okDispatcher.maxRequestsPerHost = maxRequestsPerHost
+
+    engine {
+        config {
+            followRedirects(true)
+            followSslRedirects(true)
+            dispatcher(okDispatcher)
+        }
+        pipelining = true
+    }
+}
+
+private fun HttpClientConfig<OkHttpConfig>.defaults() {
+    expectSuccess = true
+    followRedirects = true
+
+    install(Logging) {
+        logger = Logger.DEFAULT
+        level = LogLevel.HEADERS
+        sanitizeHeader { header -> header == HttpHeaders.Authorization }
+    }
+    install(ContentEncoding) {
+        deflate(.9f)
+        gzip(.8f)
+    }
+}
+
+private fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
+    retryOnExceptionIf { _, cause ->
+        cause is ServerResponseException ||
+                cause is ClientRequestException
+                && listOf(HttpStatusCode.TooManyRequests.value, 456, 458)
+            .contains(cause.response.status.value)
+    }
+    additionalConfig()
+}
