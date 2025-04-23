@@ -4,7 +4,7 @@ import org.koin.dsl.module
 
 val appModule = module {
     includes(
-        coreModule,
+        listenerModule,
         httpClientModule,
         userModule,
         iptvServerModule,

@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.listeners
+package io.github.firstred.iptvproxy.listeners.hooks
 
 import org.koin.java.KoinJavaComponent.getKoin
 

@@ -1,12 +1,12 @@
-package io.github.firstred.iptvproxy.monitors
+package io.github.firstred.iptvproxy.listeners
 
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
-import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import org.koin.core.component.KoinComponent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class HealthMonitor : KoinComponent, HasOnApplicationEventHook {
+class HealthListener : KoinComponent, HasOnApplicationEventHook {
     private var channelsAvailable = false
 
     fun isReady(): Boolean {
@@ -18,12 +18,10 @@ class HealthMonitor : KoinComponent, HasOnApplicationEventHook {
     }
 
     companion object {
-        private val LOG: Logger = LoggerFactory.getLogger(HealthMonitor::class.java)
+        private val LOG: Logger = LoggerFactory.getLogger(HealthListener::class.java)
     }
 
     override fun <T : Any> onApplicationEvent(event: T) {
-        println(event)
-
         when (event) {
             is ChannelsUpdatedEvent -> {
                 channelsAvailable = true

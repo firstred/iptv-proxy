@@ -13,9 +13,9 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServer
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
-import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnStartHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTerminateHook
+import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook

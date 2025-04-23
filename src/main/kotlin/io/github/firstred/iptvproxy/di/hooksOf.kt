@@ -1,10 +1,10 @@
 package io.github.firstred.iptvproxy.di
 
-import io.github.firstred.iptvproxy.listeners.HasOnApplicationEventHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnStartHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTerminateHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTrimDiskSpaceHook
-import io.github.firstred.iptvproxy.listeners.lifecycle.HasApplicationOnTrimMemoryHook
+import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTrimDiskSpaceHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTrimMemoryHook
 import kotlin.reflect.KClass
 
 /**

@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.plugins
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.monitors.HealthMonitor
+import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.routes.epg
 import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.icon
@@ -34,7 +34,7 @@ fun RoutingContext.isMetricsEndpoint() = config.metricsPort == call.request.loca
 fun RoutingContext.isNotMetricsEndpoint() = !isMetricsEndpoint()
 
 suspend fun RoutingContext.isReady(): Boolean {
-    val health: HealthMonitor = get().get()
+    val health: HealthListener = get().get()
 
     if (!health.isReady()) {
         call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
@@ -46,7 +46,7 @@ suspend fun RoutingContext.isReady(): Boolean {
 suspend fun RoutingContext.isNotReady() = !isReady()
 
 suspend fun RoutingContext.isLive(): Boolean {
-    val health: HealthMonitor = get().get()
+    val health: HealthListener = get().get()
 
     if (!health.isLive()) {
         call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")

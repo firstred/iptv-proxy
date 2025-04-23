@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.routes
 
-import io.github.firstred.iptvproxy.monitors.HealthMonitor
+import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.plugins.isNotHealthcheckEndpoint
 import io.ktor.http.*
 import io.ktor.server.response.*
@@ -8,7 +8,7 @@ import io.ktor.server.routing.*
 import org.koin.ktor.ext.inject
 
 fun Route.healthcheck() {
-    val health: HealthMonitor by inject()
+    val health: HealthListener by inject()
 
     route("/healthz/") {
             get("ready") {
@@ -29,7 +29,7 @@ fun Route.healthcheck() {
     }
 }
 
-private suspend fun RoutingContext.handleLive(health: HealthMonitor) {
+private suspend fun RoutingContext.handleLive(health: HealthListener) {
     if (health.isLive()) {
         call.respondText("OK")
     } else {
@@ -37,7 +37,7 @@ private suspend fun RoutingContext.handleLive(health: HealthMonitor) {
     }
 }
 
-private suspend fun RoutingContext.handleReady(health: HealthMonitor) {
+private suspend fun RoutingContext.handleReady(health: HealthListener) {
     if (health.isReady()) {
         call.respondText("OK")
     } else {

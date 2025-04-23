@@ -1,6 +1,6 @@
-package io.github.firstred.iptvproxy.listeners.lifecycle
+package io.github.firstred.iptvproxy.listeners.hooks.lifecycle
 
-import io.github.firstred.iptvproxy.listeners.ApplicationHook
+import io.github.firstred.iptvproxy.listeners.hooks.ApplicationHook
 import org.koin.java.KoinJavaComponent.getKoin
 
 interface HasApplicationOnStartHook : ApplicationHook {
