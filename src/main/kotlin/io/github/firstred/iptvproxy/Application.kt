@@ -51,19 +51,19 @@ fun main(args: Array<String>) {
                 try {
                     dotenv = dotenv { ignoreIfMissing = true }
                     config = loadConfig(File(System.getProperty("config", "config.yml")))
-
-                    val sentryDsn = config.sentry?.dsn ?: dotenv.get("SENTRY_DSN") ?: ""
-                    if (sentryDsn.isNotEmpty()) Sentry.init { options ->
-                        options.dsn = sentryDsn
-                        options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
-                        options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
-                    }
                 } catch (e: InvalidPropertyValueException) {
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
                     System.exit(1)
                 } catch (e: YamlException) {
                     LOG.error("Error parsing config file: ${e.message}")
                     System.exit(1)
+                }
+
+                val sentryDsn = config.sentry?.dsn ?: dotenv.get("SENTRY_DSN") ?: ""
+                if (sentryDsn.isNotEmpty()) Sentry.init { options ->
+                    options.dsn = sentryDsn
+                    options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
+                    options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
                 }
 
                 startServer()
