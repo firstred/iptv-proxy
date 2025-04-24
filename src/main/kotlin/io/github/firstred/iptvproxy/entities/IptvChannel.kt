@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.entities
 
+import io.github.firstred.iptvproxy.utils.EXT_X_MEDIA_SEQUENCE
 import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
 import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
@@ -7,6 +8,7 @@ import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import org.apache.commons.lang3.StringUtils.startsWith
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
@@ -74,6 +76,7 @@ class IptvChannel(
                 redirects++
             }
 
+            var mediaSequenceNumber = 1
             var maxDurationMillis = 0L
             var currentDurationMillis = 0L
 
@@ -81,33 +84,39 @@ class IptvChannel(
                 @Suppress("NAME_SHADOWING") var infoLine = infoLine
                 infoLine = infoLine.trim(' ')
 
-                if (infoLine.startsWith("#")) {
                     // This is a metadata line
-                    if (infoLine.startsWith(M3U_TAG_EXTINF)) {
+                when {
+                    infoLine.startsWith(M3U_TAG_EXTINF) -> {
                         var v = infoLine.substring(M3U_TAG_EXTINF.length)
                         val idx = v.indexOf(',')
                         if (idx >= 0) v = v.substring(0, idx)
 
                         currentDurationMillis = BigDecimal(v).multiply(BigDecimal(1000)).toLong()
                         maxDurationMillis = max(maxDurationMillis.toDouble(), currentDurationMillis.toDouble()).toLong()
-                    } else if (infoLine.startsWith(M3U_TAG_TARGET_DURATION)) {
+                    }
+
+                    infoLine.startsWith(M3U_TAG_TARGET_DURATION) -> {
                         val targetDuration =
                             BigDecimal(infoLine.substring(M3U_TAG_TARGET_DURATION.length)).multiply(
                                 BigDecimal(1000)
                             ).toLong()
                         maxDurationMillis = max(maxDurationMillis.toDouble(), targetDuration.toDouble()).toLong()
                     }
-                } else {
-                    // This is a stream URL
 
-                    if (infoLine.isNotBlank()) {
+                    infoLine.startsWith(EXT_X_MEDIA_SEQUENCE) -> {
+                        mediaSequenceNumber = infoLine.substring(EXT_X_MEDIA_SEQUENCE.length).toInt()
+                    }
+
+                    !infoLine.startsWith("#") && infoLine.isNotBlank() -> {
+                        // This is a stream URL
                         if (!infoLine.startsWith("http://") && !infoLine.startsWith("https://")) {
                             infoLine = responseURI.resolve(infoLine).toString()
                         }
                         try {
                             val infoLineUri = URI.create(infoLine)
 
-                            infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${reference}/${infoLineUri.aesEncryptToHexString()}/live.ts"
+                            infoLine =
+                                "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${reference}/${infoLineUri.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
                         } catch (_: URISyntaxException) {
                         }
                     }

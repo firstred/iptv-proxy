@@ -9,7 +9,6 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
@@ -33,9 +32,7 @@ fun Route.icon() {
                     response.contentType()?.let { append(HttpHeaders.ContentType, it.toString()) }
                 }
 
-                call.respondBytesWriter { use {
-                    response.bodyAsChannel().copyAndClose(this)
-                } }
+                call.respondBytesWriter { response.bodyAsChannel().copyAndClose(this) }
             }
         }
     }
