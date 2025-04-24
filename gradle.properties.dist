@@ -9,5 +9,5 @@ org.gradle.jvmargs=-Xmx2g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC -XX
 org.gradle.daemon=true
 org.gradle.parallel=true
 org.gradle.caching=true
-org.gradle.unsafe.configuration-cache=true
+org.gradle.unsafe.configuration-cache=false # Breaks jib
 org.gradle.configureondemand=true
