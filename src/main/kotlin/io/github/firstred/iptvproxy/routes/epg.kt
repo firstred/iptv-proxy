@@ -47,7 +47,10 @@ fun Route.epg() {
                 "ENCRYPTED_ACCOUNT" to user.toEncryptedAccountHexString(),
             ))
 
-            call.respondOutputStream { use { generateUserXmltv(substitutor, false, it) } }
+            call.respondOutputStream { use {
+                generateUserXmltv(substitutor, false, it)
+                flush()
+            } }
         }
 
         get(Regex("""(?<username>[a-zA-Z0-9-]+)_(?<password>[^/]+)/xmltv\.xml\.gz""")) {
@@ -67,7 +70,10 @@ fun Route.epg() {
                 "ENCRYPTED_ACCOUNT" to user.toEncryptedAccountHexString(),
             ))
 
-            call.respondOutputStream { use { generateUserXmltv(substitutor, true, it) } }
+            call.respondOutputStream { use {
+                generateUserXmltv(substitutor, true, it) }
+                flush()
+            }
         }
     }
 }

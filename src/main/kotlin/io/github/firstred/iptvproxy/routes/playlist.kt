@@ -31,6 +31,7 @@ fun Route.playlist() {
                     user,
                     config.getActualBaseUrl(call.request),
                 )
+                output.flush()
             } }
         }
     }

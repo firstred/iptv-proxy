@@ -33,14 +33,10 @@ fun Route.hls() {
                     url(remoteUrl)
                     method = HttpMethod.Get
                 }.let { response ->
-                    call.response.headers.apply {
-                        response.contentLength()?.let { append(HttpHeaders.ContentLength, it.toString()) }
-                        response.contentType()?.let { append(HttpHeaders.ContentType, it.toString()) }
-                    }
-
-                    call.respondBytesWriter { use {
+                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
                         response.bodyAsChannel().copyAndClose(this)
-                    } }
+                        flushAndClose()
+                    }
                 }
             }
         }
