@@ -124,10 +124,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         }
 
                         var logo = m3uChannel.props["tvg-logo"]
-
-                        if (logo == null && xmltvCh != null && xmltvCh.icon != null && xmltvCh.icon!!.src != null) {
-                            xmltvCh.icon?.src?.let { logo = it }
-                        }
+                        xmltvCh?.icon?.src?.let { logo = it }
 
                         // Redirect logo URI
                         logo?.let {
@@ -139,9 +136,9 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
                             val uri = try {
                                 URI.create("${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}")
-                            } catch (e: URISyntaxException) {
+                            } catch (_: URISyntaxException) {
                                 buildNewLogoURI(it, extension)
-                            } catch (e: IllegalArgumentException) {
+                            } catch (_: IllegalArgumentException) {
                                 buildNewLogoURI(it, extension)
                             } ?: return
 
@@ -158,7 +155,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         if (daysStr != null) {
                             try {
                                 days = daysStr.toInt()
-                            } catch (e: NumberFormatException) {
+                            } catch (_: NumberFormatException) {
                                 LOG.warn("Error parsing catchup days: {}, channel: {}", daysStr, m3uChannel.name)
                             }
                         }
@@ -167,7 +164,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         if (xmltvId != null) {
                             val newId = (server.name + '-' + xmltvId).hash()
                             if (xmltvIds.putIfAbsent(xmltvId, newId) == null) {
-                                newXmltv.channels?.add(xmltvCh!!.copy(id = newId, icon = logo?.let { XmltvIcon(it) }))
+                                newXmltv.channels?.add(xmltvCh.copy(id = newId, icon = logo?.let { XmltvIcon(it) }))
                             }
                             xmltvId = newId
                         }
