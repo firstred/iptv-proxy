@@ -31,6 +31,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
+import kotlin.system.exitProcess
 
 var argv = emptyArray<String>()
 
@@ -53,10 +54,10 @@ fun main(args: Array<String>) {
                     config = loadConfig(File(System.getProperty("config", "config.yml")))
                 } catch (e: InvalidPropertyValueException) {
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
-                    System.exit(1)
+                    exitProcess(1)
                 } catch (e: YamlException) {
                     LOG.error("Error parsing config file: ${e.message}")
-                    System.exit(1)
+                    exitProcess(1)
                 }
 
                 val sentryDsn = config.sentry?.dsn ?: dotenv.get("SENTRY_DSN") ?: ""
@@ -72,7 +73,7 @@ fun main(args: Array<String>) {
             .main(args)
     } catch (e: Exception) {
         LOG.error("fatal error", e)
-        System.exit(1)
+        exitProcess(1)
     }
 }
 
