@@ -1,16 +1,17 @@
 package io.github.firstred.iptvproxy.entities
 
+import io.github.firstred.iptvproxy.di.modules.configureProxyConnection
+import io.github.firstred.iptvproxy.di.modules.defaultRetryHandler
 import io.github.firstred.iptvproxy.di.modules.defaults
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
+import io.ktor.client.plugins.*
 import kotlinx.coroutines.sync.Semaphore
+import okhttp3.Dispatcher
 import org.koin.core.component.KoinComponent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import io.github.firstred.iptvproxy.di.modules.defaultRetryHandler
-import io.ktor.client.plugins.*
-import okhttp3.Dispatcher
 
 class IptvServerConnection(
     private val config: IptvFlatServerConfig,
@@ -29,6 +30,8 @@ class IptvServerConnection(
                 dispatcher(okDispatcher)
             }
             pipelining = true
+
+            configureProxyConnection()
         }
 
         followRedirects = false

@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.managers
 
-import java.net.URLDecoder
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
@@ -22,8 +21,6 @@ import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
-import io.ktor.client.request.request
-import io.ktor.server.routing.RoutingRequest
 import kotlinx.datetime.Clock
 import org.apache.commons.text.StringSubstitutor
 import org.koin.core.component.KoinComponent
@@ -35,6 +32,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
+import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit

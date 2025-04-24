@@ -14,7 +14,7 @@ import io.github.firstred.iptvproxy.plugins.installMetricsRoute
 import io.github.firstred.iptvproxy.plugins.lifecycleHooks
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
-import io.ktor.http.HttpMethod
+import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
@@ -22,7 +22,7 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
-import io.ktor.server.plugins.cors.routing.CORS
+import io.ktor.server.plugins.cors.routing.*
 import io.sentry.Sentry
 import org.apache.commons.text.StringSubstitutor
 import org.koin.ktor.plugin.Koin

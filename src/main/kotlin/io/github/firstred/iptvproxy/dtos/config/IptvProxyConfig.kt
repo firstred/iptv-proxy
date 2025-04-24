@@ -4,7 +4,7 @@ import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
-import io.ktor.server.routing.RoutingRequest
+import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.io.File
 import java.net.URI

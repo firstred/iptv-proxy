@@ -4,14 +4,9 @@ import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
 import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.maxRedirects
-import io.ktor.client.call.body
+import io.ktor.client.call.*
 import io.ktor.client.request.*
-import io.ktor.http.Headers
-import io.ktor.http.Parameters
-import io.ktor.http.headersOf
-import io.ktor.http.parametersOf
-import io.ktor.http.toURI
-import jdk.internal.net.http.common.Log.channel
+import io.ktor.http.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream

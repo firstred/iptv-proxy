@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.di.modules
 
 import io.github.firstred.iptvproxy.config
 import io.ktor.client.*
+import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.cache.*
@@ -72,6 +73,25 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
             dispatcher(okDispatcher)
         }
         pipelining = true
+
+        config.httpProxy?.let {
+            proxy = ProxyBuilder.http(it)
+        }
+        configureProxyConnection()
+    }
+}
+
+fun OkHttpConfig.configureProxyConnection() {
+    config.socksProxy?.let {
+        val regex = Regex("""socks[45]?://(?<host>.*?):(?<port>\\d+)""")
+        val result = regex.find("${config.socksProxy}")
+
+        if (result != null) {
+            val host = result.groups["host"]?.value
+            val port = result.groups["port"]?.value?.toInt() ?: -1
+
+            proxy = ProxyBuilder.socks("$host", port)
+        }
     }
 }
 
