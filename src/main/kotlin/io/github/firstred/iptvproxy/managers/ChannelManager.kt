@@ -46,6 +46,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     private fun updateChannels() {
         LOG.info("Updating channels")
 
+        val baseUrl = config.getActualBaseUrl()
         val newChannelsByReference = IptvChannelsByReference()
         fun addNewChannel(channel: IptvChannel) {
             newChannelsByReference[channel.reference] = channel
@@ -135,7 +136,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             val extension = URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }
 
                             val uri = try {
-                                URI.create("${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}")
+                                URI.create("${baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}")
                             } catch (_: URISyntaxException) {
                                 buildNewLogoURI(it, extension)
                             } catch (_: IllegalArgumentException) {
@@ -144,7 +145,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
                             val pathSignature = uri.path.pathSignature()
 
-                            logo = "${config.baseUrl}${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
+                            logo = "${baseUrl}${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
                         }
 
                         var days = 0
@@ -210,7 +211,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     }
 
     private fun buildNewLogoURI(it: String, extension: String): URI? = URI.create(
-        "${config.baseUrl}/icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
+        "${config.getActualBaseUrl()}/icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
             "jpg"  -> "jpeg"
             "jpeg" -> "jpg"
             "gif"  -> "gif"
@@ -295,7 +296,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 outputStream.write("\n".toByteArray())
             }
 
-            outputStream.write(config.baseUrl.toByteArray())
+            outputStream.write(config.getActualBaseUrl().toByteArray())
             outputStream.write("/live/".toByteArray())
             outputStream.write("${username}_${username.generateUserToken()}/".toByteArray())
             outputStream.write(channel.reference.toByteArray())

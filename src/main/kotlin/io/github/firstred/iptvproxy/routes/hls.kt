@@ -41,7 +41,7 @@ fun Route.hlsOnlyNoticeStream() {
 #EXTM3U
 #EXT-X-VERSION:3
 #EXTINF:-1 tvg-id="" tvg-name="##### HLS ONLY #####",##### HLS ONLY #####
-${config.baseUrl}$basePath/channel.m3u8
+${config.getActualBaseUrl()}$basePath/channel.m3u8
 """
         )
     }
@@ -54,6 +54,7 @@ ${config.baseUrl}$basePath/channel.m3u8
             append(HttpHeaders.ContentDisposition, "attachment; filename=playlist.m3u8")
         }
 
+        val baseUrl = config.getActualBaseUrl()
         val basePath = call.request.path().substringBeforeLast("/")
 
         call.respondText(
@@ -63,13 +64,13 @@ ${config.baseUrl}$basePath/channel.m3u8
 #EXT-X-MEDIA-SEQUENCE:${sequenceNumber}
 #EXT-X-TARGETDURATION:-1
 #EXTINF:10,
-${config.baseUrl}$basePath/hlsonly_${sequenceNumber}.ts
+${baseUrl}$basePath/hlsonly_${sequenceNumber}.ts
 #EXTINF:10,
-${config.baseUrl}$basePath/hlsonly_${sequenceNumber + 1}.ts
+${baseUrl}$basePath/hlsonly_${sequenceNumber + 1}.ts
 #EXTINF:10,
-${config.baseUrl}$basePath/hlsonly_${sequenceNumber + 2}.ts
+${baseUrl}$basePath/hlsonly_${sequenceNumber + 2}.ts
 #EXTINF:10,
-${config.baseUrl}$basePath/hlsonly_${sequenceNumber + 3}.ts
+${baseUrl}$basePath/hlsonly_${sequenceNumber + 3}.ts
 """
         )
     }

@@ -29,8 +29,8 @@ fun String.verifyPathSignature(): Boolean {
 }
 fun URI.verifyPathSignature(): Boolean = path.verifyPathSignature()
 
-suspend fun RoutingContext.verifyPathSignature(): Boolean {
-    val path = call.request.path()
+suspend fun RoutingContext.verifyPathSignature(overridePath: String? = null): Boolean {
+    val path = overridePath ?: call.request.path()
     if (!path.verifyPathSignature()) {
         LOG.warn("Invalid signature for path: $path")
         call.respond(HttpStatusCode.Unauthorized, "Invalid signature for path")
