@@ -1,9 +1,13 @@
 package io.github.firstred.iptvproxy.dtos.config
 
+import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
+import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
+import io.ktor.server.routing.RoutingRequest
 import kotlinx.serialization.Serializable
 import java.io.File
+import java.net.URI
 import kotlin.time.Duration
 
 @Serializable
@@ -12,7 +16,8 @@ data class IptvProxyConfig(
     @Serializable(with = IntWithUnderscoreSerializer::class) val port: Int = 8000,
     @Serializable(with = IntWithUnderscoreSerializer::class) val healthcheckPort: Int? = null, // 9090
     @Serializable(with = IntWithUnderscoreSerializer::class) val metricsPort: Int? = null,     // 9091
-    val baseUrl: String = "${host}:${port}",
+    val baseUrl: String? = null,
+    val forwardedPass: String? = null,
     val appSecret: String = "ChangeMe!",
     val logLevel: String = "ERROR",
     val timeouts: IptvProxyConfigTimeouts = IptvProxyConfigTimeouts(),
@@ -37,7 +42,7 @@ data class IptvProxyConfig(
 
     val sentry: IptvProxyConfigSentry? = null,
 ) {
-    private fun getTempDirectory(): String {
+    private fun getActualTempDirectory(): String {
         return checkDir(if (tmpDirectory.isNullOrEmpty()) {
             "${System.getProperty("java.io.tmpdir")}/iptvproxy"
         } else {
@@ -45,44 +50,56 @@ data class IptvProxyConfig(
         })
     }
 
-//    fun setDefaults(): IptvProxyConfig {
-//        servers.forEach { server ->
-//            server.accounts?.forEachIndexed { idx, account ->
-//                if (account.idx < 0) account.idx = idx
-//            }
-//        }
-//
-//        return this
-//    }
-
-    fun getCacheDirectory(subdir: String? = null): String {
+    fun getActualCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getTempDirectory() + "/cache")
+            checkDir(getActualTempDirectory() + "/cache")
 
-            checkDir(getTempDirectory() + "/cache/$it")
-        } ?: checkDir(getTempDirectory() + "/cache")
+            checkDir(getActualTempDirectory() + "/cache/$it")
+        } ?: checkDir(getActualTempDirectory() + "/cache")
     }
 
-    fun getHttpCacheDirectory(subdir: String? = null): String {
+    fun getActualHttpCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getTempDirectory() + "/http_cache")
+            checkDir(getActualTempDirectory() + "/http_cache")
 
-            checkDir(getTempDirectory() + "/http_cache/$it")
-        } ?: checkDir(getTempDirectory() + "/http_cache")
+            checkDir(getActualTempDirectory() + "/http_cache/$it")
+        } ?: checkDir(getActualTempDirectory() + "/http_cache")
     }
 
-    fun getDownloadDirectory(subdir: String? = null): String {
+    fun getActualDownloadDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getTempDirectory() + "/download")
+            checkDir(getActualTempDirectory() + "/download")
 
-            checkDir(getTempDirectory() + "/download/$it")
-        } ?: checkDir(getTempDirectory() + "/download")
+            checkDir(getActualTempDirectory() + "/download/$it")
+        } ?: checkDir(getActualTempDirectory() + "/download")
     }
+
+    fun getForwardedValues(forwardedHeaderContent: String?): ForwardedHeaderValues {
+        if (null == forwardedHeaderContent) return ForwardedHeaderValues()
+
+        val forwardedPassword = forwardedHeaderContent.split(";").find { it.startsWith("pass=") }?.substringAfter("=")
+        if (forwardedPassword != forwardedPass) {
+            return ForwardedHeaderValues()
+        }
+
+        val forwardedBaseUrl = forwardedHeaderContent.split(";").find { it.startsWith("baseUrl=") }?.substringAfter("=")
+        val forwardedIptvProxyUser =
+            forwardedHeaderContent.split(";").find { it.startsWith("proxyUser=") }?.substringAfter("=")
+
+        return ForwardedHeaderValues(
+            baseUrl = forwardedBaseUrl,
+            proxyUser = forwardedIptvProxyUser,
+        )
+    }
+
+    fun getActualForwardedBaseUrl(request: RoutingRequest): String? = getForwardedValues(request.headers["Forwarded"]).baseUrl
+    fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
+    fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
 
     companion object {
         private val checkedDirs = mutableSetOf<String>()
 
-        fun checkDir(dir: String): String {
+        private fun checkDir(dir: String): String {
             if (dir in checkedDirs) return dir
 
             // If the directory does not exist, try to create it first

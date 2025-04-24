@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.dtos.xmltv
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.serialization.xml
-import io.ktor.utils.io.streams.*
 import nl.adaptivity.xmlutil.XmlStreaming
 import nl.adaptivity.xmlutil.xmlStreaming
 import org.slf4j.Logger
@@ -86,7 +85,7 @@ class XmltvUtils {
         }
 
         fun getCachedXmltvFile(compressed: Boolean = true): File {
-            return File(config.getCacheDirectory() + "/xmltv.xml" + if (compressed) ".gz" else "")
+            return File(config.getActualCacheDirectory() + "/xmltv.xml" + if (compressed) ".gz" else "")
         }
     }
 }

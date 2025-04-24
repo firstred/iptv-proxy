@@ -12,8 +12,9 @@ interface IIptvServerConfigWithoutAccounts {
     val epgBefore: Duration?
     val epgAfter: Duration?
 
-    val sendUser: Boolean
     val proxyStream: Boolean
+    val proxySendUser: Boolean
+    val proxyTransparentClientHeaders: List<String>
 
     val timeouts: IptvPlaylistConfigTimeouts
 

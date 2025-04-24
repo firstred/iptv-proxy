@@ -15,8 +15,9 @@ data class IptvServerConfig(
     override val epgBefore: Duration? = null,
     override val epgAfter: Duration? = null,
 
-    override val sendUser: Boolean = false,
+    override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
+    override val proxyTransparentClientHeaders: List<String> = listOf(),
 
     val accounts: List<IptvServerAccountConfig>? = null,
 
@@ -29,13 +30,13 @@ data class IptvServerConfig(
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
-) : IIptvServerConfigWithoutAccounts {
+    ) : IIptvServerConfigWithoutAccounts {
     fun toFlatIptvServerConfig(accountIndex: Int) = IptvFlatServerConfig(
         name = name,
         epgUrl = epgUrl,
         epgBefore = epgBefore,
         epgAfter = epgAfter,
-        sendUser = sendUser,
+        proxySendUser = proxySendUser,
         proxyStream = proxyStream,
         account = accounts?.let { it[accountIndex] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
         timeouts = timeouts,
@@ -48,7 +49,7 @@ data class IptvServerConfig(
 
     fun toIptvServer(): IptvServer = IptvServer(
         name = name,
-        connections = accounts?.mapIndexed { idx, _ -> IptvServerConnection(toFlatIptvServerConfig(idx)) }?.toMutableList() ?: mutableListOf(),
         config = this,
+        connections = accounts?.mapIndexed { idx, _ -> IptvServerConnection(toFlatIptvServerConfig(idx)) }?.toMutableList() ?: mutableListOf(),
     )
 }

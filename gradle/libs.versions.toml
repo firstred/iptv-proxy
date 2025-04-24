@@ -10,6 +10,7 @@ sentry = "3.12.0"
 shadow = "8.1.1"
 versions = "0.51.0"
 versionsFilter = "0.1.16"
+prometheus = "1.14.6"
 jib = "3.4.5"
 ktor = "3.1.2"
 koin-bom = "4.1.0-Beta7"
@@ -25,7 +26,7 @@ apache-commons-text = "1.13.1"
 dotenv = "6.5.1"
 ipaddress = "5.5.1"
 clikt = "4.3.0"
-prometheus = "1.14.6"
+cryptography = "0.4.0"
 
 
 [plugins]
@@ -81,9 +82,9 @@ koin-logger = { module = "io.insert-koin:koin-logger-slf4j" }
 dotenv = { module  = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
+cryptography = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
+cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
 apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text"}
-
-

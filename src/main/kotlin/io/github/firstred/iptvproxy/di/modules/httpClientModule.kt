@@ -21,6 +21,9 @@ val httpClientModule = module {
             defaults()
             okHttpConfig(config.maxRequestsPerHost)
 
+            expectSuccess = true
+            followRedirects = true
+
             install(HttpRequestRetry) {
                 defaultRetryHandler {
                     delayMillis { config.timeouts.playlist.retryDelayMilliseconds }
@@ -40,8 +43,11 @@ val httpClientModule = module {
             defaults()
             okHttpConfig(maxRequestsPerHost = 64)
 
+            expectSuccess = true
+            followRedirects = true
+
             install(HttpCache) {
-                publicStorage(FileStorage(File(config.getHttpCacheDirectory("icons"))))
+                publicStorage(FileStorage(File(config.getActualHttpCacheDirectory("icons"))))
             }
             install(HttpRequestRetry) {
                 defaultRetryHandler {
@@ -63,8 +69,6 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
 
     engine {
         config {
-            followRedirects(true)
-            followSslRedirects(true)
             dispatcher(okDispatcher)
         }
         pipelining = true
@@ -72,9 +76,6 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
 }
 
 fun HttpClientConfig<OkHttpConfig>.defaults() {
-    expectSuccess = true
-    followRedirects = true
-
     install(Logging) {
         logger = Logger.DEFAULT
         level = LogLevel.HEADERS

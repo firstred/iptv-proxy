@@ -18,7 +18,7 @@ val localProperties = Properties()
 localProperties.load(FileInputStream(rootProject.file("local.properties")))
 
 group = "io.github.firstred"
-version = "0.3.0"
+version = "0.3.2"
 
 application {
     mainClass.set("$group.iptvproxy.ApplicationKt")
@@ -150,6 +150,8 @@ dependencies {
     implementation(libs.dotenv)
     implementation(libs.clikt)
     implementation(libs.ipaddress)
+    implementation(libs.cryptography)
+    implementation(libs.cryptography.provider.jvm)
 
     // commons
     implementation(libs.apache.commons.codec)

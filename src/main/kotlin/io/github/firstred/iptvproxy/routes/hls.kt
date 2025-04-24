@@ -1,22 +1,49 @@
 package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.plugins.isNotAuthenticated
+import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
+import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
+import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
+import io.ktor.client.request.request
+import io.ktor.client.request.url
+import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.cio.use
+import io.ktor.utils.io.copyAndClose
+import org.koin.ktor.ext.inject
 import java.io.File
 import kotlin.concurrent.timer
 
 fun Route.hls() {
-    route(Regex("""/hls/(?<username>[a-zA-Z0-9-]+)_(?<token>[a-f0-9]+)/.*""")) {
+    val channelsByReference: IptvChannelsByReference by inject()
+
+    route(Regex("""/hls/(?<encryptedaccount>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/[^.]*\.ts""")) {
         get {
             if (isNotMainEndpoint()) return@get
-            if (isNotAuthenticated(call.parameters["username"], token = call.parameters["token"])) return@get
+            findUserFromRoutingContext()
 
-            call.respondText("HLS streaming")
+            val channelId = call.parameters["channelid"] ?: ""
+            val remoteUrl = (call.parameters["encryptedremoteurl"] ?: "").aesDecryptFromHexString()
+
+            channelsByReference[channelId]!!.server.withConnection { connection ->
+                connection.httpClient.request {
+                    url(remoteUrl)
+                    method = HttpMethod.Get
+                }.let { response ->
+                    call.response.headers.apply {
+                        response.contentLength()?.let { append(HttpHeaders.ContentLength, it.toString()) }
+                        response.contentType()?.let { append(HttpHeaders.ContentType, it.toString()) }
+                    }
+
+                    call.respondBytesWriter { use {
+                        response.bodyAsChannel().copyAndClose(this)
+                    } }
+                }
+            }
         }
     }
 }
@@ -41,7 +68,7 @@ fun Route.hlsOnlyNoticeStream() {
 #EXTM3U
 #EXT-X-VERSION:3
 #EXTINF:-1 tvg-id="" tvg-name="##### HLS ONLY #####",##### HLS ONLY #####
-${config.getActualBaseUrl()}$basePath/channel.m3u8
+${config.getActualBaseUrl(call.request)}$basePath/channel.m3u8
 """
         )
     }
@@ -54,7 +81,7 @@ ${config.getActualBaseUrl()}$basePath/channel.m3u8
             append(HttpHeaders.ContentDisposition, "attachment; filename=playlist.m3u8")
         }
 
-        val baseUrl = config.getActualBaseUrl()
+        val baseUrl = config.getActualBaseUrl(call.request)
         val basePath = call.request.path().substringBeforeLast("/")
 
         call.respondText(

@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.entities
 
 import io.github.firstred.iptvproxy.dtos.config.IptvServerConfig
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
 
 class IptvServer(
     val name: String,
@@ -20,34 +19,25 @@ class IptvServer(
         }
     }
 
-    private suspend fun getConnection(): IptvServerConnection {
-        var serverConnection: IptvServerConnection? = null
-        while (null == serverConnection) {
-            serverConnection = tryAcquire()
-            if (null == serverConnection) delay(100L)
-        }
-
-        return serverConnection
+    private suspend fun acquire(): IptvServerConnection {
+        do {
+            tryAcquire()?.also { return it }
+            LOG.info("try acquire server connection")
+            delay(100L)
+        } while (true)
     }
 
-    private fun acquire(): IptvServerConnection = synchronized(connections) {
-        return runBlocking {
+    private fun tryAcquire(): IptvServerConnection? {
+        synchronized (connections) {
             for (serverConnection in connections.shuffled()) {
-                serverConnection.acquire()
-                return@runBlocking serverConnection
+                if (serverConnection.tryAcquire()) return serverConnection
             }
-
-            throw IllegalStateException("No available server connection")
         }
+
+        return null
     }
 
-    private fun tryAcquire(): IptvServerConnection? = synchronized(connections) {
-        return runBlocking {
-            for (serverConnection in connections.shuffled()) {
-                if (serverConnection.tryAcquire()) return@runBlocking serverConnection
-            }
-
-            return@runBlocking null
-        }
+    companion object {
+        private val LOG = org.slf4j.LoggerFactory.getLogger(IptvServer::class.java)
     }
 }

@@ -42,14 +42,13 @@ private val LOG: Logger = LoggerFactory.getLogger(Application::class.java)
 
 fun main(args: Array<String>) {
     try {
-        LOG.info("Loading config...")
-
         argv = args
 
         object : CliktCommand(printHelpOnEmptyArgs = false) {
             override fun run() {
                 // TODO: make configuration location configurable
                 try {
+                    LOG.info("Loading config...")
                     dotenv = dotenv { ignoreIfMissing = true }
                     config = loadConfig(File(System.getProperty("config", "config.yml")))
                 } catch (e: InvalidPropertyValueException) {

@@ -2,13 +2,14 @@ package io.github.firstred.iptvproxy.plugins
 
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
+import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.managers.UserManager
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.core.context.GlobalContext.get as getKoin
 
-suspend fun RoutingContext.isAuthenticated(username: String?, token: String? = null, password: String? = null): Boolean {
+suspend fun RoutingContext.isAuthenticated(username: String?, password: String? = null): Boolean {
     val userManager: UserManager by getKoin().inject()
 
     if (null == username) {
@@ -16,17 +17,7 @@ suspend fun RoutingContext.isAuthenticated(username: String?, token: String? = n
         return false
     }
 
-    if (token == null && password == null) {
-        call.respond(HttpStatusCode.Unauthorized, "Missing token and/or password")
-        return false
-    }
-
-    if (null != token) {
-        if (null == UserManager.validateUserToken(username, token)) {
-            call.respond(HttpStatusCode.Unauthorized, "Invalid token: $token for username: $username")
-            return false
-        }
-    } else if (!userManager.isAllowedUser(username, password!!)) {
+    if (!userManager.isAllowedUser(username, password!!)) {
         call.respond(HttpStatusCode.Unauthorized, "Invalid password: $password for username: $username")
         return false
     }
@@ -35,18 +26,18 @@ suspend fun RoutingContext.isAuthenticated(username: String?, token: String? = n
 }
 suspend fun RoutingContext.isNotAuthenticated(
     username: String?,
-    token: String? = null,
     password: String? = null
-): Boolean =
-    !isAuthenticated(username, token, password)
+): Boolean = !isAuthenticated(username, password)
 
 suspend fun withUserPermit(
-    username: String,
+    user: String,
+    action: suspend () -> Unit,
+) = withUserPermit(getKoin().get<IptvUsersByName>()[user] ?: throw IllegalArgumentException("User $user not found"), action)
+suspend fun withUserPermit(
+    user: IptvUser,
     action: suspend () -> Unit,
 ) {
-    val iptvUsersByName: IptvUsersByName = getKoin().get()
-
-    val semaphore = (iptvUsersByName[username] ?: throw IllegalArgumentException("User $username not found")).semaphore
+    val semaphore = user.semaphore
     semaphore.acquire()
     try {
         action()

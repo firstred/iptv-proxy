@@ -14,8 +14,9 @@ data class IptvFlatServerConfig(
     override val epgBefore: Duration? = null,
     override val epgAfter: Duration? = null,
 
-    override val sendUser: Boolean = false,
+    override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
+    override val proxyTransparentClientHeaders: List<String> = listOf(),
 
     override val timeouts: IptvPlaylistConfigTimeouts = IptvPlaylistConfigTimeouts(),
 
@@ -31,7 +32,7 @@ data class IptvFlatServerConfig(
         epgUrl = epgUrl,
         epgBefore = epgBefore,
         epgAfter = epgAfter,
-        sendUser = sendUser,
+        proxySendUser = proxySendUser,
         proxyStream = proxyStream,
         accounts = listOf(if (idx == 0) account else throw IllegalStateException("Only the first account is supported in flat config")),
         timeouts = timeouts,

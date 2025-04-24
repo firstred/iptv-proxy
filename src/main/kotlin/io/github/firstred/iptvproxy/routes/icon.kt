@@ -1,8 +1,8 @@
 package io.github.firstred.iptvproxy.routes
 
+import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
-import io.github.firstred.iptvproxy.utils.base64.decodeBase64UrlString
-import io.github.firstred.iptvproxy.utils.verifyPathSignature
+import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -18,15 +18,14 @@ fun Route.icon() {
     val httpClient : HttpClient by inject(named("icon"))
 
     route("/icon/") {
-        get(Regex("""(?<base64remoteurl>[^/]+)/(?<signature>[^/]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))""")) {
+        get(Regex("""(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))""")) {
             if (isNotMainEndpoint()) return@get
+            findUserFromRoutingContext()
 
-            val base64RemoteUrl = call.parameters["base64remoteurl"]
-
-            if (!verifyPathSignature()) return@get
+            val encryptedRemoteUrl = call.parameters["encryptedremoteurl"]
 
             httpClient.request {
-                url(base64RemoteUrl?.decodeBase64UrlString() ?: throw IllegalArgumentException("Invalid base64 remote url"))
+                url(encryptedRemoteUrl?.aesDecryptFromHexString() ?: throw IllegalArgumentException("Invalid remote url"))
                 method = HttpMethod.Get
             }.let { response ->
                 call.response.headers.apply {

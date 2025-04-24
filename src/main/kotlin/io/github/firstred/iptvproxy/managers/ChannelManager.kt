@@ -12,17 +12,20 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServer
+import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
+import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook
-import io.github.firstred.iptvproxy.utils.generateUserToken
 import io.github.firstred.iptvproxy.utils.hash
-import io.github.firstred.iptvproxy.utils.pathSignature
+import io.ktor.client.request.request
+import io.ktor.server.routing.RoutingRequest
 import kotlinx.datetime.Clock
+import org.apache.commons.text.StringSubstitutor
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.slf4j.Logger
@@ -32,7 +35,7 @@ import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
-import java.net.URISyntaxException
+import java.net.URLEncoder
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
@@ -46,7 +49,6 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     private fun updateChannels() {
         LOG.info("Updating channels")
 
-        val baseUrl = config.getActualBaseUrl()
         val newChannelsByReference = IptvChannelsByReference()
         fun addNewChannel(channel: IptvChannel) {
             newChannelsByReference[channel.reference] = channel
@@ -132,20 +134,10 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             // Find basename and extension of image URL with regex
                             val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
                             val matchResult = regex.find(it)
-                            val basename = URLDecoder.decode(matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()).filterNot { it.isWhitespace() }
-                            val extension = URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }
+                            val basename = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
+                            val extension = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
 
-                            val uri = try {
-                                URI.create("${baseUrl}/icon/${it.encodeToBase64UrlString()}/${basename}.${extension}")
-                            } catch (_: URISyntaxException) {
-                                buildNewLogoURI(it, extension)
-                            } catch (_: IllegalArgumentException) {
-                                buildNewLogoURI(it, extension)
-                            } ?: return
-
-                            val pathSignature = uri.path.pathSignature()
-
-                            logo = "${baseUrl}${uri.path.substringBeforeLast('/')}/$pathSignature/${uri.path.substringAfterLast('/')}"
+                            logo = "\${BASE_URL}icon/\${ENCRYPTED_ACCOUNT}/${it.aesEncryptToHexString()}/${basename}.${extension}"
                         }
 
                         var days = 0
@@ -210,8 +202,8 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         LOG.info("{} channels updated", channelsByReference.size)
     }
 
-    private fun buildNewLogoURI(it: String, extension: String): URI? = URI.create(
-        "${config.getActualBaseUrl()}/icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
+    private fun buildNewLogoURI(it: String, extension: String, baseUrl: URI): URI? = URI.create(buildNewLogoURI(it, extension, baseUrl.toString()))
+    private fun buildNewLogoURI(it: String, extension: String, baseUrl: String): String = "${baseUrl}icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
             "jpg"  -> "jpeg"
             "jpeg" -> "jpg"
             "gif"  -> "gif"
@@ -220,7 +212,6 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             "avif" -> "avif"
             else   -> "png"
         }
-    )
 
     private fun loadXmltv(server: IptvServer): InputStream {
         return File("epg_orig.xml").inputStream()
@@ -245,70 +236,76 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 //        )
     }
 
-    fun getChannelPlaylist(channelId: String): String
+    suspend fun getChannelPlaylist(channelId: String, user: IptvUser, baseUrl: URI): String
     {
-        TODO()
-
-//        return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId")).getPlaylist()
+        return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
+            .getPlaylist(user, baseUrl)
     }
 
-    fun getAllChannelsPlaylist(outputStream: OutputStream, username: String) {
+    suspend fun getAllChannelsPlaylist(outputStream: OutputStream, user: IptvUser, baseUrl: URI) {
+        val outputWriter = outputStream.bufferedWriter(UTF_8)
         val sortedChannels = channelsByReference.values.let {
             if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
             else it
         }
 
-        outputStream.write("#EXTM3U\n".toByteArray())
+        // Replace the env variable placeholders in the config
+        val substitutor = StringSubstitutor(mapOf(
+            "BASE_URL" to baseUrl.toString(),
+            "ENCRYPTED_ACCOUNT" to user.toEncryptedAccountHexString(),
+        ))
+
+        outputWriter.write("#EXTM3U\n")
 
         sortedChannels.forEach { channel: IptvChannel ->
-            outputStream.write("#EXTINF:-1".toByteArray())
+            outputWriter.write("#EXTINF:-1")
             if (channel.xmltvId.isNotEmpty()) {
-                outputStream.write(" tvg-id=\"".toByteArray())
-                outputStream.write(channel.xmltvId.toByteArray())
-                outputStream.write("\"".toByteArray())
+                outputWriter.write(" tvg-id=\"")
+                outputWriter.write(channel.xmltvId)
+                outputWriter.write("\"")
             }
 
             if (channel.logo.isNotEmpty()) {
-                outputStream.write(" tvg-logo=\"".toByteArray())
-                outputStream.write(channel.logo.toByteArray())
-                outputStream.write("\"".toByteArray())
+                outputWriter.write(" tvg-logo=\"")
+                outputWriter.write(substitutor.replace(channel.logo))
+                outputWriter.write("\"")
             }
 
             if (channel.catchupDays > 0) {
-                outputStream.write(" catchup=\"shift\" catchup-days=\"".toByteArray())
-                outputStream.write(channel.catchupDays.toString().toByteArray())
-                outputStream.write("\"".toByteArray())
+                outputWriter.write(" catchup=\"shift\" catchup-days=\"")
+                outputWriter.write(channel.catchupDays.toString())
+                outputWriter.write("\"")
             }
 
             if (channel.groups.isNotEmpty()) {
-                outputStream.write(" group-title=\"".toByteArray())
-                outputStream.write(channel.groups.first().toByteArray())
-                outputStream.write("\"".toByteArray())
+                outputWriter.write(" group-title=\"")
+                outputWriter.write(channel.groups.first())
+                outputWriter.write("\"")
             }
 
-            outputStream.write(",".toByteArray())
-            outputStream.write(channel.name.toByteArray())
-            outputStream.write("\n".toByteArray())
+            outputWriter.write(",")
+            outputWriter.write(channel.name)
+            outputWriter.write("\n")
 
             if (channel.groups.isNotEmpty()) {
-                outputStream.write("#EXTGRP:".toByteArray())
-                outputStream.write(java.lang.String.join(";", channel.groups).toByteArray())
-                outputStream.write("\n".toByteArray())
+                outputWriter.write("#EXTGRP:")
+                outputWriter.write(java.lang.String.join(";", channel.groups))
+                outputWriter.write("\n")
             }
 
-            outputStream.write(config.getActualBaseUrl().toByteArray())
-            outputStream.write("/live/".toByteArray())
-            outputStream.write("${username}_${username.generateUserToken()}/".toByteArray())
-            outputStream.write(channel.reference.toByteArray())
-            outputStream.write("/channel.m3u8".toByteArray())
-            outputStream.write("\n".toByteArray())
+            outputWriter.write(baseUrl.toString())
+            outputWriter.write("live/")
+            outputWriter.write(("${user.username}_${user.password}".aesEncryptToHexString() + "/"))
+            outputWriter.write(channel.reference)
+            outputWriter.write("/channel.m3u8")
+            outputWriter.write("\n")
 
-            outputStream.flush()
+            outputWriter.flush()
         }
     }
-    fun getAllChannelsPlaylist(username: String): String {
+    suspend fun getAllChannelsPlaylist(user: IptvUser, actualBaseUrl: URI): String {
         val outputStream = ByteArrayOutputStream()
-        getAllChannelsPlaylist(outputStream, username)
+        getAllChannelsPlaylist(outputStream, user, actualBaseUrl)
         return outputStream.toString("UTF-8")
     }
 

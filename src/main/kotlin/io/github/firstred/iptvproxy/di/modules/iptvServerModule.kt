@@ -10,8 +10,7 @@ val iptvServerModule = module {
     single<IptvServersByName> {
         val servers = IptvServersByName()
         config.servers.forEach {
-            val server = IptvServer(it.name, it, mutableListOf())
-            servers[it.name] = server
+            servers[it.name] = it.toIptvServer()
         }
         servers
     }

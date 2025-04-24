@@ -1,7 +1,8 @@
 package io.github.firstred.iptvproxy.routes
 
+import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.managers.ChannelManager
-import io.github.firstred.iptvproxy.plugins.isNotAuthenticated
+import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.plugins.withUserPermit
@@ -15,17 +16,14 @@ fun Route.live() {
     val channelManager: ChannelManager by inject()
 
     route("/live/") {
-        get(Regex("""(?<username>[a-zA-Z0-9-]+)_(?<token>[a-f0-9]+)/(?<channel>[a-z0-f]+)/[^.]*\.m3u8?""")) {
+        get(Regex("""(?<encryptedaccount>[0-9a-fA-F]+)/(?<channel>[a-z0-f]+)/[^.]*\.m3u8?""")) {
             if (isNotMainEndpoint()) return@get
+            if (isNotReady()) return@get
+            val user = findUserFromRoutingContext()
 
-            val username = call.parameters["username"]
-            val token = call.parameters["token"]
             val channelId = call.parameters["channel"] ?: ""
 
-            if (isNotAuthenticated(username, token = token)) return@get
-            if (isNotReady()) return@get
-
-            withUserPermit(username!!) {
+            withUserPermit(user) {
                 call.response.headers.apply {
                     append(HttpHeaders.ContentType, "audio/mpegurl")
                     append(
@@ -34,7 +32,11 @@ fun Route.live() {
                     )
                 }
 
-                call.respondText(channelManager.getChannelPlaylist(channelId))
+                call.respondText(channelManager.getChannelPlaylist(
+                    channelId,
+                    user,
+                    config.getActualBaseUrl(call.request),
+                ))
             }
         }
     }

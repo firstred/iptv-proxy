@@ -1,7 +1,8 @@
 package io.github.firstred.iptvproxy.routes
 
+import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.managers.ChannelManager
-import io.github.firstred.iptvproxy.plugins.isNotAuthenticated
+import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.ktor.http.*
@@ -14,12 +15,10 @@ fun Route.playlist() {
 
     route("/playlist/") {
         get(Regex("""(?<username>[a-zA-Z0-9-]+)_(?<password>[^/]+)""")) {
-            val username = call.parameters["username"]
-            val password = call.parameters["password"]
-
             if (isNotMainEndpoint()) return@get
-            if (isNotAuthenticated(username, password = password)) return@get
             if (isNotReady()) return@get
+
+            val user = findUserFromRoutingContext()
 
             call.response.headers.apply {
                 append(HttpHeaders.ContentType, "audio/mpegurl")
@@ -27,7 +26,11 @@ fun Route.playlist() {
             }
 
             call.respondOutputStream { use { output ->
-                channelManager.getAllChannelsPlaylist(output, username!!)
+                channelManager.getAllChannelsPlaylist(
+                    output,
+                    user,
+                    config.getActualBaseUrl(call.request),
+                )
             } }
         }
     }

@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.entities
 
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
+import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.serialization.Serializable
 
@@ -11,4 +12,6 @@ class IptvUser(
     @Serializable(with = IntWithUnderscoreSerializer::class) val maxConnections: Int,
 ) {
     val semaphore = Semaphore(maxConnections)
+
+    fun toEncryptedAccountHexString() = "${username}_$password".aesEncryptToHexString()
 }

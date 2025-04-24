@@ -1,9 +1,7 @@
 package io.github.firstred.iptvproxy.managers
 
-import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
 import io.github.firstred.iptvproxy.entities.IptvUser
-import io.github.firstred.iptvproxy.utils.hash
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 
@@ -16,10 +14,21 @@ class UserManager : KoinComponent {
 
         return true
     }
+
     fun isAllowedUser(user: IptvUser): Boolean = isAllowedUser(user.username, user.password)
 
-    companion object {
-        fun validateUserToken(username: String, token: String?): String? =
-            if (token == (username + config.appSecret).hash()) username else null
+    fun getUser(username: String, password: String): IptvUser {
+        val user = iptvUsersByName[username]
+
+        if (null == user) throw IllegalArgumentException("User $username not found")
+        if (password != user.password) throw IllegalArgumentException("Invalid password for user $username")
+
+        return user
+    }
+
+    fun getUserOrNull(username: String, password: String): IptvUser? = try {
+        getUser(username, password)
+    } catch (_: IllegalArgumentException) {
+        null
     }
 }
