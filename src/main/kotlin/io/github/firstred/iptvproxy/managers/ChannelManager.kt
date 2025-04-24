@@ -21,6 +21,14 @@ import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.jvm.javaio.toInputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.apache.commons.text.StringSubstitutor
 import org.koin.core.component.KoinComponent
@@ -28,7 +36,6 @@ import org.koin.core.component.inject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
@@ -43,8 +50,10 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     private val serversByName: IptvServersByName by inject()
     private val channelsByReference: IptvChannelsByReference by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
+    private val httpClient: HttpClient by inject()
+    private val coroutineScope = CoroutineScope(Job())
 
-    private fun updateChannels() {
+    private suspend fun updateChannels() {
         LOG.info("Updating channels")
 
         val newChannelsByReference = IptvChannelsByReference()
@@ -211,27 +220,14 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             else   -> "png"
         }
 
-    private fun loadXmltv(server: IptvServer): InputStream {
-        return File("epg_orig.xml").inputStream()
-
-//        val f = FileLoader.tryLoadBytes(sg.xmltvUrl!!)
-//        return FileLoader.tryLoadBytes("file://epg_orig.xml") ?: run { throw RuntimeException("File not found") }
-//        return f ?: xmltvLoader.loadAsync("xmltv: " + sg.name, sg.xmltvUrl, defaultHttpClient)
+    private suspend fun loadXmltv(server: IptvServer): InputStream {
+        val response = httpClient.get(server.config.epgUrl.toString())
+        return response.bodyAsChannel().toInputStream()
     }
 
-    private fun loadChannels(server: IptvServer): InputStream {
-        return File("playlist_orig.m3u8").inputStream()
-
-//        val f = FileLoader.tryLoadString(s.url.toString())
-//
-//         Local playlist_orig.m3u8 file to CompletableFuture<String?>
-//        return FileLoader.tryLoadString("playlist_orig.m3u8") ?: run { throw RuntimeException("File not found") }
-
-//        return f ?: channelsLoader.loadAsync(
-//            "playlist: " + s.name,
-//            s.createRequest(s.url.toString()).build(),
-//            s.httpClient,
-//        )
+    private suspend fun loadChannels(server: IptvServer): InputStream {
+        val response = httpClient.get(server.config.accounts!!.first().url!!)
+        return response.bodyAsChannel().toInputStream()
     }
 
     suspend fun getChannelPlaylist(channelId: String, user: IptvUser, baseUrl: URI): String
@@ -310,7 +306,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     override fun onApplicationStartHook() {
         LOG.info("Scheduler starting")
 
-        scheduleUpdateChannels()
+         coroutineScope.launch { scheduleUpdateChannels() }
 
         LOG.info("Scheduler started")
     }
@@ -331,17 +327,21 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         LOG.info("Scheduler stopped")
     }
 
-    private fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
+    private suspend fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    updateChannels()
-                    scheduleUpdateChannels(config.updateInterval.inWholeMinutes)
+                    runBlocking(coroutineScope.coroutineContext) {
+                        updateChannels()
+                        scheduleUpdateChannels(config.updateInterval.inWholeMinutes)
+                    }
                 } catch (e: InterruptedException) {
                     LOG.info("Scheduler interrupted while updating channels", e)
                 } catch (e: Exception) {
                     LOG.error("Error while updating channels", e)
-                    scheduleUpdateChannels(1)
+                    runBlocking(coroutineScope.coroutineContext) {
+                        scheduleUpdateChannels(1)
+                    }
                 }
             },
             delay,
