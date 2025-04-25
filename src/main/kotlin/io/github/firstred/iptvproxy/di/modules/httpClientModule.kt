@@ -113,12 +113,6 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
             val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
             header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
         }
-        config.socksProxy?.let {
-            val properties = System.getProperties()
-            val (_, _, _, username, password) = config.getActualSocksProxyConfiguration()!!
-            username?.let { properties.setProperty("java.net.socks.username", username) }
-            password?.let { properties.setProperty("java.net.socks.password", password) }
-        }
     }
     install(Logging) {
         logger = Logger.DEFAULT

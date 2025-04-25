@@ -31,6 +31,8 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
 import java.io.File
+import java.net.Authenticator
+import java.net.PasswordAuthentication
 import kotlin.system.exitProcess
 
 var argv = emptyArray<String>()
@@ -74,20 +76,6 @@ fun main(args: Array<String>) {
         LOG.error("fatal error", e)
         exitProcess(1)
     }
-}
-
-fun loadConfig(configFile: File): IptvProxyConfig {
-    // Read the entire config file in memory
-    var configContent = configFile.readText()
-
-    // Add env variables to the config
-    val parameters: MutableMap<String, String> = dotenv.entries().associate { it.key to it.value }.toMutableMap()
-
-    // Replace the env variable placeholders in the config
-    val substitutor = StringSubstitutor(parameters)
-    configContent = substitutor.replace(configContent)
-
-    return yaml.decodeFromString(IptvProxyConfig.serializer(), configContent)
 }
 
 private fun startServer() {
@@ -153,4 +141,47 @@ private fun startServer() {
             connectionIdleTimeoutSeconds = config.clientConnectionMaxIdleSeconds
         },
     ).start(wait = true)
+}
+
+private fun loadConfig(configFile: File): IptvProxyConfig {
+    // Read the entire config file in memory
+    var configContent = configFile.readText()
+
+    // Add env variables to the config
+    val parameters: MutableMap<String, String> = dotenv.entries().associate { it.key to it.value }.toMutableMap()
+
+    // Replace the env variable placeholders in the config
+    val substitutor = StringSubstitutor(parameters)
+    configContent = substitutor.replace(configContent)
+
+    val deserializedConfig = yaml.decodeFromString(IptvProxyConfig.serializer(), configContent)
+
+    deserializedConfig.httpProxy?.run {
+        val (_, _, _, username, password) = deserializedConfig.getActualSocksProxyConfiguration()!!
+        setProxyAuthenticator(username, password)
+    }
+
+    deserializedConfig.socksProxy?.run {
+        val (_, _, _, username, password) = deserializedConfig.getActualSocksProxyConfiguration()!!
+        setProxyAuthenticator(username, password)
+
+        val properties = System.getProperties()
+        username?.run { properties.setProperty("java.net.socks.username", username) }
+        password?.run { properties.setProperty("java.net.socks.password", password) }
+    }
+
+    return deserializedConfig
+}
+
+private fun setProxyAuthenticator(username: String?, password: String?) {
+    Authenticator.setDefault(object : Authenticator() {
+        @Override
+        override fun getPasswordAuthentication(): PasswordAuthentication? {
+            if (username != null && password != null) {
+                return PasswordAuthentication(username, password.toCharArray())
+            }
+
+            return null
+        }
+    })
 }

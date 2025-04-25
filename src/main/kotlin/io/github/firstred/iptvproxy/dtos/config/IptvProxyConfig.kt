@@ -121,8 +121,7 @@ data class IptvProxyConfig(
         }
     }
     fun getActualSocksProxyConfiguration(): ProxyConfiguration? = socksProxy?.let {
-        val regex =
-            Regex("""^socks[45]?://(?:(?<usernameorpassword>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
+        val regex = Regex("""^socks(4|4a|5)?://(?:(?<usernameorpassword>[^@:/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
         val result = regex.find(it)
 
         if (result != null) {
