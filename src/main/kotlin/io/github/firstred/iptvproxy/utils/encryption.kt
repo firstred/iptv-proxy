@@ -71,8 +71,8 @@ private fun getSecretIterations(): Int {
     return iterations.toInt()
 }
 
-lateinit var privateSecretKey: AES.CBC.Key
-private fun getSecretKey(): AES.CBC.Key {
+lateinit var privateSecretKey: AES.GCM.Key
+private fun getSecretKey(): AES.GCM.Key {
     if (!::privateSecretKey.isInitialized) {
         val provider = CryptographyProvider.Default
         val secretDerivation = provider.get(PBKDF2).secretDerivation(
@@ -84,7 +84,7 @@ private fun getSecretKey(): AES.CBC.Key {
 
         val secret = secretDerivation.deriveSecretBlocking(config.appSecret.toByteArray())
 
-        val decoder = provider.get(AES.CBC).keyDecoder()
+        val decoder = provider.get(AES.GCM).keyDecoder()
         privateSecretKey = decoder.decodeFromByteStringBlocking(AES.Key.Format.RAW, secret)
     }
 
