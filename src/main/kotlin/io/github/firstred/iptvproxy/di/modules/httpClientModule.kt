@@ -9,14 +9,14 @@ import io.ktor.client.plugins.cache.*
 import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.logging.*
-import io.ktor.client.request.header
+import io.ktor.client.request.*
 import io.ktor.http.*
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.io.File
 import java.net.URI
-import java.util.Base64
+import java.util.*
 
 val httpClientModule = module {
     // Client used for all other requests - referred to as `channels_*` in the configuration
