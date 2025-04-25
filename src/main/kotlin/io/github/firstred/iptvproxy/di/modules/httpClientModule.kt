@@ -9,11 +9,13 @@ import io.ktor.client.plugins.cache.*
 import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.logging.*
+import io.ktor.client.request.header
 import io.ktor.http.*
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import java.io.File
+import java.util.Base64
 
 val httpClientModule = module {
     // Client used for all other requests - referred to as `channels_*` in the configuration
@@ -85,32 +87,19 @@ fun OkHttpConfig.configureProxyConnection() {
     }
 
     config.socksProxy?.let {
-        // A socks string without a username could be a shadowsocks proxy - shadowsocks only requires a password
-        val regex = Regex("""^socks[45]?://(?:(?<usernameorpassword>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
-
-        val result = regex.find("${config.socksProxy}")
-
-        if (result != null) {
-            val host = result.groups["host"]?.value
-            val port = result.groups["port"]?.value?.toInt() ?: -1
-
-            val properties = System.getProperties()
-
-            result.groups["password"]?.let {
-                properties.setProperty("java.net.socks.username", result.groups["usernameorpassword"]?.value)
-                properties.setProperty("java.net.socks.password", it.value)
-            }
-                ?: result.groups["usernameorpassword"]?.let {
-                    properties.setProperty("java.net.socks.username", "nobody")
-                    properties.setProperty("java.net.socks.password", it.value)
-                }
-
-            proxy = ProxyBuilder.socks("$host", port)
-        }
+        val (_, host, port) = config.getActualSocksProxyConfiguration()!!
+        proxy = ProxyBuilder.socks(host, port)
     }
 }
 
 fun HttpClientConfig<OkHttpConfig>.defaults() {
+    defaultRequest {
+        config.socksProxy?.let {
+            val (_, _, _, username, password) = config.getActualSocksProxyConfiguration()!!
+            val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+            header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
+        }
+    }
     install(Logging) {
         logger = Logger.DEFAULT
         level = LogLevel.HEADERS

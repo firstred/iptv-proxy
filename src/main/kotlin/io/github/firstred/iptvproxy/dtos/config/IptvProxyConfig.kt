@@ -4,6 +4,7 @@ import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
+import io.ktor.client.engine.ProxyType
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.io.File
@@ -95,6 +96,55 @@ data class IptvProxyConfig(
     fun getActualForwardedBaseUrl(request: RoutingRequest): String? = getForwardedValues(request.headers["Forwarded"]).baseUrl
     fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
     fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
+
+    fun getActualHttpProxyConfiguration(): ProxyConfiguration? = httpProxy?.let {
+        val regex = Regex("""^http://(?:(?<username>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
+        val result = regex.find(it)
+
+        if (result != null) {
+            val host = result.groups["host"]?.value ?: ""
+            val port = result.groups["port"]?.value?.toInt() ?: -1
+
+            val username = result.groups["username"]?.value
+            val password = result.groups["password"]?.value
+
+            ProxyConfiguration(type = ProxyType.HTTP, host = host, port = port, username = username, password = password)
+        } else {
+            null
+        }
+    }
+    fun getActualSocksProxyConfiguration(): ProxyConfiguration? = socksProxy?.let {
+        val regex =
+            Regex("""^socks[45]?://(?:(?<usernameorpassword>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
+        val result = regex.find(it)
+
+        if (result != null) {
+            val host = result.groups["host"]?.value ?: ""
+            val port = result.groups["port"]?.value?.toInt() ?: -1
+
+            var username: String? = null
+            var password: String? = null
+            result.groups["password"]?.let {
+                username = result.groups["usernameorpassword"]?.value
+                password = it.value
+
+            }
+                ?: result.groups["usernameorpassword"]?.let {
+                    username = "nobody"
+                    password = it.value
+                }
+
+            ProxyConfiguration(
+                type = ProxyType.SOCKS,
+                host = host,
+                port = port,
+                username = username,
+                password = password,
+            )
+        } else {
+            null
+        }
+    }
 
     companion object {
         private val checkedDirs = mutableSetOf<String>()
