@@ -8,7 +8,6 @@ import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.runBlocking
 import org.apache.commons.text.StringSubstitutor
 import java.io.OutputStream
 
@@ -19,14 +18,12 @@ fun Route.epg() {
             xmltvDoc.channels?.forEachIndexed { idx, channel ->
                 xmltvDoc.channels!![idx] = channel.copy(
                     icon = channel.icon.let {
-                        it?.copy(
-                            src = substitutor.replace(it.src)
-                        )
+                        it?.copy(src = substitutor.replace(it.src))
                     }
                 )
             }
 
-            runBlocking { XmltvUtils.writeXmltv(xmltvDoc, compressed, output) }
+            XmltvUtils.writeXmltv(xmltvDoc, compressed, output)
         }
     }
 

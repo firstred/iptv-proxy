@@ -22,8 +22,8 @@ import kotlin.text.Charsets.UTF_8
 class IptvChannel(
     val reference: String,
     val name: String,
-    val logo: String,
-    val xmltvId: String,
+    val logo: String?,
+    val xmltvId: String?,
     val url: URI,
     val catchupDays: Int,
     val server: IptvServer,
@@ -83,7 +83,7 @@ class IptvChannel(
                 @Suppress("NAME_SHADOWING") var infoLine = infoLine
                 infoLine = infoLine.trim(' ')
 
-                    // This is a metadata line
+                // This is a metadata line
                 when {
                     infoLine.startsWith(M3U_TAG_EXTINF) -> {
                         var v = infoLine.substring(M3U_TAG_EXTINF.length)

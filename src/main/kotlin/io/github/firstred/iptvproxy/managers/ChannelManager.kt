@@ -21,13 +21,10 @@ import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
-import io.ktor.client.*
-import io.ktor.client.request.*
-import io.ktor.client.statement.*
-import io.ktor.utils.io.jvm.javaio.*
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.statement.bodyAsChannel
+import io.ktor.utils.io.jvm.javaio.toInputStream
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.apache.commons.text.StringSubstitutor
@@ -36,6 +33,7 @@ import org.koin.core.component.inject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
@@ -44,6 +42,7 @@ import java.net.URLEncoder
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook {
@@ -51,7 +50,6 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     private val channelsByReference: IptvChannelsByReference by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
     private val httpClient: HttpClient by inject()
-    private val coroutineScope = CoroutineScope(Job())
 
     private suspend fun updateChannels() {
         LOG.info("Updating channels")
@@ -83,12 +81,12 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 }
             }
 
-            val xmltvById: MutableMap<String?, XmltvChannel?> = mutableMapOf()
-            val xmltvByName: MutableMap<String?, XmltvChannel?> = mutableMapOf()
+            val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
+            val xmltvByName: MutableMap<String, XmltvChannel> = mutableMapOf()
 
             xmltv?.channels?.forEach { ch: XmltvChannel ->
-                xmltvById[ch.id] = ch
-                ch.displayNames?.forEach { xmltvByName[it.text] = ch }
+                ch.id?.let { if (it.isNotBlank()) xmltvById[it] = ch }
+                ch.displayNames?.forEach { textElem -> textElem.text?.let { if (it.isNotBlank()) xmltvByName[it] = ch } }
             }
 
             val xmltvIds: MutableMap<String?, String?> = mutableMapOf()
@@ -99,14 +97,12 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 val channelsInputStream = (loads[server] ?: throw RuntimeException("No channels loaded for server: " + server.name))
                 val m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
 
-                m3u.channels.forEach { m3uChannel: M3uChannel? ->
-                    if (m3uChannel == null) return@forEach
-
-                    val channelReference = (server.name + "||" + m3uChannel.name).hash()
+                m3u.channels.forEach { m3uChannel: M3uChannel ->
+                    val channelReference = (server.name + "||" + m3uChannel.url).hash()
 
                     addNewChannel(newChannelsByReference[channelReference] ?: let {
-                        val tvgId = m3uChannel.props["tvg-id"]
-                        val tvgName = m3uChannel.props["tvg-name"]
+                        val tvgId: String = m3uChannel.props["tvg-id"] ?: ""
+                        val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
 
                         if (server.config.groupFilters.isNotEmpty()) {
                             if (m3uChannel.groups.stream().noneMatch { group: String ->
@@ -120,39 +116,27 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         }
 
                         var xmltvCh: XmltvChannel? = null
-                        if (tvgId != null) {
-                            xmltvCh = xmltvById[tvgId]
-                        }
-                        if (xmltvCh == null && tvgName != null) {
-                            xmltvCh = xmltvByName[tvgName]
-                            if (xmltvCh == null) {
-                                xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
-                            }
-                        }
-                        if (xmltvCh == null) {
-                            xmltvCh = xmltvByName[m3uChannel.name]
-                        }
-
-                        var logo = m3uChannel.props["tvg-logo"]
-                        xmltvCh?.icon?.src?.let { logo = it }
+                        if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
+                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
+                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
+                        if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
+                        if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
 
                         // Redirect logo URI
-                        logo?.let {
+                        val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])?.let {
                             // Find basename and extension of image URL with regex
                             val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
                             val matchResult = regex.find(it)
                             val basename = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
                             val extension = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
 
-                            logo = "\${BASE_URL}icon/\${ENCRYPTED_ACCOUNT}/${it.aesEncryptToHexString()}/${basename}.${extension}"
+                            "\${BASE_URL}icon/\${ENCRYPTED_ACCOUNT}/${it.aesEncryptToHexString()}/${basename}.${extension}"
                         }
 
                         var days = 0
-                        var daysStr = m3uChannel.props["tvg-rec"]
-                        if (daysStr == null) {
-                            daysStr = m3uChannel.props["catchup-days"]
-                        }
-                        if (daysStr != null) {
+                        var daysStr = m3uChannel.props["tvg-rec"] ?: ""
+                        if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
+                        if (daysStr.isNotBlank()) {
                             try {
                                 days = daysStr.toInt()
                             } catch (_: NumberFormatException) {
@@ -161,7 +145,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         }
 
                         var xmltvId = xmltvCh?.id
-                        if (xmltvId != null) {
+                        if (!xmltvId.isNullOrBlank()) {
                             val newId = (server.name + '-' + xmltvId).hash()
                             if (xmltvIds.putIfAbsent(xmltvId, newId) == null) {
                                 newXmltv.channels?.add(xmltvCh.copy(id = newId, icon = logo?.let { XmltvIcon(it) }))
@@ -172,9 +156,9 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         IptvChannel(
                             reference = channelReference,
                             name = m3uChannel.name,
-                            logo = logo.toString(),
+                            logo = logo,
                             groups = m3uChannel.groups,
-                            xmltvId = xmltvId.toString(),
+                            xmltvId = xmltvId,
                             catchupDays = days,
                             url = URI.create(m3uChannel.url),
                             server = server,
@@ -190,9 +174,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 if ((endOf == null || programme!!.start!! < endOf) && (startOf == null || programme!!.stop!! > startOf)
                 ) {
                     val newId = xmltvIds[programme!!.channel]
-                    if (newId != null) {
-                        newXmltv.programmes?.add(programme.copy(channel = newId))
-                    }
+                    if (!newId.isNullOrBlank()) newXmltv.programmes?.add(programme.copy(channel = newId))
                 }
             }
         }
@@ -253,17 +235,15 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
         sortedChannels.forEach { channel: IptvChannel ->
             outputWriter.write("#EXTINF:-1")
-            if (channel.xmltvId.isNotEmpty()) {
+            if (channel.xmltvId?.isNotEmpty() ?: false) {
                 outputWriter.write(" tvg-id=\"")
                 outputWriter.write(channel.xmltvId)
                 outputWriter.write("\"")
             }
 
-            if (channel.logo.isNotEmpty()) {
-                outputWriter.write(" tvg-logo=\"")
-                outputWriter.write(substitutor.replace(channel.logo))
-                outputWriter.write("\"")
-            }
+            outputWriter.write(" tvg-logo=\"")
+            channel.logo?.let { if ("null" != channel.logo) outputWriter.write(substitutor.replace(channel.logo)) }
+            outputWriter.write("\"")
 
             if (channel.catchupDays > 0) {
                 outputWriter.write(" catchup=\"shift\" catchup-days=\"")
@@ -306,7 +286,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     override fun onApplicationStartHook() {
         LOG.info("Scheduler starting")
 
-         coroutineScope.launch { scheduleUpdateChannels() }
+        scheduleUpdateChannels()
 
         LOG.info("Scheduler started")
     }
@@ -327,11 +307,11 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         LOG.info("Scheduler stopped")
     }
 
-    private suspend fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
+    private fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    runBlocking(coroutineScope.coroutineContext) {
+                    runBlocking {
                         updateChannels()
                         scheduleUpdateChannels(config.updateInterval.inWholeMinutes)
                     }
@@ -339,7 +319,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                     LOG.info("Scheduler interrupted while updating channels", e)
                 } catch (e: Exception) {
                     LOG.error("Error while updating channels", e)
-                    runBlocking(coroutineScope.coroutineContext) {
+                    runBlocking {
                         scheduleUpdateChannels(1)
                     }
                 }

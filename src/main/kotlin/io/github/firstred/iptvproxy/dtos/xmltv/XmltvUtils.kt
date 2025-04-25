@@ -68,9 +68,9 @@ class XmltvUtils {
         ) {
             try {
                 val outputStream = if (compressed) {
-                    GZIPOutputStream(output, true).bufferedWriter()
+                    GZIPOutputStream(output).bufferedWriter(UTF_8)
                 } else {
-                    output.bufferedWriter()
+                    output.bufferedWriter(UTF_8)
                 }
                 outputStream.use {
                     outputStream.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><!DOCTYPE tv SYSTEM \"xmltv.dtd\">\n")
