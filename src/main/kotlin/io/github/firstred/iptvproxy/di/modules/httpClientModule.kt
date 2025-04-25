@@ -11,11 +11,9 @@ import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.header
 import io.ktor.http.*
-import io.ktor.server.util.url
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import org.slf4j.LoggerFactory
 import java.io.File
 import java.net.URI
 import java.util.Base64
@@ -87,21 +85,19 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
 fun OkHttpConfig.configureProxyConnection() {
     // Proxy configuration without authentication
     config.httpProxy?.let {
-        val uri = config.getActualHttpProxyURI()!!
-        val newUri = URI(
-            uri.scheme,
-            null,
-            uri.host,
-            uri.port,
-            uri.path,
-            uri.query,
-            uri.fragment,
+        val proxyUri = config.getActualHttpProxyURI()!!
+
+        proxy = ProxyBuilder.http(
+            URI(
+                proxyUri.scheme,
+                null,
+                proxyUri.host,
+                proxyUri.port,
+                proxyUri.path,
+                proxyUri.query,
+                proxyUri.fragment,
+            ).toString()
         )
-
-        LoggerFactory.getLogger("httpClientModule").info("Configured HTTP Proxy url: ${it}")
-        LoggerFactory.getLogger("httpClientModule").info("Parsed HTTP Proxy url: ${newUri}")
-
-        proxy = ProxyBuilder.http(newUri.toString())
     }
     config.socksProxy?.let {
         val (_, host, port) = config.getActualSocksProxyConfiguration()!!
