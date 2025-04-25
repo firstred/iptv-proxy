@@ -85,12 +85,25 @@ fun OkHttpConfig.configureProxyConnection() {
     }
 
     config.socksProxy?.let {
-        val regex = Regex("""socks[45]?://(?<host>.*?):(?<port>\\d+)""")
+        // A socks string without a username could be a shadowsocks proxy - shadowsocks only requires a password
+        val regex = Regex("""^socks[45]?://(?:(?<usernameorpassword>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
+
         val result = regex.find("${config.socksProxy}")
 
         if (result != null) {
             val host = result.groups["host"]?.value
             val port = result.groups["port"]?.value?.toInt() ?: -1
+
+            val properties = System.getProperties()
+
+            result.groups["password"]?.let {
+                properties.setProperty("java.net.socks.username", result.groups["usernameorpassword"]?.value)
+                properties.setProperty("java.net.socks.password", it.value)
+            }
+                ?: result.groups["usernameorpassword"]?.let {
+                    properties.setProperty("java.net.socks.username", "nobody")
+                    properties.setProperty("java.net.socks.password", it.value)
+                }
 
             proxy = ProxyBuilder.socks("$host", port)
         }
