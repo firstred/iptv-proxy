@@ -74,14 +74,16 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
         }
         pipelining = true
 
-        config.httpProxy?.let {
-            proxy = ProxyBuilder.http(it)
-        }
+
         configureProxyConnection()
     }
 }
 
 fun OkHttpConfig.configureProxyConnection() {
+    config.httpProxy?.let {
+        proxy = ProxyBuilder.http(it)
+    }
+
     config.socksProxy?.let {
         val regex = Regex("""socks[45]?://(?<host>.*?):(?<port>\\d+)""")
         val result = regex.find("${config.socksProxy}")
