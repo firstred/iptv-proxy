@@ -97,20 +97,27 @@ data class IptvProxyConfig(
     fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
     fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
 
+    fun getActualHttpProxyURI(): URI? = httpProxy?.let { URI.create(it) }
     fun getActualHttpProxyConfiguration(): ProxyConfiguration? = httpProxy?.let {
-        val regex = Regex("""^http://(?:(?<username>[^@/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
-        val result = regex.find(it)
+        getActualHttpProxyURI().let { uri ->
+            val host = uri?.host
+            val port = uri?.port
 
-        if (result != null) {
-            val host = result.groups["host"]?.value ?: ""
-            val port = result.groups["port"]?.value?.toInt() ?: -1
+            var username: String? = null
+            var password: String? = null
+            uri?.userInfo?.let {
+                val userInfo = it.split(":")
+                username = userInfo[0]
+                password = if (userInfo.size > 1) userInfo[1] else null
+            }
 
-            val username = result.groups["username"]?.value
-            val password = result.groups["password"]?.value
-
-            ProxyConfiguration(type = ProxyType.HTTP, host = host, port = port, username = username, password = password)
-        } else {
-            null
+            ProxyConfiguration(
+                type = ProxyType.HTTP,
+                host = host ?: "",
+                port = port ?: -1,
+                username = username,
+                password = password,
+            )
         }
     }
     fun getActualSocksProxyConfiguration(): ProxyConfiguration? = socksProxy?.let {

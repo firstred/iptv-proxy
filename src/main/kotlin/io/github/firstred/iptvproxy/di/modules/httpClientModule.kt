@@ -11,10 +11,13 @@ import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.header
 import io.ktor.http.*
+import io.ktor.server.util.url
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
+import org.slf4j.LoggerFactory
 import java.io.File
+import java.net.URI
 import java.util.Base64
 
 val httpClientModule = module {
@@ -82,10 +85,24 @@ fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
 }
 
 fun OkHttpConfig.configureProxyConnection() {
+    // Proxy configuration without authentication
     config.httpProxy?.let {
-        proxy = ProxyBuilder.http(it)
-    }
+        val uri = config.getActualHttpProxyURI()!!
+        val newUri = URI(
+            uri.scheme,
+            null,
+            uri.host,
+            uri.port,
+            uri.path,
+            uri.query,
+            uri.fragment,
+        )
 
+        LoggerFactory.getLogger("httpClientModule").info("Configured HTTP Proxy url: ${it}")
+        LoggerFactory.getLogger("httpClientModule").info("Parsed HTTP Proxy url: ${newUri}")
+
+        proxy = ProxyBuilder.http(newUri.toString())
+    }
     config.socksProxy?.let {
         val (_, host, port) = config.getActualSocksProxyConfiguration()!!
         proxy = ProxyBuilder.socks(host, port)
@@ -94,10 +111,17 @@ fun OkHttpConfig.configureProxyConnection() {
 
 fun HttpClientConfig<OkHttpConfig>.defaults() {
     defaultRequest {
-        config.socksProxy?.let {
-            val (_, _, _, username, password) = config.getActualSocksProxyConfiguration()!!
+        // Handle proxy authentication part of the configuration
+        config.httpProxy?.let {
+            val (_, _, _, username, password) = config.getActualHttpProxyConfiguration()!!
             val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
             header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
+        }
+        config.socksProxy?.let {
+            val properties = System.getProperties()
+            val (_, _, _, username, password) = config.getActualSocksProxyConfiguration()!!
+            username?.let { properties.setProperty("java.net.socks.username", username) }
+            password?.let { properties.setProperty("java.net.socks.password", password) }
         }
     }
     install(Logging) {
