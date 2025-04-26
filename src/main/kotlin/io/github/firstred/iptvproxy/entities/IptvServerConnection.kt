@@ -15,12 +15,9 @@ class IptvServerConnection(
 ) : KoinComponent {
     private val semaphore: Semaphore = Semaphore(config.account.maxConcurrentRequests)
 
-    val httpClient: HttpClient by inject(
-        named(IptvServerConnection::class.java.simpleName),
-        parameters = { parametersOf(config) },
-    )
+    val httpClient: HttpClient by inject(named(IptvServerConnection::class.java.simpleName)) { parametersOf(config) }
 
-    suspend fun acquire(): Unit {
+    suspend fun acquire() {
         semaphore.acquire()
     }
 
