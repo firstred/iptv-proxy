@@ -157,7 +157,7 @@ private fun loadConfig(configFile: File): IptvProxyConfig {
     val deserializedConfig = yaml.decodeFromString(IptvProxyConfig.serializer(), configContent)
 
     deserializedConfig.httpProxy?.run {
-        val (_, _, _, username, password) = deserializedConfig.getActualSocksProxyConfiguration()!!
+        val (_, _, _, username, password) = deserializedConfig.getActualHttpProxyConfiguration()!!
         setProxyAuthenticator(username, password)
     }
 
