@@ -229,7 +229,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     ): String
     {
         return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
-            .getPlaylist(user, baseUrl)
+            .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
     }
 
     suspend fun getAllChannelsPlaylist(

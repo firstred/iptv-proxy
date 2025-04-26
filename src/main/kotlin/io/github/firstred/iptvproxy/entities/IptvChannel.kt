@@ -4,6 +4,7 @@ import io.github.firstred.iptvproxy.utils.EXT_X_MEDIA_SEQUENCE
 import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
 import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
+import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -35,10 +36,11 @@ class IptvChannel(
         user: IptvUser,
         baseUrl: URI,
         additionalHeaders: Headers = headersOf(),
-        additionalParams: Parameters = parametersOf(),
+        additionalQueryParameters: Parameters = parametersOf(),
+        headersCallback: ((Headers) -> Unit)? = null,
     ): String {
         val outputStream = ByteArrayOutputStream()
-        getPlaylist(outputStream, user, baseUrl, additionalHeaders, additionalParams)
+        getPlaylist(outputStream, user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
 
         return outputStream.toString(UTF_8.toString())
     }
@@ -48,14 +50,23 @@ class IptvChannel(
         user: IptvUser,
         baseUrl: URI,
         additionalHeaders: Headers = headersOf(),
-        additionalParams: Parameters = parametersOf(),
+        additionalQueryParameters: Parameters = parametersOf(),
+        headersCallback: ((Headers) -> Unit)? = null,
     ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
 
         server.withConnection { connection ->
             LOG.info("[{}] loading channel: {}, url: {}", user.username, name, reference)
 
-            var response = connection.httpClient.get(url.toString())
+            var response = connection.httpClient.get(
+                url.appendQueryParameters(additionalQueryParameters).toString(),
+            ) {
+                headers {
+                    additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
+                }
+            }
+            headersCallback?.invoke(response.headers)
+
             var responseURI = url
 
             var redirects = 0
@@ -77,7 +88,7 @@ class IptvChannel(
 
             var mediaSequenceNumber = 1
             var maxDurationMillis = 0L
-            var currentDurationMillis = 0L
+            var currentDurationMillis: Long
 
             for (infoLine in response.body<String>().lines()) {
                 @Suppress("NAME_SHADOWING") var infoLine = infoLine
