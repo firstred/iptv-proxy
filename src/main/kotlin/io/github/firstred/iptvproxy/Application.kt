@@ -164,10 +164,6 @@ private fun loadConfig(configFile: File): IptvProxyConfig {
     deserializedConfig.socksProxy?.run {
         val (_, _, _, username, password) = deserializedConfig.getActualSocksProxyConfiguration()!!
         setProxyAuthenticator(username, password)
-
-        val properties = System.getProperties()
-        username?.run { properties.setProperty("java.net.socks.username", username) }
-        password?.run { properties.setProperty("java.net.socks.password", password) }
     }
 
     return deserializedConfig
