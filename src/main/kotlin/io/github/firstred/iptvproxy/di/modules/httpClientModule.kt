@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.di.modules
 
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
+import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
@@ -62,6 +64,39 @@ val httpClientModule = module {
                 connectTimeoutMillis = config.timeouts.icon.connectMilliseconds
                 socketTimeoutMillis = config.timeouts.icon.connectMilliseconds
                 requestTimeoutMillis = config.timeouts.icon.totalMilliseconds
+            }
+        }
+    }
+
+    // Factory for iptv server connections
+    factory<HttpClient>(named(IptvServerConnection::class.java.simpleName)) {(flatServerConfig: IptvFlatServerConfig) ->
+        HttpClient(OkHttp) {
+            defaults()
+            val okDispatcher = Dispatcher()
+            okDispatcher.maxRequestsPerHost = flatServerConfig.account.maxConcurrentRequestsPerHost
+
+            engine {
+                config {
+                    followRedirects(false)
+                    followSslRedirects(false)
+                    dispatcher(okDispatcher)
+                }
+                pipelining = true
+
+                configureProxyConnection()
+            }
+
+            followRedirects = false
+
+            install(HttpRequestRetry) {
+                defaultRetryHandler {
+                    delayMillis { flatServerConfig.timeouts.playlist.retryDelayMilliseconds }
+                }
+            }
+            install(HttpTimeout) {
+                connectTimeoutMillis = flatServerConfig.timeouts.playlist.connectMilliseconds
+                socketTimeoutMillis = flatServerConfig.timeouts.playlist.connectMilliseconds
+                requestTimeoutMillis = flatServerConfig.timeouts.playlist.totalMilliseconds
             }
         }
     }
