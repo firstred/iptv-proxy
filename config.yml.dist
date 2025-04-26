@@ -35,7 +35,6 @@ timeouts:
   playlist: *default-timeouts
   epg: *default-timeouts
   icon: *default-timeouts
-max_requests_per_host: 1 # Max requests per hosts when requesting playlists and EPG
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
 scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG

@@ -23,7 +23,6 @@ data class IptvProxyConfig(
     val logLevel: String = "ERROR",
     val timeouts: IptvProxyConfigTimeouts = IptvProxyConfigTimeouts(),
 
-    val maxRequestsPerHost: Int = defaultMaxConnections,
     val clientConnectionMaxIdleSeconds: Int = 60,
 
     val updateInterval: Duration = Duration.parse("PT1H"),

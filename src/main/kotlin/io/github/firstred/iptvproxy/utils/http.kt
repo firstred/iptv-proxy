@@ -57,7 +57,9 @@ fun appendQueryParameters(
     }
     return URI(url.scheme, url.authority, url.path, newQueryString, url.fragment)
 }
-
+fun URI.appendQueryParameters(
+    queryParameters: Parameters,
+): URI = appendQueryParameters(this, queryParameters)
 private fun StringValues.toHeaders() = headers {
     forEach { key, values ->
         values.forEach { value -> append(key, value) }
