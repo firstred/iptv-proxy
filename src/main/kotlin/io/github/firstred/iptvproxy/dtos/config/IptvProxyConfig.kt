@@ -41,6 +41,11 @@ data class IptvProxyConfig(
 
     val cors: IptvProxyCorsConfig = IptvProxyCorsConfig(),
 
+    val whitelistIptvClientHeaders: List<String> = listOf("*"),
+    val blacklistIptvClientHeaders: List<String> = listOf(),
+    val whitelistIptvServerHeaders: List<String> = listOf("*"),
+    val blacklistIptvServerHeaders: List<String> = listOf(),
+
     val sentry: IptvProxyConfigSentry? = null,
 ) {
     private fun getActualTempDirectory(): String {

@@ -5,6 +5,9 @@ import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
 import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
+import io.github.firstred.iptvproxy.utils.appendQueryParameters
+import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
+import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -14,6 +17,7 @@ import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import org.koin.ktor.ext.inject
 import java.io.File
+import java.net.URI
 import kotlin.concurrent.timer
 
 fun Route.hls() {
@@ -29,9 +33,16 @@ fun Route.hls() {
 
             channelsByReference[channelId]!!.server.withConnection { connection ->
                 connection.httpClient.request {
-                    url(remoteUrl)
+                    url(appendQueryParameters(URI(remoteUrl), call.request.queryParameters).toString())
                     method = HttpMethod.Get
+                    headers {
+                        filterHttpRequestHeaders(this@headers, this@get)
+                    }
                 }.let { response ->
+                    call.response.headers.apply {
+                        filterHttpResponseHeaders(response)
+                    }
+
                     call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
                         response.bodyAsChannel().copyAndClose(this)
                         flushAndClose()
@@ -41,6 +52,8 @@ fun Route.hls() {
         }
     }
 }
+
+
 
 fun Route.hlsOnlyNoticeStream() {
     // Unix timestamp in seconds

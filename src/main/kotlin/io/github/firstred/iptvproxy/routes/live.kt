@@ -6,6 +6,7 @@ import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.plugins.withUserPermit
+import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -32,11 +33,14 @@ fun Route.live() {
                     )
                 }
 
-                call.respondText(channelManager.getChannelPlaylist(
+                call.respondText(
+                    channelManager.getChannelPlaylist(
                     channelId,
                     user,
                     config.getActualBaseUrl(call.request),
-                ))
+                    call.request.headers.filterHttpRequestHeaders(),
+                    call.request.queryParameters,
+                    ) { headers -> headers.entries().forEach { (key, value) -> value.forEach { call.response.headers.append(key, it) } } })
             }
         }
     }

@@ -24,6 +24,7 @@ import io.github.firstred.iptvproxy.utils.hash
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
@@ -201,22 +202,41 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         }
 
     private suspend fun loadXmltv(server: IptvServer): InputStream {
-        val response = httpClient.get(server.config.epgUrl.toString())
+        val response = httpClient.get(server.config.epgUrl.toString()) {
+            headers {
+                server.config.accounts!!.first().userAgent?.let { append("User-Agent", it) }
+            }
+        }
         return response.bodyAsChannel().toInputStream()
     }
 
     private suspend fun loadChannels(server: IptvServer): InputStream {
-        val response = httpClient.get(server.config.accounts!!.first().url!!)
+        val response = httpClient.get(server.config.accounts!!.first().url!!) {
+            headers {
+                server.config.accounts.first().userAgent?.let { append("User-Agent", it) }
+            }
+        }
         return response.bodyAsChannel().toInputStream()
     }
 
-    suspend fun getChannelPlaylist(channelId: String, user: IptvUser, baseUrl: URI): String
+    suspend fun getChannelPlaylist(
+        channelId: String,
+        user: IptvUser,
+        baseUrl: URI,
+        additionalHeaders: Headers = headersOf(),
+        additionalQueryParameters: Parameters = parametersOf(),
+        headersCallback: ((Headers) -> Unit)? = null,
+    ): String
     {
         return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
             .getPlaylist(user, baseUrl)
     }
 
-    suspend fun getAllChannelsPlaylist(outputStream: OutputStream, user: IptvUser, baseUrl: URI) {
+    suspend fun getAllChannelsPlaylist(
+        outputStream: OutputStream,
+        user: IptvUser,
+        baseUrl: URI,
+    ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
         val sortedChannels = channelsByReference.values.let {
             if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
@@ -275,7 +295,12 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             outputWriter.flush()
         }
     }
-    suspend fun getAllChannelsPlaylist(user: IptvUser, actualBaseUrl: URI): String {
+    suspend fun getAllChannelsPlaylist(
+        user:
+        IptvUser,
+        actualBaseUrl:
+        URI,
+    ): String {
         val outputStream = ByteArrayOutputStream()
         getAllChannelsPlaylist(outputStream, user, actualBaseUrl)
         return outputStream.toString("UTF-8")
@@ -298,7 +323,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 LOG.warn("Scheduler is still running...")
                 scheduledExecutorService.shutdownNow()
             }
-        } catch (e: InterruptedException) {
+        } catch (_: InterruptedException) {
             LOG.error("Interrupted while stopping scheduler")
         }
 

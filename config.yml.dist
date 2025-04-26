@@ -61,18 +61,24 @@ cors: # Configure CORS response from the server - e.g. for direct access to the 
   max_age: 3600
   expose_headers:
     - "X-Total-Count"
-# allow_iptv_server_headers:
-#  - "X-Total-Count" # Allows additional headers from the IPTV server to be passed to the client
-# allow_iptv_client_headers:
-#  - "X-Xtream-User" # Allows additional headers from the IPTV client to be passed to the server
+# whitelist_iptv_client_headers:
+#  - "User-Agent" # Allows additional headers from the IPTV client to be passed to the server - default: allow all
+blacklist_iptv_client_headers:
+  - l5d-dst-override
+  - l5d-connection-secure
+  - l5d-remote-ipv6
+  - l5d-client-id
+# whitelist_iptv_server_headers:
+#  - "X-Subscription-Expiry" # Allows additional headers from the IPTV server to be passed to the client - default: allow all
 servers:
   - name: someiptv-1
-    connections:
+    accounts:
       - url: https://someiptv.com/          # Xtream API server without the `.get.php`, `api.php`, `xmltv.php`, etc.
         xtream_username: 1234567890abcdef   # Xtream username
         xtream_password: aslkdfadsf         # Xtream password
         max_concurrent_requests: 3          # General max requests for this account
         max_concurrent_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+        user_agent: "TiviMate/5.1.6 (Android 14)" # Force a specific user agent for all requests with this account
       - url: https://someiptv.com/playlist.m3u
         login: account # HTTP Basic Auth login
         password: password # HTTP Basic Auth password
