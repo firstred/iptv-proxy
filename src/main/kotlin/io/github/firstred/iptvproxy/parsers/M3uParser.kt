@@ -2,6 +2,8 @@ package io.github.firstred.iptvproxy.parsers
 
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
+import io.github.firstred.iptvproxy.entities.IptvChannelType
+import io.github.firstred.iptvproxy.utils.channelType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.InputStream
@@ -76,7 +78,9 @@ class M3uParser {
 
                     try {
                         URI(line)
-                        channels.add(M3uChannel(line, name, groups.toSet(), props.toMap()))
+                        if (IptvChannelType.LIVE == line.channelType()) {
+                            channels.add(M3uChannel(line, name, groups.toSet(), props.toMap()))
+                        }
                     } catch (_: URISyntaxException) {
                         LOG.warn("malformed channel uri: {}", line)
                         resetVars()
