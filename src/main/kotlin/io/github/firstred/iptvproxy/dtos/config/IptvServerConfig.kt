@@ -4,6 +4,7 @@ import io.github.firstred.iptvproxy.entities.IptvServer
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
 import kotlinx.serialization.Serializable
+import java.net.URI
 import java.util.regex.Pattern
 import kotlin.time.Duration
 
@@ -52,4 +53,12 @@ data class IptvServerConfig(
         config = this,
         connections = accounts?.mapIndexed { idx, _ -> IptvServerConnection(toFlatIptvServerConfig(idx)) }?.toMutableList() ?: mutableListOf(),
     )
+
+    override fun getEpgUrl(): URI? {
+        return epgUrl?.let { URI(epgUrl) } ?: accounts?.firstOrNull()?.getEpgUrl()
+    }
+
+    override fun getPlaylistUrl(): URI? {
+        return accounts?.firstOrNull()?.getPlaylistUrl()
+    }
 }

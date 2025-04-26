@@ -3,6 +3,7 @@ package io.github.firstred.iptvproxy.di.modules
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
+import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.ktor.client.*
 import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
@@ -13,6 +14,7 @@ import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import kotlinx.io.IOException
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
@@ -25,7 +27,7 @@ val httpClientModule = module {
     single<HttpClient> {
         HttpClient(OkHttp) {
             defaults()
-            okHttpConfig(config.maxRequestsPerHost)
+            okHttpConfig()
 
             expectSuccess = true
             followRedirects = true
@@ -49,7 +51,7 @@ val httpClientModule = module {
             defaults()
             okHttpConfig(maxRequestsPerHost = 64)
 
-            expectSuccess = true
+            expectSuccess = false
             followRedirects = true
 
             install(HttpCache) {
@@ -102,7 +104,8 @@ val httpClientModule = module {
     }
 }
 
-fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = 6) {
+// OkHttp is the engine used for HTTP Client - this is the specific OkHttp engine configuration
+fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = defaultMaxConnections) {
     val okDispatcher = Dispatcher()
     okDispatcher.maxRequestsPerHost = maxRequestsPerHost
 
@@ -140,6 +143,7 @@ fun OkHttpConfig.configureProxyConnection() {
     }
 }
 
+// OkHttp is the engine used for HTTP Client - this is the default configuration
 fun HttpClientConfig<OkHttpConfig>.defaults() {
     defaultRequest {
         // Handle proxy authentication part of the configuration
@@ -150,8 +154,10 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
         }
     }
     install(Logging) {
-        logger = Logger.DEFAULT
-        level = LogLevel.HEADERS
+        logger = Logger.DEFAULT  // Default logger for JVM
+        level = LogLevel.HEADERS // Log headers only
+
+        // Hide authorization header from logs
         sanitizeHeader { header -> header == HttpHeaders.Authorization }
     }
     install(ContentEncoding) {
@@ -160,12 +166,13 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
     }
 }
 
+// This is the default retry handler shared by almost all clients
 fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
     retryOnExceptionIf { _, cause ->
-        cause is ServerResponseException ||
-                cause is ClientRequestException
-                && listOf(HttpStatusCode.TooManyRequests.value, 456, 458)
-            .contains(cause.response.status.value)
+        cause is ServerResponseException           // Handle 5xx errors
+                || cause is IOException            // Handle network errors and timeout
+                || cause is ClientRequestException // Handle specific client errors
+                && listOf(HttpStatusCode.TooManyRequests.value, 456, 458).contains(cause.response.status.value)
     }
     additionalConfig()
 }

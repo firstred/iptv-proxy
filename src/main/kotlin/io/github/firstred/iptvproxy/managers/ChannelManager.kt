@@ -3,14 +3,20 @@ package io.github.firstred.iptvproxy.managers
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
+import io.github.firstred.iptvproxy.di.modules.XmltvChannelsByReference
+import io.github.firstred.iptvproxy.di.modules.XmltvProgrammes
+import io.github.firstred.iptvproxy.di.modules.iptvChannelsLock
+import io.github.firstred.iptvproxy.di.modules.xmltvChannelsLock
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
+import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvIcon
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.entities.IptvServer
+import io.github.firstred.iptvproxy.entities.IptvChannelType
+import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
@@ -19,6 +25,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTe
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
+import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
 import io.ktor.client.*
@@ -27,6 +34,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import org.apache.commons.text.StringSubstitutor
 import org.koin.core.component.KoinComponent
@@ -47,6 +55,8 @@ import kotlin.text.Charsets.UTF_8
 class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook {
     private val serversByName: IptvServersByName by inject()
     private val channelsByReference: IptvChannelsByReference by inject()
+    private val xmltvChannelsByReference: XmltvChannelsByReference by inject()
+    private val xmltvProgrammes: XmltvProgrammes by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
     private val httpClient: HttpClient by inject()
 
@@ -58,15 +68,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             newChannelsByReference[channel.reference] = channel
         }
 
-        val loads: MutableMap<IptvServer, InputStream> = mutableMapOf()
-        val xmltvLoads: MutableMap<IptvServer, InputStream> = mutableMapOf()
-
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
-
-        serversByName.values.forEach { server: IptvServer ->
-            if (server.config.epgUrl != null) xmltvLoads[server] = loadXmltv(server)
-            loads[server] = loadChannels(server)
-        }
 
         val newXmltv = XmltvDoc()
         for (server in serversByName.values) {
@@ -74,9 +76,11 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             if (server.config.epgUrl != null) {
                 LOG.info("Waiting for xmltv data to be downloaded")
 
-                xmltvLoads[server]?.let { inputStream ->
+                server.withConnection(server.config.accounts?.first()) { serverConnection ->
                     LOG.info("Parsing xmltv data")
-                    inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
+                    loadXmltv(serverConnection).let { inputStream ->
+                        inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
+                    }
                 }
             }
 
@@ -85,7 +89,11 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
             xmltv?.channels?.forEach { ch: XmltvChannel ->
                 ch.id?.let { if (it.isNotBlank()) xmltvById[it] = ch }
-                ch.displayNames?.forEach { textElem -> textElem.text?.let { if (it.isNotBlank()) xmltvByName[it] = ch } }
+                ch.displayNames?.forEach { textElem ->
+                    textElem.text?.let {
+                        if (it.isNotBlank()) xmltvByName[it] = ch
+                    }
+                }
             }
 
             val xmltvIds: MutableMap<String?, String?> = mutableMapOf()
@@ -93,8 +101,13 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
 
-                val channelsInputStream = (loads[server] ?: throw RuntimeException("No channels loaded for server: " + server.name))
-                val m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
+                lateinit var channelsInputStream: InputStream
+                lateinit var m3u: M3uDoc
+
+                server.withConnection(account) { serverConnection ->
+                    channelsInputStream = loadChannels(serverConnection)
+                    m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
+                }
 
                 m3u.channels.forEach { m3uChannel: M3uChannel ->
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
@@ -117,7 +130,8 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         var xmltvCh: XmltvChannel? = null
                         if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
                         if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
-                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
+                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh =
+                            xmltvByName[tvgName.replace(' ', '_')]
                         if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
                         if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
 
@@ -126,8 +140,16 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             // Find basename and extension of image URL with regex
                             val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
                             val matchResult = regex.find(it)
-                            val basename = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
-                            val extension = URLEncoder.encode(URLDecoder.decode(matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()).filterNot { it.isWhitespace() }, UTF_8.toString())
+                            val basename = URLEncoder.encode(
+                                URLDecoder.decode(
+                                    matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()
+                                ).filterNot { it.isWhitespace() }, UTF_8.toString()
+                            )
+                            val extension = URLEncoder.encode(
+                                URLDecoder.decode(
+                                    matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()
+                                ).filterNot { it.isWhitespace() }, UTF_8.toString()
+                            )
 
                             "\${BASE_URL}icon/\${ENCRYPTED_ACCOUNT}/${it.aesEncryptToHexString()}/${basename}.${extension}"
                         }
@@ -159,15 +181,17 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             groups = m3uChannel.groups,
                             xmltvId = xmltvId,
                             catchupDays = days,
-                            url = URI.create(m3uChannel.url),
+                            url = URI(m3uChannel.url),
                             server = server,
+                            type = m3uChannel.url.channelType(),
                         )
                     })
                 }
             }
 
             val endOf = if (server.config.epgAfter == null) null else Clock.System.now() + server.config.epgAfter
-            val startOf = if (server.config.epgBefore == null) null else Clock.System.now() - server.config.epgBefore
+            val startOf =
+                if (server.config.epgBefore == null) null else Clock.System.now() - server.config.epgBefore
 
             xmltv?.programmes?.forEach { programme: XmltvProgramme? ->
                 if ((endOf == null || programme!!.start!! < endOf) && (startOf == null || programme!!.stop!! > startOf)
@@ -182,15 +206,23 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         XmltvUtils.writeXmltv(newXmltv)
 
         // Update channels list
-        channelsByReference.clear()
-        channelsByReference.putAll(newChannelsByReference)
+        iptvChannelsLock.withLock {
+            channelsByReference.clear()
+            channelsByReference.putAll(newChannelsByReference)
+        }
+        xmltvChannelsLock.withLock {
+            xmltvChannelsByReference.clear()
+            xmltvChannelsByReference.putAll(newXmltv.channels?.associateBy { it.id ?: "-" } ?: emptyMap())
+            xmltvProgrammes.clear()
+            newXmltv.programmes?.let { xmltvProgrammes.addAll(it) }
+        }
 
         dispatchHook(HasOnApplicationEventHook::class, ChannelsUpdatedEvent())
 
         LOG.info("{} channels updated", channelsByReference.size)
     }
 
-    private fun buildNewLogoURI(it: String, extension: String, baseUrl: URI): URI? = URI.create(buildNewLogoURI(it, extension, baseUrl.toString()))
+    private fun buildNewLogoURI(it: String, extension: String, baseUrl: URI): URI? = URI(buildNewLogoURI(it, extension, baseUrl.toString()))
     private fun buildNewLogoURI(it: String, extension: String, baseUrl: String): String = "${baseUrl}icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
             "jpg"  -> "jpeg"
             "jpeg" -> "jpg"
@@ -201,19 +233,19 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             else   -> "png"
         }
 
-    private suspend fun loadXmltv(server: IptvServer): InputStream {
-        val response = httpClient.get(server.config.epgUrl.toString()) {
+    private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
+        val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
             headers {
-                server.config.accounts!!.first().userAgent?.let { append("User-Agent", it) }
+                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
             }
         }
         return response.bodyAsChannel().toInputStream()
     }
 
-    private suspend fun loadChannels(server: IptvServer): InputStream {
-        val response = httpClient.get(server.config.accounts!!.first().url!!) {
+    private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
+        val response = httpClient.get(serverConnection.config.account.getPlaylistUrl().toString()) {
             headers {
-                server.config.accounts.first().userAgent?.let { append("User-Agent", it) }
+                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
             }
         }
         return response.bodyAsChannel().toInputStream()
@@ -226,21 +258,31 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         additionalHeaders: Headers = headersOf(),
         additionalQueryParameters: Parameters = parametersOf(),
         headersCallback: ((Headers) -> Unit)? = null,
-    ): String
-    {
-        return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
-            .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
+    ): String {
+        iptvChannelsLock.withLock {
+            return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
+                .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
+        }
     }
 
     suspend fun getAllChannelsPlaylist(
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
+        filterType: IptvChannelType? = null,
     ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
-        val sortedChannels = channelsByReference.values.let {
-            if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
-            else it
+        val sortedChannels = iptvChannelsLock.withLock {
+            channelsByReference.values.let {
+                if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
+                else it
+            }.also { channels ->
+                if (filterType != null) {
+                    channels.filter { channel: IptvChannel -> channel.type == filterType }
+                } else {
+                    channels
+                }
+            }
         }
 
         // Replace the env variable placeholders in the config
@@ -286,7 +328,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             }
 
             outputWriter.write(baseUrl.toString())
-            outputWriter.write("live/")
+            outputWriter.write("${channel.url.channelType().type}/")
             outputWriter.write(("${user.username}_${user.password}".aesEncryptToHexString() + "/"))
             outputWriter.write(channel.reference)
             outputWriter.write("/channel.m3u8")
@@ -343,7 +385,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 } catch (e: Exception) {
                     LOG.error("Error while updating channels", e)
                     runBlocking {
-                        scheduleUpdateChannels(1)
+                        scheduleUpdateChannels(config.updateIntervalOnFailure.inWholeMinutes)
                     }
                 }
             },

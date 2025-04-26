@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.dtos.config
 
 import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
-import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
 import io.ktor.client.engine.*
 import io.ktor.server.routing.*
@@ -26,6 +25,7 @@ data class IptvProxyConfig(
     val clientConnectionMaxIdleSeconds: Int = 60,
 
     val updateInterval: Duration = Duration.parse("PT1H"),
+    val updateIntervalOnFailure: Duration = Duration.parse("PT10M"),
     val schedulerThreadPoolSize: Int = 2,
 
     val servers: List<IptvServerConfig> = emptyList(),
@@ -101,7 +101,7 @@ data class IptvProxyConfig(
     fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
     fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
 
-    fun getActualHttpProxyURI(): URI? = httpProxy?.let { URI.create(it) }
+    fun getActualHttpProxyURI(): URI? = httpProxy?.let { URI(it) }
     fun getActualHttpProxyConfiguration(): ProxyConfiguration? = httpProxy?.let {
         getActualHttpProxyURI().let { uri ->
             val host = uri?.host
@@ -137,7 +137,6 @@ data class IptvProxyConfig(
             result.groups["password"]?.let {
                 username = result.groups["usernameorpassword"]?.value
                 password = it.value
-
             }
                 ?: result.groups["usernameorpassword"]?.let {
                     username = "nobody"

@@ -37,6 +37,7 @@ timeouts:
   icon: *default-timeouts
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
+update_interval_on_failure: PT10M # Interval to retry failed updates
 scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG
 sort_channels: false
 socks_proxy: null # socks5://<username>:<password>@server_host:port

@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.dtos.config
 
 import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
 import kotlinx.serialization.Serializable
+import java.net.URI
 import java.util.regex.Pattern
 import kotlin.time.Duration
 
@@ -42,4 +43,12 @@ data class IptvFlatServerConfig(
         streamTimeouts = streamTimeouts,
         groupFilters = groupFilters,
     )
+
+    override fun getEpgUrl(): URI? {
+        return epgUrl?.let { URI(epgUrl) } ?: account.getEpgUrl()
+    }
+
+    override fun getPlaylistUrl(): URI? {
+        return account.getPlaylistUrl()
+    }
 }

@@ -1,7 +1,6 @@
 package io.github.firstred.iptvproxy.plugins
 
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
-import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.managers.UserManager
 import io.ktor.http.*
@@ -45,31 +44,3 @@ suspend fun withUserPermit(
         semaphore.release()
     }
 }
-
-suspend fun withIptvServerConnection(
-    channelId: String,
-    action: suspend (connection: IptvServerConnection) -> Unit,
-) {
-    TODO()
-//    val playlist = config.servers.find { it.name == server } ?: throw IllegalArgumentException("Server $server not found")
-//    var idxConnection: Int? = null
-//    lateinit var activeSemaphore: Semaphore
-//    while (null === idxConnection) {
-//        playlist.accounts?.forEachIndexed { idx, _ ->
-//            val semaphore = getKoin().get<Semaphore>(named("iptv-server-$playlist-$idx"))
-//            if (semaphore.tryAcquire()) {
-//                idxConnection = idx
-//                activeSemaphore = semaphore
-//                return@forEachIndexed
-//            }
-//        }
-//        delay(100L)
-//    }
-//
-//    try {
-//        action(server, idxConnection!!)
-//    } finally {
-//        activeSemaphore.release()
-//    }
-}
-

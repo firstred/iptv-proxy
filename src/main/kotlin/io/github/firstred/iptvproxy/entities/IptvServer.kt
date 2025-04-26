@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.entities
 
+import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerConfig
 import kotlinx.coroutines.delay
 
@@ -9,9 +10,10 @@ class IptvServer(
     private val connections: MutableList<IptvServerConnection>,
 ) {
     suspend fun withConnection(
-        action: suspend (connection: IptvServerConnection) -> Unit
+        specificAccount: IptvServerAccountConfig? = null,
+        action: suspend (connection: IptvServerConnection) -> Unit,
     ) {
-        val connection = acquire()
+        val connection = acquire(specificAccount)
         try {
             action(connection)
         } finally {
@@ -19,17 +21,17 @@ class IptvServer(
         }
     }
 
-    private suspend fun acquire(): IptvServerConnection {
+    private suspend fun acquire(specificAccount: IptvServerAccountConfig? = null): IptvServerConnection {
         do {
-            tryAcquire()?.also { return it }
+            tryAcquire(specificAccount)?.also { return it }
             LOG.info("try acquire server connection")
             delay(100L)
         } while (true)
     }
 
-    private fun tryAcquire(): IptvServerConnection? {
-        synchronized (connections) {
-            for (serverConnection in connections.shuffled()) {
+    private fun tryAcquire(specificAccount: IptvServerAccountConfig? = null): IptvServerConnection? {
+        synchronized(connections) {
+            for (serverConnection in connections.filter { null == specificAccount || it.config.account == specificAccount }.shuffled()) {
                 if (serverConnection.tryAcquire()) return serverConnection
             }
         }

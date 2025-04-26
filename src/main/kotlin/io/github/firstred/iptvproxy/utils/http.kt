@@ -1,9 +1,7 @@
 package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.config
-import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import java.net.URI
@@ -36,30 +34,16 @@ fun Headers.filterHttpResponseHeaders(
             && !(DROP_RESPONSE_HEADERS + blacklistedHeaders).any { it.equals(key, ignoreCase = true) }
 }.toHeaders()
 
-fun ResponseHeaders.filterHttpResponseHeaders(
-    response: HttpResponse,
-    whitelistedHeaders: List<String> = config.whitelistIptvServerHeaders,
-    blacklistedHeaders: List<String> = config.blacklistIptvServerHeaders,
-) {
-    response.headers
-        .filterHttpRequestHeaders(whitelistedHeaders, blacklistedHeaders)
-        .forEach { key, value -> value.forEach { append(key, it) } }
-}
-
-fun appendQueryParameters(
-    url: URI,
-    queryParameters: Parameters,
-): URI {
-    var newQueryString = url.query
-    // Add all request parameters to the uri
-    queryParameters.forEach { key, value ->
-        newQueryString = "${url.query}${if (url.query.isNullOrEmpty()) "" else "&"}$key=$value"
-    }
-    return URI(url.scheme, url.authority, url.path, newQueryString, url.fragment)
-}
 fun URI.appendQueryParameters(
     queryParameters: Parameters,
-): URI = appendQueryParameters(this, queryParameters)
+): URI {
+    var newQueryString = query
+    // Add all request parameters to the uri
+    queryParameters.forEach { key, value ->
+        newQueryString = "${query}${if (query.isNullOrEmpty()) "" else "&"}$key=$value"
+    }
+    return URI(scheme, authority, path, newQueryString, fragment)
+}
 private fun StringValues.toHeaders() = headers {
     forEach { key, values ->
         values.forEach { value -> append(key, value) }

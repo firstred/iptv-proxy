@@ -29,6 +29,7 @@ class IptvChannel(
     val catchupDays: Int,
     val server: IptvServer,
     groups: Collection<String>,
+    val type: IptvChannelType,
 ) {
     val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
 
@@ -79,7 +80,7 @@ class IptvChannel(
                 response = connection.httpClient.get(location)
                 response.body<String>()
                 try {
-                    responseURI = responseURI.resolve(URI.create(location))
+                    responseURI = responseURI.resolve(URI(location))
                 } catch (_: URISyntaxException) {
                 }
 
@@ -123,7 +124,7 @@ class IptvChannel(
                             infoLine = responseURI.resolve(infoLine).toString()
                         }
                         try {
-                            val infoLineUri = URI.create(infoLine)
+                            val infoLineUri = URI(infoLine)
 
                             infoLine =
                                 "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${reference}/${infoLineUri.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"

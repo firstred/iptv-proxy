@@ -34,8 +34,12 @@ class M3uParser {
                 groups = mutableSetOf()
             }
 
-            inputStream.use { input -> input.bufferedReader(UTF_8).useLines { lines -> lines.forEach {
-                val line = it.trim()
+            inputStream.use { input -> for (rawLine in input.bufferedReader(UTF_8).lines()) {
+                // Remove control characters and trim line
+                val line = rawLine
+                    .replace(Regex("\\p{Cc}"), "")
+                    .replace("\u2028", "")
+                    .trim()
 
                 var matcher: Matcher
                 if ((TAG_PATTERN.matcher(line).also { matcher = it }).matches()) {
@@ -44,9 +48,7 @@ class M3uParser {
                             val p = matcher.group(2)
                             if (p != null) {
                                 val prop = parseProps(matcher.group(2), mutableMapOf<String, String>().also { m3uProps = it }).trim()
-                                if (prop.isNotEmpty()) {
-                                    LOG.warn("malformed property: {}", prop)
-                                }
+                                if (prop.isNotEmpty()) LOG.warn("malformed property: {}", prop)
                             }
                         }
 
@@ -57,8 +59,8 @@ class M3uParser {
                                 name = parseProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
                                 if (name.startsWith(",")) name = name.substring(1).trim()
                             } else {
-                                LOG.error("malformed channel info: {}", infoLine)
-                                return null
+                                LOG.warn("malformed channel info: {}", infoLine)
+                                continue
                             }
                         }
 
@@ -70,26 +72,21 @@ class M3uParser {
                         else -> LOG.warn("unknown m3u tag: {}", matcher.group(1))
                     }
                 } else if (line.isNotEmpty()) {
-                    var isLive = false
-                    // Check if line starts with http(s) or rtsp
+                    props.remove("group-title")?.let { group -> groups.add(group) }
+
                     try {
-                        if (URI(line).path.startsWith("/live/")) isLive = true
-                    } catch (_: URISyntaxException) {
-                    }
-
-                    if (isLive) {
-                        val group = props.remove("group-title")
-                        if (group != null) {
-                            groups.add(group)
-                        }
-
+                        URI(line)
                         channels.add(M3uChannel(line, name, groups.toSet(), props.toMap()))
+                    } catch (_: URISyntaxException) {
+                        LOG.warn("malformed channel uri: {}", line)
+                        resetVars()
+                        continue
                     }
 
                     // Reset after every resource line
                     resetVars()
                 }
-            } } }
+            } }
 
             return M3uDoc(channels.toList(), m3uProps)
         }

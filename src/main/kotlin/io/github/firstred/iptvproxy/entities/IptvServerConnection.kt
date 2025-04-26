@@ -11,7 +11,7 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
 class IptvServerConnection(
-    private val config: IptvFlatServerConfig,
+    val config: IptvFlatServerConfig,
 ) : KoinComponent {
     private val semaphore: Semaphore = Semaphore(config.account.maxConcurrentRequests)
 

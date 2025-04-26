@@ -8,7 +8,10 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTr
 import kotlin.reflect.KClass
 
 /**
- * Return all the implemented hooks of a class
+ * Return all the implemented hooks of a class - used for Koin DI
+ *
+ * Classes that listen need to be bound to these hooks,
+ * e.g. `single { ListeningClass() } binds hooksOf(ListeningClass::class)`
  */
 fun <T : Any> hooksOf(clazz: KClass<T>): Array<KClass<*>> {
     return clazz.supertypes.map { it.classifier as KClass<*> }.filter {

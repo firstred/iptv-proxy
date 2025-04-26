@@ -8,6 +8,7 @@ val DROP_REQUEST_HEADERS = listOf(
     "host",
     "accept",
     "accept-encoding",
+    "transfer-encoding",
     "x-forwarded-for",
     "x-forwarded-proto",
     "x-forwarded-host",
@@ -23,6 +24,7 @@ val DROP_REQUEST_HEADERS = listOf(
 
 val DROP_RESPONSE_HEADERS = listOf(
     "content-encoding",
+    "transfer-encoding",
     "content-type",
     "content-length",
     "connection",

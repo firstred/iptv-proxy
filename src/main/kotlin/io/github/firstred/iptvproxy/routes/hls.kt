@@ -2,7 +2,8 @@ package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
-import io.github.firstred.iptvproxy.plugins.findUserFromRoutingContext
+import io.github.firstred.iptvproxy.di.modules.iptvChannelsLock
+import io.github.firstred.iptvproxy.plugins.findUserFromEncryptedAccountInRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
@@ -15,6 +16,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.sync.withLock
 import org.koin.ktor.ext.inject
 import java.io.File
 import java.net.URI
@@ -26,26 +28,31 @@ fun Route.hls() {
     route(Regex("""/hls/(?<encryptedaccount>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/[^.]*\.ts""")) {
         get {
             if (isNotMainEndpoint()) return@get
-            findUserFromRoutingContext()
+            try {
+                findUserFromEncryptedAccountInRoutingContext()
+            } catch (_: Throwable) {
+                call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+                return@get
+            }
 
             val channelId = call.parameters["channelid"] ?: ""
             val remoteUrl = (call.parameters["encryptedremoteurl"] ?: "").aesDecryptFromHexString()
 
-            channelsByReference[channelId]!!.server.withConnection { connection ->
-                connection.httpClient.request {
-                    url(appendQueryParameters(URI(remoteUrl), call.request.queryParameters).toString())
-                    method = HttpMethod.Get
-                    headers {
-                        filterHttpRequestHeaders(this@headers, this@get)
-                    }
-                }.let { response ->
-                    call.response.headers.apply {
-                        filterHttpResponseHeaders(response)
-                    }
+            iptvChannelsLock.withLock {
+                channelsByReference[channelId]!!.server.withConnection { connection ->
+                    connection.httpClient.request {
+                        url(URI(remoteUrl).appendQueryParameters(call.request.queryParameters).toString())
+                        method = HttpMethod.Get
+                        headers {
+                            filterHttpRequestHeaders(this@headers, this@get)
+                        }
+                    }.let { response ->
+                        call.response.headers.apply { allValues().filterHttpResponseHeaders() }
 
-                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
-                        response.bodyAsChannel().copyAndClose(this)
-                        flushAndClose()
+                        call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
+                            response.bodyAsChannel().copyAndClose(this)
+                            flushAndClose()
+                        }
                     }
                 }
             }
