@@ -4,7 +4,7 @@ const val M3U_TAG_EXTINF = "#EXTINF:"
 const val M3U_TAG_TARGET_DURATION = "#EXT-X-TARGETDURATION:"
 const val EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE:"
 
-val PROXIES_HEADERS = listOf(
+val DEFAULT_PROXIES_HEADERS = listOf(
     "content-encoding",
     "content-type",
     "content-length",
