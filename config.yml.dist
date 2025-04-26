@@ -61,6 +61,10 @@ cors: # Configure CORS response from the server - e.g. for direct access to the 
   max_age: 3600
   expose_headers:
     - "X-Total-Count"
+# allow_iptv_server_headers:
+#  - "X-Total-Count" # Allows additional headers from the IPTV server to be passed to the client
+# allow_iptv_client_headers:
+#  - "X-Xtream-User" # Allows additional headers from the IPTV client to be passed to the server
 servers:
   - name: someiptv-1
     connections:
