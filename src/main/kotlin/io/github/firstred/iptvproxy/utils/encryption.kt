@@ -8,9 +8,13 @@ import dev.whyoleg.cryptography.algorithms.SHA256
 import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dotenv
+import org.slf4j.LoggerFactory
 import java.io.File
+import java.io.IOException
 import java.net.URI
 import kotlin.random.Random
+
+private val LOG = LoggerFactory.getLogger("Encryption")
 
 @OptIn(ExperimentalStdlibApi::class)
 private fun getSecretSalt(): ByteArray {
@@ -18,24 +22,29 @@ private fun getSecretSalt(): ByteArray {
     var salt = dotenv.get(confKey) // Should be a hex string
 
     if (null == salt) {
-        salt = CryptographyRandom.nextBytes(16).toHexString()
-        // Save new salt to .env file to ensure URLs stay valid
-        val file = File(".env")
+        try {
+            salt = CryptographyRandom.nextBytes(16).toHexString()
+            // Save new salt to .env file to ensure URLs stay valid
+            val file = File(".env")
 
-        // Create if not exists
-        if (!file.exists()) file.createNewFile()
+            // Create if not exists
+            if (!file.exists()) file.createNewFile()
 
-        // Read the file content
-        var content = file.readText()
+            // Read the file content
+            var content = file.readText()
 
-        // Add the salt to the file
-        // Newline if necessary
-        if (!content.endsWith("\n")) content += "\n"
-        // Add the new salt
-        content += "$confKey=\"$salt\"\n"
+            // Add the salt to the file
+            // Newline if necessary
+            if (!content.endsWith("\n")) content += "\n"
+            // Add the new salt
+            content += "$confKey=\"$salt\"\n"
 
-        // Write the content back to the file
-        file.writeText(content)
+            // Write the content back to the file
+            file.writeText(content)
+        } catch (_: IOException) {
+            LOG.warn("Unable to generate random salt, using default salt")
+            return "331360bb09dd709ad3f7f5eef505ddb5".toByteArray()
+        }
     }
 
     return salt.hexToByteArray()
@@ -47,25 +56,30 @@ private fun getSecretIterations(): Int {
     var iterations = dotenv.get(confKey) // Should be a hex string
 
     if (null == iterations) {
-        iterations = Random.nextInt(200_000, 1_000_000).toString()
+        try {
+            iterations = Random.nextInt(200_000, 1_000_000).toString()
 
-        // Save new salt to .env file to ensure URLs stay valid
-        val file = File(".env")
+            // Save new salt to .env file to ensure URLs stay valid
+            val file = File(".env")
 
-        // Create if not exists
-        if (!file.exists()) file.createNewFile()
+            // Create if not exists
+            if (!file.exists()) file.createNewFile()
 
-        // Read the file content
-        var content = file.readText()
+            // Read the file content
+            var content = file.readText()
 
-        // Add the salt to the file
-        // Newline if necessary
-        if (!content.endsWith("\n")) content += "\n"
-        // Add the new salt
-        content += "$confKey=$iterations\n"
+            // Add the salt to the file
+            // Newline if necessary
+            if (!content.endsWith("\n")) content += "\n"
+            // Add the new salt
+            content += "$confKey=$iterations\n"
 
-        // Write the content back to the file
-        file.writeText(content)
+            // Write the content back to the file
+            file.writeText(content)
+        } catch (_: IOException) {
+            LOG.warn("Unable to generate random iterations, using default iterations")
+            return 400_000
+        }
     }
 
     return iterations.toInt()
