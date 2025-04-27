@@ -94,7 +94,6 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
             "-server",
             "-Djava.awt.headless=true",
             "-XX:+UseG1GC",
-            "-XX:MaxGCPauseMillis=100",
             "-XX:+UseStringDeduplication",
         )
         user = "1000"
