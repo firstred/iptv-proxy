@@ -36,7 +36,7 @@ data class IptvProxyConfig(
     val socksProxy: String? = null, // socks5://<username>:<password>@server_host:port
     val httpProxy: String? = null, // http://<username>:<password>@server_host:port
 
-    val tmpDirectory: String? = System.getProperty("java.io.tmpdir"),
+    val cacheDirectory: String? = System.getProperty("java.io.tmpdir"),
 
     val cors: IptvProxyCorsConfig = IptvProxyCorsConfig(),
 
@@ -47,36 +47,36 @@ data class IptvProxyConfig(
 
     val sentry: IptvProxyConfigSentry? = null,
 ) {
-    private fun getActualTempDirectory(): String {
-        return checkDir(if (tmpDirectory.isNullOrEmpty()) {
+    private fun getBaseCacheDirectory(): String {
+        return checkDir(if (cacheDirectory.isNullOrEmpty()) {
             "${System.getProperty("java.io.tmpdir")}/iptvproxy"
         } else {
-            tmpDirectory.removeSuffix("/") + "/iptvproxy"
+            cacheDirectory.removeSuffix("/") + "/iptvproxy"
         })
     }
 
-    fun getActualCacheDirectory(subdir: String? = null): String {
+    fun getMiscCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getActualTempDirectory() + "/cache")
+            checkDir(getBaseCacheDirectory() + "/cache")
 
-            checkDir(getActualTempDirectory() + "/cache/$it")
-        } ?: checkDir(getActualTempDirectory() + "/cache")
+            checkDir(getBaseCacheDirectory() + "/cache/$it")
+        } ?: checkDir(getBaseCacheDirectory() + "/cache")
     }
 
     fun getActualHttpCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getActualTempDirectory() + "/http_cache")
+            checkDir(getBaseCacheDirectory() + "/http_cache")
 
-            checkDir(getActualTempDirectory() + "/http_cache/$it")
-        } ?: checkDir(getActualTempDirectory() + "/http_cache")
+            checkDir(getBaseCacheDirectory() + "/http_cache/$it")
+        } ?: checkDir(getBaseCacheDirectory() + "/http_cache")
     }
 
     fun getActualDownloadDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getActualTempDirectory() + "/download")
+            checkDir(getBaseCacheDirectory() + "/download")
 
-            checkDir(getActualTempDirectory() + "/download/$it")
-        } ?: checkDir(getActualTempDirectory() + "/download")
+            checkDir(getBaseCacheDirectory() + "/download/$it")
+        } ?: checkDir(getBaseCacheDirectory() + "/download")
     }
 
     fun getForwardedValues(forwardedHeaderContent: String?): ForwardedHeaderValues {

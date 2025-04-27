@@ -7,14 +7,7 @@ import io.github.firstred.iptvproxy.di.modules.iptvChannelsLock
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.UserManager
-import io.github.firstred.iptvproxy.routes.hls
-import io.github.firstred.iptvproxy.routes.icon
-import io.github.firstred.iptvproxy.routes.live
-import io.github.firstred.iptvproxy.routes.movie
-import io.github.firstred.iptvproxy.routes.notices
-import io.github.firstred.iptvproxy.routes.series
-import io.github.firstred.iptvproxy.routes.video
-import io.github.firstred.iptvproxy.routes.xtream
+import io.github.firstred.iptvproxy.routes.*
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
@@ -33,13 +26,9 @@ import java.net.URI
 
 fun Application.configureRouting() {
     routing {
-        xtream()
-        icon()
-        live()
-        movie()
-        series()
+        icons()
+        xtreamApi()
         hls()
-        video()
 
         notices()
     }

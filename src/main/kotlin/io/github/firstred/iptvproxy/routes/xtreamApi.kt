@@ -15,13 +15,12 @@ import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import jdk.internal.org.jline.utils.Colors.s
 import kotlinx.coroutines.sync.withLock
 import org.apache.commons.text.StringSubstitutor
 import org.koin.ktor.ext.inject
 import java.io.OutputStream
 
-fun Route.xtream() {
+fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
     val xmltvChannelsByReference: XmltvChannelsByReference by inject()
     val xmltvProgrammes: XmltvProgrammes by inject()

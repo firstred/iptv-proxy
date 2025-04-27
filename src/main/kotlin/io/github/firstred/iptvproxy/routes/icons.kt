@@ -17,7 +17,7 @@ import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
 import java.net.URI
 
-fun Route.icon() {
+fun Route.icons() {
     val httpClient : HttpClient by inject(named("icon"))
 
     route("/icon/") {
