@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.utils
 
-import io.github.firstred.iptvproxy.entities.IptvChannelType
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import java.net.URI
 
 fun URI.channelType() = toString().channelType()

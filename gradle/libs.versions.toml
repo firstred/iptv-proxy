@@ -14,6 +14,14 @@ prometheus = "1.14.6"
 jib = "3.4.5"
 ktor = "3.1.2"
 koin-bom = "4.1.0-Beta7"
+buildconfig = "5.6.4"
+
+exposed = "0.61.0"
+hikaricp = "6.3.0"
+database-sqlite = "3.49.1.0"
+database-mysql = "9.2.0"
+database-mariadb = "3.5.3"
+database-postgresql = "42.7.5"
 
 slf4j = "2.0.16"
 logback = "1.5.18"
@@ -27,21 +35,21 @@ dotenv = "6.5.1"
 ipaddress = "5.5.1"
 clikt = "4.3.0"
 cryptography = "0.4.0"
+semver = "3.0.0"
 
 
 [plugins]
 kotlin = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 sentry = { id = "io.sentry.jvm.gradle", version.ref = "sentry" }
-
+buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
 shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
-versions = { id = "com.github.ben-manes.versions", version.ref = "versions" }
-versionsFilter = { id = "se.ascp.gradle.gradle-versions-filter", version.ref = "versionsFilter" }
+
 
 [libraries]
 kotlin-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlin-coroutines" }
-kotlinx-io = { module ="org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
+kotlinx-io = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinx-io" }
 kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinx-datetime" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization-json" }
 kotlinx-serialization-yaml = { module = "com.charleskorn.kaml:kaml", version.ref = "kotlinx-serialization-yaml" }
@@ -66,6 +74,7 @@ ktor-client-logging = { module = "io.ktor:ktor-client-logging", version.ref = "k
 
 ktor-server-callLogging = { module = "io.ktor:ktor-server-call-logging", version.ref = "ktor" }
 ktor-server-compression = { module = "io.ktor:ktor-server-compression", version.ref = "ktor" }
+ktor-server-contentNegotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
 ktor-server-core = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
 ktor-server-cors = { module = "io.ktor:ktor-server-cors", version.ref = "ktor" }
 ktor-server-autoHeadResponse = { module = "io.ktor:ktor-server-auto-head-response", version.ref = "ktor" }
@@ -74,17 +83,28 @@ ktor-server-engine-cio = { module = "io.ktor:ktor-server-cio-jvm", version.ref =
 ktor-server-metrics-micrometer = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
 micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "prometheus" }
 
+exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
+exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", version.ref = "exposed" }
+exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
+hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
+database-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "database-sqlite" }
+database-mysql = { module = "com.mysql:mysql-connector-j", version.ref = "database-mysql" }
+database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "database-mariadb" }
+database-postgresql = { module = "org.postgresql:postgresql", version.ref = "database-postgresql" }
+
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }
 koin-ktor = { module = "io.insert-koin:koin-ktor3" }
 koin-logger = { module = "io.insert-koin:koin-logger-slf4j" }
 
-dotenv = { module  = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
+dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
 ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 cryptography = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
+semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
-apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text"}
+apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text" }

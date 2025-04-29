@@ -166,13 +166,22 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
     }
 }
 
-// This is the default retry handler shared by almost all clients
+// This is the default retry handler shared by all clients
 fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
     retryOnExceptionIf { _, cause ->
-        cause is ServerResponseException           // Handle 5xx errors
-                || cause is IOException            // Handle network errors and timeout
-                || cause is ClientRequestException // Handle specific client errors
-                && listOf(HttpStatusCode.TooManyRequests.value, 456, 458).contains(cause.response.status.value)
+                cause is IOException                // Handle network errors and timeouts
+                || cause is ServerResponseException // Handle 5xx server errors
+                || cause is ClientRequestException  // Handle specific client errors
+                && listOf(
+                    HttpStatusCode.PayloadTooLarge.value,
+                    HttpStatusCode.RequestTimeout.value,
+                    HttpStatusCode.Conflict.value,
+                    HttpStatusCode.Gone.value,
+                    HttpStatusCode.TooEarly.value,
+                    HttpStatusCode.TooManyRequests.value,
+                    456,
+                    458
+                ).contains(cause.response.status.value)
     }
     additionalConfig()
 }

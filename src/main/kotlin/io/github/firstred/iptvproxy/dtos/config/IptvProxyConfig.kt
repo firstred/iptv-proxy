@@ -22,10 +22,13 @@ data class IptvProxyConfig(
     val logLevel: String = "ERROR",
     val timeouts: IptvProxyConfigTimeouts = IptvProxyConfigTimeouts(),
 
+    val database: IptvProxyDatabaseConfig = IptvProxyDatabaseConfig(),
+
     val clientConnectionMaxIdleSeconds: Int = 60,
 
     val updateInterval: Duration = Duration.parse("PT1H"),
     val updateIntervalOnFailure: Duration = Duration.parse("PT10M"),
+    val cleanupInterval: Duration = Duration.parse("PT1H"),
     val schedulerThreadPoolSize: Int = 2,
 
     val servers: List<IptvServerConfig> = emptyList(),
@@ -117,8 +120,8 @@ data class IptvProxyConfig(
 
             ProxyConfiguration(
                 type = ProxyType.HTTP,
-                host = host ?: "",
-                port = port ?: -1,
+                host = host ?: "localhost",
+                port = port ?: 80,
                 username = username,
                 password = password,
             )
@@ -154,6 +157,8 @@ data class IptvProxyConfig(
             null
         }
     }
+
+    fun getServerConfigByName(name: String): IptvServerConfig? = servers.find { it.name == name }
 
     companion object {
         private val checkedDirs = mutableSetOf<String>()

@@ -6,6 +6,7 @@ import nl.adaptivity.xmlutil.serialization.XmlElement
 import nl.adaptivity.xmlutil.serialization.XmlSerialName
 
 @Serializable
+@SerialName("channel")
 data class XmltvChannel(
     @XmlElement(false)
     @XmlSerialName("id") val id: String? = null,

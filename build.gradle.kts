@@ -10,8 +10,7 @@ plugins {
     alias(libs.plugins.sentry)
     alias(libs.plugins.shadow)
     alias(libs.plugins.jib)
-    alias(libs.plugins.versions)
-    alias(libs.plugins.versionsFilter)
+    alias(libs.plugins.buildconfig)
 }
 
 val localProperties = Properties()
@@ -27,13 +26,16 @@ application {
     applicationDefaultJvmArgs = listOf("-Dio.ktor.development=$isDevelopment")
 }
 
-versionsFilter {
-    exclusiveQualifiers.addAll("dev", "eap", "beta", "alpha")
-}
-
 tasks.wrapper {
     gradleVersion = "8.14"
     distributionType = Wrapper.DistributionType.ALL
+}
+
+buildConfig {
+    packageName("io.github.firstred.iptvproxy")
+
+    buildConfigField("APP_NAME", project.name)
+    buildConfigField("APP_VERSION", "${project.version}")
 }
 
 repositories {
@@ -54,15 +56,17 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
         image = "${localProperties["org.opencontainers.image.location"]}"
 
         // Convert major.minor.patch to ["$major", "$major.$minor", "$major.$minor.$patch", "latest"]
-        tags = "$version"
-            .split(".")
-            .foldIndexed (listOf<String>()) { index, acc, s ->
-                acc + if (index == 0) s else acc[index - 1] + "." + s
-            }
-            .let {
-                it + "latest"
-            }
-            .toSet()
+        tags = if (Regex("""^\d+\.\d+\.\d+$""") matches "${project.version}") {
+            "$version"
+                .split(".")
+                .foldIndexed(listOf<String>()) { index, acc, s ->
+                    acc + if (index == 0) s else acc[index - 1] + "." + s
+                }
+                .let { it + "latest" }
+                .toSet()
+        } else {
+            setOf("$version")
+        }
     }
     from {
         image = "docker.io/bellsoft/liberica-openjdk-alpine"
@@ -105,14 +109,6 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
     }
 }
 
-configurations.forEach {
-    it.exclude("org.apache.httpcomponents", "httpclient")
-    it.exclude("org.apache.httpcomponents", "httpcore")
-
-    it.exclude("com.sun.mail", "javax.mail")
-    it.exclude("javax.activation", "activation")
-}
-
 if ((localProperties["sentry.auth.token"] as String).isNotEmpty()) sentry {
     // Generates a JVM (Java, Kotlin, etc.) source bundle and uploads your source code to Sentry.
     // This enables source context, allowing you to see your source
@@ -145,13 +141,6 @@ dependencies {
     implementation(libs.logback)
     implementation(libs.janino)
 
-    // app specific
-    implementation(libs.dotenv)
-    implementation(libs.clikt)
-    implementation(libs.ipaddress)
-    implementation(libs.cryptography)
-    implementation(libs.cryptography.provider.jvm)
-
     // commons
     implementation(libs.apache.commons.codec)
     implementation(libs.apache.commons.io)
@@ -179,6 +168,7 @@ dependencies {
     implementation(libs.ktor.server.autoHeadResponse)
     implementation(libs.ktor.server.callLogging)
     implementation(libs.ktor.server.compression)
+    implementation(libs.ktor.server.contentNegotiation)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.cors)
     implementation(libs.ktor.server.defaultHeaders)
@@ -191,4 +181,24 @@ dependencies {
     implementation(libs.koin.ktor)
     implementation(libs.koin.logger)
     implementation(platform(libs.koin.bom))
+
+    // database
+    implementation(libs.exposed.core)
+    implementation(libs.exposed.jdbc)
+    implementation(libs.exposed.migration)
+    implementation(libs.exposed.kotlin.datetime)
+    implementation(libs.hikaricp)
+
+    implementation(libs.database.sqlite)
+    implementation(libs.database.mysql)
+    implementation(libs.database.mariadb)
+    implementation(libs.database.postgresql)
+
+    // app specific
+    implementation(libs.dotenv)
+    implementation(libs.clikt)
+    implementation(libs.ipaddress)
+    implementation(libs.cryptography)
+    implementation(libs.cryptography.provider.jvm)
+    implementation(libs.semver)
 }

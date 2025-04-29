@@ -1,12 +1,8 @@
 package io.github.firstred.iptvproxy.managers
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
+import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
-import io.github.firstred.iptvproxy.di.modules.XmltvChannelsByReference
-import io.github.firstred.iptvproxy.di.modules.XmltvProgrammes
-import io.github.firstred.iptvproxy.di.modules.iptvChannelsLock
-import io.github.firstred.iptvproxy.di.modules.xmltvChannelsLock
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
@@ -15,11 +11,12 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvIcon
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.entities.IptvChannelType
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
-import io.github.firstred.iptvproxy.events.ChannelsUpdatedEvent
+import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
@@ -34,9 +31,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
-import org.apache.commons.text.StringSubstitutor
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.slf4j.Logger
@@ -52,18 +47,17 @@ import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import kotlin.text.Charsets.UTF_8
 
-class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook {
+class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook,
+    HasApplicationOnDatabaseInitializedHook {
     private val serversByName: IptvServersByName by inject()
-    private val channelsByReference: IptvChannelsByReference by inject()
-    private val xmltvChannelsByReference: XmltvChannelsByReference by inject()
-    private val xmltvProgrammes: XmltvProgrammes by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
     private val httpClient: HttpClient by inject()
+    private val channelRepository: ChannelRepository by inject()
 
     private suspend fun updateChannels() {
         LOG.info("Updating channels")
 
-        val newChannelsByReference = IptvChannelsByReference()
+        val newChannelsByReference: MutableMap<String, IptvChannel> = mutableMapOf()
         fun addNewChannel(channel: IptvChannel) {
             newChannelsByReference[channel.reference] = channel
         }
@@ -82,6 +76,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
                     }
                 }
+                if (null != xmltv) channelRepository.upsertXmltvDocForServer(xmltv, server.name)
             }
 
             val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
@@ -179,7 +174,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             name = m3uChannel.name,
                             logo = logo,
                             groups = m3uChannel.groups,
-                            xmltvId = xmltvId,
+                            epgId = xmltvId,
                             catchupDays = days,
                             url = URI(m3uChannel.url),
                             server = server,
@@ -189,37 +184,23 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 }
             }
 
-            val endOf = if (server.config.epgAfter == null) null else Clock.System.now() + server.config.epgAfter
-            val startOf =
-                if (server.config.epgBefore == null) null else Clock.System.now() - server.config.epgBefore
+            val endOf = Clock.System.now() + server.config.epgAfter
+            val startOf = Clock.System.now() - server.config.epgBefore
 
             xmltv?.programmes?.forEach { programme: XmltvProgramme? ->
-                if ((endOf == null || programme!!.start!! < endOf) && (startOf == null || programme!!.stop!! > startOf)
+                if ((programme!!.start < endOf) && (programme.stop > startOf)
                 ) {
-                    val newId = xmltvIds[programme!!.channel]
+                    val newId = xmltvIds[programme.channel]
                     if (!newId.isNullOrBlank()) newXmltv.programmes?.add(programme.copy(channel = newId))
                 }
             }
         }
 
-        // Write new XMLTV file
-        XmltvUtils.writeXmltv(newXmltv)
+        val channelCount = channelRepository.getIptvChannelCount()
 
-        // Update channels list
-        iptvChannelsLock.withLock {
-            channelsByReference.clear()
-            channelsByReference.putAll(newChannelsByReference)
-        }
-        xmltvChannelsLock.withLock {
-            xmltvChannelsByReference.clear()
-            xmltvChannelsByReference.putAll(newXmltv.channels?.associateBy { it.id ?: "-" } ?: emptyMap())
-            xmltvProgrammes.clear()
-            newXmltv.programmes?.let { xmltvProgrammes.addAll(it) }
-        }
+        if (channelCount > 0) dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
 
-        dispatchHook(HasOnApplicationEventHook::class, ChannelsUpdatedEvent())
-
-        LOG.info("{} channels updated", channelsByReference.size)
+        LOG.info("{} channels updated", channelRepository.getIptvChannelCount())
     }
 
     private fun buildNewLogoURI(it: String, extension: String, baseUrl: URI): URI? = URI(buildNewLogoURI(it, extension, baseUrl.toString()))
@@ -259,105 +240,87 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         additionalQueryParameters: Parameters = parametersOf(),
         headersCallback: ((Headers) -> Unit)? = null,
     ): String {
-        iptvChannelsLock.withLock {
-            return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
-                .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
-        }
+        TODO()
+//        iptvChannelsLock.withLock {
+//            return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
+//                .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
+//        }
     }
 
-    suspend fun getAllChannelsPlaylist(
+    suspend fun getLiveStreamsPlaylist(
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
         filterType: IptvChannelType? = null,
     ) {
-        val outputWriter = outputStream.bufferedWriter(UTF_8)
-        val sortedChannels = iptvChannelsLock.withLock {
-            channelsByReference.values.let {
-                if (config.sortChannels) it.sortedBy { obj: IptvChannel -> obj.name }
-                else it
-            }.also { channels ->
-                if (filterType != null) {
-                    channels.filter { channel: IptvChannel -> channel.type == filterType }
-                } else {
-                    channels
-                }
-            }
-        }
-
-        // Replace the env variable placeholders in the config
-        val substitutor = StringSubstitutor(mapOf(
-            "BASE_URL" to baseUrl.toString(),
-            "ENCRYPTED_ACCOUNT" to user.toEncryptedAccountHexString(),
-        ))
-
-        outputWriter.write("#EXTM3U\n")
-
-        sortedChannels.forEach { channel: IptvChannel ->
-            outputWriter.write("#EXTINF:-1")
-            if (channel.xmltvId?.isNotEmpty() ?: false) {
-                outputWriter.write(" tvg-id=\"")
-                outputWriter.write(channel.xmltvId)
-                outputWriter.write("\"")
-            }
-
-            outputWriter.write(" tvg-logo=\"")
-            channel.logo?.let { if ("null" != channel.logo) outputWriter.write(substitutor.replace(channel.logo)) }
-            outputWriter.write("\"")
-
-            if (channel.catchupDays > 0) {
-                outputWriter.write(" catchup=\"shift\" catchup-days=\"")
-                outputWriter.write(channel.catchupDays.toString())
-                outputWriter.write("\"")
-            }
-
-            if (channel.groups.isNotEmpty()) {
-                outputWriter.write(" group-title=\"")
-                outputWriter.write(channel.groups.first())
-                outputWriter.write("\"")
-            }
-
-            outputWriter.write(",")
-            outputWriter.write(channel.name)
-            outputWriter.write("\n")
-
-            if (channel.groups.isNotEmpty()) {
-                outputWriter.write("#EXTGRP:")
-                outputWriter.write(java.lang.String.join(";", channel.groups))
-                outputWriter.write("\n")
-            }
-
-            outputWriter.write(baseUrl.toString())
-            outputWriter.write("${channel.url.channelType().type}/")
-            outputWriter.write(("${user.username}_${user.password}".aesEncryptToHexString() + "/"))
-            outputWriter.write(channel.reference)
-            outputWriter.write("/channel.m3u8")
-            outputWriter.write("\n")
-
-            outputWriter.flush()
-        }
+        TODO()
     }
-    suspend fun getAllChannelsPlaylist(
+    suspend fun getLiveStreamsPlaylist(
         user:
         IptvUser,
         actualBaseUrl:
         URI,
     ): String {
         val outputStream = ByteArrayOutputStream()
-        getAllChannelsPlaylist(outputStream, user, actualBaseUrl)
+        getLiveStreamsPlaylist(outputStream, user, actualBaseUrl)
         return outputStream.toString("UTF-8")
     }
 
+    private fun scheduleChannelCleanups(delay: Long =0, unit: TimeUnit = TimeUnit.MINUTES) {
+        scheduledExecutorService.schedule(
+            Thread {
+                try {
+                    runBlocking {
+                        channelRepository.cleanup()
+                        scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
+                    }
+                } catch (e: InterruptedException) {
+                    LOG.info("Scheduler interrupted while cleaning channels", e)
+                } catch (e: Exception) {
+                    LOG.error("Error while cleaning channels", e)
+                    runBlocking {
+                        scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
+                    }
+                }
+            },
+            delay,
+            unit,
+        )
+    }
+
+    private fun scheduleChannelUpdates(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
+        scheduledExecutorService.schedule(
+            Thread {
+                try {
+                    runBlocking {
+                        updateChannels()
+                        scheduleChannelUpdates(config.updateInterval.inWholeMinutes)
+                    }
+                } catch (e: InterruptedException) {
+                    LOG.info("Scheduler interrupted while updating channels", e)
+                } catch (e: Exception) {
+                    LOG.error("Error while updating channels", e)
+                    runBlocking {
+                        scheduleChannelUpdates(config.updateIntervalOnFailure.inWholeMinutes)
+                    }
+                }
+            },
+            delay,
+            unit,
+        )
+    }
+
     override fun onApplicationStartHook() {
-        LOG.info("Scheduler starting")
+        LOG.info("Channel manager starting")
 
-        scheduleUpdateChannels()
+        scheduleChannelUpdates()
+        scheduleChannelCleanups()
 
-        LOG.info("Scheduler started")
+        LOG.info("Channel manager started")
     }
 
     override fun onApplicationTerminateHook() {
-        LOG.info("Scheduler stopping")
+        LOG.info("Channel manager stopping")
 
         try {
             scheduledExecutorService.shutdownNow()
@@ -369,29 +332,15 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
             LOG.error("Interrupted while stopping scheduler")
         }
 
-        LOG.info("Scheduler stopped")
+        LOG.info("Channel manager stopped")
     }
 
-    private fun scheduleUpdateChannels(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
-        scheduledExecutorService.schedule(
-            Thread {
-                try {
-                    runBlocking {
-                        updateChannels()
-                        scheduleUpdateChannels(config.updateInterval.inWholeMinutes)
-                    }
-                } catch (e: InterruptedException) {
-                    LOG.info("Scheduler interrupted while updating channels", e)
-                } catch (e: Exception) {
-                    LOG.error("Error while updating channels", e)
-                    runBlocking {
-                        scheduleUpdateChannels(config.updateIntervalOnFailure.inWholeMinutes)
-                    }
-                }
-            },
-            delay,
-            unit,
-        )
+    override fun onApplicationDatabaseInitializedHook() {
+        val channelCount = channelRepository.getIptvChannelCount()
+        LOG.info("Channel count: $channelCount")
+        if (channelCount > 0) {
+            dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
+        }
     }
 
     companion object {

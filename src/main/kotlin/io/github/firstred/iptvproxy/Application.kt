@@ -8,10 +8,12 @@ import io.github.cdimascio.dotenv.dotenv
 import io.github.firstred.iptvproxy.di.modules.appModule
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyConfig
 import io.github.firstred.iptvproxy.plugins.appMicrometerRegistry
+import io.github.firstred.iptvproxy.plugins.configureDatabase
 import io.github.firstred.iptvproxy.plugins.configureRouting
 import io.github.firstred.iptvproxy.plugins.installHealthCheckRoute
 import io.github.firstred.iptvproxy.plugins.installMetricsRoute
-import io.github.firstred.iptvproxy.plugins.lifecycleHooks
+import io.github.firstred.iptvproxy.plugins.startLifecycleHooks
+import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
 import io.ktor.http.*
@@ -22,6 +24,7 @@ import io.ktor.server.metrics.micrometer.*
 import io.ktor.server.plugins.autohead.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.compression.*
+import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.sentry.Sentry
 import org.apache.commons.text.StringSubstitutor
@@ -42,16 +45,23 @@ lateinit var dotenv: Dotenv
 
 private val LOG: Logger = LoggerFactory.getLogger(Application::class.java)
 
+
 fun main(args: Array<String>) {
     try {
         argv = args
+        dotenv = dotenv { ignoreIfMissing = true }
+        val sentryDsn = dotenv.get("SENTRY_DSN") ?: ""
+        if (sentryDsn.isNotEmpty()) Sentry.init { options ->
+            options.dsn = sentryDsn
+            options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
+            options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
+        }
 
         object : CliktCommand(printHelpOnEmptyArgs = false) {
             override fun run() {
                 // TODO: make configuration location configurable
                 try {
                     LOG.info("Loading config...")
-                    dotenv = dotenv { ignoreIfMissing = true }
                     config = loadConfig(File(System.getProperty("config", "config.yml")))
                 } catch (e: InvalidPropertyValueException) {
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
@@ -59,13 +69,6 @@ fun main(args: Array<String>) {
                 } catch (e: YamlException) {
                     LOG.error("Error parsing config file: ${e.message}")
                     exitProcess(1)
-                }
-
-                val sentryDsn = config.sentry?.dsn ?: dotenv.get("SENTRY_DSN") ?: ""
-                if (sentryDsn.isNotEmpty()) Sentry.init { options ->
-                    options.dsn = sentryDsn
-                    options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
-                    options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
                 }
 
                 startServer()
@@ -89,6 +92,8 @@ private fun startServer() {
                     slf4jLogger()
                     modules(appModule)
                 }
+                configureDatabase()
+
                 install(AutoHeadResponse)
                 install(CallLogging) {
                     logger = LOG
@@ -125,12 +130,15 @@ private fun startServer() {
                         config.cors.allowOrigins.forEach { allowHost(it) }
                     }
                 }
+                install(ContentNegotiation) {
+                    json
+                }
 
                 configureRouting()
                 installHealthCheckRoute()
                 installMetricsRoute()
 
-                lifecycleHooks()
+                startLifecycleHooks()
             }
         },
         configure = {

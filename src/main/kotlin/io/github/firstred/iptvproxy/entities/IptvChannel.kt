@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.entities
 
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.EXT_X_MEDIA_SEQUENCE
 import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
 import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
@@ -24,15 +25,13 @@ class IptvChannel(
     val reference: String,
     val name: String,
     val logo: String?,
-    val xmltvId: String?,
+    val epgId: String?,
     val url: URI,
     val catchupDays: Int,
     val server: IptvServer,
-    groups: Collection<String>,
+    val groups: List<String>,
     val type: IptvChannelType,
 ) {
-    val groups: Set<String> = Collections.unmodifiableSet(TreeSet(groups))
-
     suspend fun getPlaylist(
         user: IptvUser,
         baseUrl: URI,

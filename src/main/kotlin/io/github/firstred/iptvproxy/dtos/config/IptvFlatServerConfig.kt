@@ -12,8 +12,8 @@ data class IptvFlatServerConfig(
     val account: IptvServerAccountConfig,
 
     override val epgUrl: String? = null,
-    override val epgBefore: Duration? = null,
-    override val epgAfter: Duration? = null,
+    override val epgBefore: Duration = Duration.INFINITE,
+    override val epgAfter: Duration = Duration.INFINITE,
 
     override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,

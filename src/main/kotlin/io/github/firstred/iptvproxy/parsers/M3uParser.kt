@@ -2,7 +2,7 @@ package io.github.firstred.iptvproxy.parsers
 
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
-import io.github.firstred.iptvproxy.entities.IptvChannelType
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.channelType
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -27,13 +27,13 @@ class M3uParser {
 
             var name = "Channel name not found"
             var props = mutableMapOf<String, String>()
-            var groups = mutableSetOf<String>()
+            var groups = mutableListOf<String>()
 
             fun resetVars() {
                 m3uProps = emptyMap()
                 name = "Channel name not found"
                 props = mutableMapOf()
-                groups = mutableSetOf()
+                groups = mutableListOf()
             }
 
             inputStream.use { input -> for (rawLine in input.bufferedReader(UTF_8).lines()) {
@@ -79,7 +79,7 @@ class M3uParser {
                     try {
                         URI(line)
                         if (IptvChannelType.LIVE == line.channelType()) {
-                            channels.add(M3uChannel(line, name, groups.toSet(), props.toMap()))
+                            channels.add(M3uChannel(line, name, groups, props.toMap()))
                         }
                     } catch (_: URISyntaxException) {
                         LOG.warn("malformed channel uri: {}", line)

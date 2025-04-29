@@ -1,15 +1,15 @@
 package io.github.firstred.iptvproxy.plugins
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.di.modules.IptvChannelsByReference
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
-import io.github.firstred.iptvproxy.di.modules.iptvChannelsLock
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.UserManager
-import io.github.firstred.iptvproxy.routes.*
+import io.github.firstred.iptvproxy.routes.hls
+import io.github.firstred.iptvproxy.routes.icons
+import io.github.firstred.iptvproxy.routes.notices
+import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
-import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.ktor.client.request.*
@@ -101,34 +101,35 @@ fun RoutingContext.findUserFromEncryptedAccountInRoutingContext(): IptvUser {
 }
 
 fun Route.proxyRemoteFile() {
-    val channelsByReference: IptvChannelsByReference by inject()
-
-    get(Regex("""(?<encryptedaccount>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/[^.]*\.ts""")) {
-        if (isNotMainEndpoint()) return@get
-        findUserFromEncryptedAccountInRoutingContext()
-
-        val channelId = call.parameters["channelid"] ?: ""
-        val remoteUrl = (call.parameters["encryptedremoteurl"] ?: "").aesDecryptFromHexString()
-
-        iptvChannelsLock.withLock {
-            channelsByReference[channelId]!!.server.withConnection { connection ->
-                connection.httpClient.request {
-                    url(URI(remoteUrl).appendQueryParameters(call.request.queryParameters).toString())
-                    method = HttpMethod.Get
-                    headers {
-                        filterHttpRequestHeaders(this@headers, this@get)
-                    }
-                }.let { response ->
-                    call.response.headers.apply { allValues().filterHttpResponseHeaders() }
-
-                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
-                        response.bodyAsChannel().copyAndClose(this)
-                        flushAndClose()
-                    }
-                }
-            }
-        }
-    }
+    TODO()
+//    val channelsByReference: IptvChannelsByReference by inject()
+//
+//    get(Regex("""(?<encryptedaccount>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/[^.]*\.ts""")) {
+//        if (isNotMainEndpoint()) return@get
+//        findUserFromEncryptedAccountInRoutingContext()
+//
+//        val channelId = call.parameters["channelid"] ?: ""
+//        val remoteUrl = (call.parameters["encryptedremoteurl"] ?: "").aesDecryptFromHexString()
+//
+//        iptvChannelsLock.withLock {
+//            channelsByReference[channelId]!!.server.withConnection { connection ->
+//                connection.httpClient.request {
+//                    url(URI(remoteUrl).appendQueryParameters(call.request.queryParameters).toString())
+//                    method = HttpMethod.Get
+//                    headers {
+//                        filterHttpRequestHeaders(this@headers, this@get)
+//                    }
+//                }.let { response ->
+//                    call.response.headers.apply { allValues().filterHttpResponseHeaders() }
+//
+//                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
+//                        response.bodyAsChannel().copyAndClose(this)
+//                        flushAndClose()
+//                    }
+//                }
+//            }
+//        }
+//    }
 }
 
 

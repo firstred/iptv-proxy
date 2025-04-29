@@ -24,16 +24,14 @@ class IptvServer(
     private suspend fun acquire(specificAccount: IptvServerAccountConfig? = null): IptvServerConnection {
         do {
             tryAcquire(specificAccount)?.also { return it }
-            LOG.info("try acquire server connection")
+            LOG.info("Trying to acquire server connection")
             delay(100L)
         } while (true)
     }
 
     private fun tryAcquire(specificAccount: IptvServerAccountConfig? = null): IptvServerConnection? {
-        synchronized(connections) {
-            for (serverConnection in connections.filter { null == specificAccount || it.config.account == specificAccount }.shuffled()) {
-                if (serverConnection.tryAcquire()) return serverConnection
-            }
+        for (serverConnection in connections.filter { null == specificAccount || it.config.account == specificAccount }.shuffled()) {
+            if (serverConnection.tryAcquire()) return serverConnection
         }
 
         return null

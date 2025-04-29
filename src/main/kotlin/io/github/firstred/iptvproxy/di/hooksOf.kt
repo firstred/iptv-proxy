@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.di
 
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTrimDiskSpaceHook
@@ -20,6 +21,8 @@ fun <T : Any> hooksOf(clazz: KClass<T>): Array<KClass<*>> {
             HasApplicationOnTerminateHook::class,
             HasApplicationOnTrimDiskSpaceHook::class,
             HasApplicationOnTrimMemoryHook::class,
+
+            HasApplicationOnDatabaseInitializedHook::class,
 
             HasOnApplicationEventHook::class,
         )

@@ -5,7 +5,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTe
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.ktor.server.application.*
 
-fun Application.lifecycleHooks() {
+fun Application.startLifecycleHooks() {
     dispatchHook(HasApplicationOnStartHook::class)
 
     Runtime.getRuntime().addShutdownHook(Thread {

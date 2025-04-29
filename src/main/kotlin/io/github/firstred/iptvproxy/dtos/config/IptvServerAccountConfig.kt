@@ -8,7 +8,6 @@ import java.net.URISyntaxException
 
 @Serializable
 data class IptvServerAccountConfig(
-    var idx: Int = -1,
     val url: String? = null,
     val login: String? = null,
     val password: String? = null,
@@ -23,7 +22,7 @@ data class IptvServerAccountConfig(
         if (!xtreamUsername.isNullOrBlank() && !xtreamPassword.isNullOrBlank() && !url.isNullOrBlank()) {
             try {
                 val uri = URI(url)
-                return URI("${uri.scheme}://${uri.host}:${uri.port}/get.php?username=$xtreamUsername&password=$xtreamPassword&type=m3u_plus&output=m3u8")
+                return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/get.php?username=$xtreamUsername&password=$xtreamPassword&type=m3u_plus&output=m3u8")
             } catch (_: URISyntaxException) {
             }
         }

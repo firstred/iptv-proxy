@@ -10,11 +10,11 @@ import nl.adaptivity.xmlutil.serialization.XmlSerialName
 data class XmltvDoc(
     @XmlElement(false)
     @SerialName("generator-info-name")
-    @XmlSerialName("generator-info-name") var generatorName: String? = "iptv-proxy",
+    @XmlSerialName("generator-info-name") var generatorInfoName: String? = "iptv-proxy",
 
     @XmlElement(false)
     @SerialName("generator-info-url")
-    @XmlSerialName("generator-info-url") var generatorUrl: String? = null,
+    @XmlSerialName("generator-info-url") var generatorInfoUrl: String? = null,
 
     @XmlElement(false)
     @SerialName("source-info-url")

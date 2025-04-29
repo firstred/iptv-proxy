@@ -1,48 +1,27 @@
 package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.di.modules.XmltvChannelsByReference
-import io.github.firstred.iptvproxy.di.modules.XmltvProgrammes
-import io.github.firstred.iptvproxy.di.modules.xmltvChannelsLock
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
-import io.github.firstred.iptvproxy.entities.IptvChannelType
+import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
+import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
+import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.entities.IptvUser
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.plugins.findUserFromXtreamAccountInRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
 import io.github.firstred.iptvproxy.plugins.isNotReady
+import io.github.firstred.iptvproxy.serialization.xml
+import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.sync.withLock
-import org.apache.commons.text.StringSubstitutor
 import org.koin.ktor.ext.inject
-import java.io.OutputStream
 
 fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
-    val xmltvChannelsByReference: XmltvChannelsByReference by inject()
-    val xmltvProgrammes: XmltvProgrammes by inject()
+    val channelRepository: ChannelRepository by inject()
 
     get("/xmltv.php") {
-        suspend fun generateUserXmltv(substitutor: StringSubstitutor, compressed: Boolean, output: OutputStream) {
-            xmltvChannelsLock.withLock {
-                val newDoc = XmltvDoc(
-                    channels = xmltvChannelsByReference.values.map { channel ->
-                        channel.copy(icon = channel.icon.let {
-                            it?.copy(
-                                src = substitutor.replace(it.src),
-                            )
-                        })
-                    }.toMutableList(),
-                    programmes = xmltvProgrammes,
-                )
-
-                XmltvUtils.writeXmltv(newDoc, compressed, output)
-            }
-        }
-
         if (isNotMainEndpoint()) return@get
         if (isNotReady()) return@get
 
@@ -59,16 +38,36 @@ fun Route.xtreamApi() {
             append(HttpHeaders.ContentDisposition, "attachment; filename=xmltv.xml")
         }
 
-        // Replace the env variable placeholders in the config
-        val substitutor = StringSubstitutor(mapOf(
-            "BASE_URL" to config.getActualBaseUrl(call.request).toString(),
-            "ENCRYPTED_ACCOUNT" to user.toEncryptedAccountHexString(),
-        ))
+        val baseUrl = config.getActualBaseUrl(call.request).toString()
+        val encryptedAccount = user.toEncryptedAccountHexString()
+        call.respondTextWriter {
+            write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
+            for (server in config.servers.map { it.name }) {
+                channelRepository.forEachEpgChannelChunk(server) {
+                    it.forEach { row ->
+                        write(
+                            xml.encodeToString(
+                                XmltvChannel.serializer(), row.copy(
+                                    icon = row.icon?.copy(src = row.icon.src?.toProxiedIconUrl(baseUrl, encryptedAccount)),
+                                )
+                            )
+                        )
+                        flush()
+                    }
+                }
+            }
+            for (server in config.servers.map { it.name }) {
+                channelRepository.forEachEpgProgrammeChunk(server) {
+                    it.forEach { row ->
+                        write(xml.encodeToString(XmltvProgramme.serializer(), row))
+                        flush()
+                    }
+                }
+            }
 
-        call.respondOutputStream { use {
-            generateUserXmltv(substitutor, false, it)
+            write("</tv>")
             flush()
-        } }
+        }
     }
 
     get(Regex("""/(player_api|panel_api).php""")) {
@@ -91,7 +90,7 @@ fun Route.xtreamApi() {
         when {
             call.request.queryParameters["action"] == "get_live_streams" -> {
                 call.respondOutputStream { use { output ->
-                    channelManager.getAllChannelsPlaylist(
+                    channelManager.getLiveStreamsPlaylist(
                         output,
                         user,
                         config.getActualBaseUrl(call.request),
@@ -103,7 +102,7 @@ fun Route.xtreamApi() {
 
             call.request.queryParameters["action"] == "get_series" -> {
                 call.respondOutputStream { use { output ->
-                    channelManager.getAllChannelsPlaylist(
+                    channelManager.getLiveStreamsPlaylist(
                         output,
                         user,
                         config.getActualBaseUrl(call.request),
@@ -115,7 +114,7 @@ fun Route.xtreamApi() {
 
             listOf("get_vod_streams", "get_movies_streams").contains(call.request.queryParameters["action"]) -> {
                 call.respondOutputStream { use { output ->
-                    channelManager.getAllChannelsPlaylist(
+                    channelManager.getLiveStreamsPlaylist(
                         output,
                         user,
                         config.getActualBaseUrl(call.request),
@@ -149,7 +148,7 @@ fun Route.xtreamApi() {
         }
 
         call.respondOutputStream { use { output ->
-            channelManager.getAllChannelsPlaylist(
+            channelManager.getLiveStreamsPlaylist(
                 output,
                 user,
                 config.getActualBaseUrl(call.request),

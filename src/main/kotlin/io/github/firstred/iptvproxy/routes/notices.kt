@@ -2,10 +2,9 @@ package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
-import io.ktor.http.HttpHeaders
-import io.ktor.server.request.path
-import io.ktor.server.response.respondFile
-import io.ktor.server.response.respondText
+import io.ktor.http.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import java.io.File
 import kotlin.concurrent.timer

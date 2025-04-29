@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
+import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
 import kotlinx.datetime.Instant
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

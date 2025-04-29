@@ -63,8 +63,8 @@ class XmltvUtils {
 
         fun writeXmltv(
             xmltv: XmltvDoc,
-            compressed: Boolean = true,
-            output: OutputStream = getCachedXmltvFile(compressed).outputStream(),
+            output: OutputStream,
+            compressed: Boolean = false,
         ) {
             try {
                 val outputStream = if (compressed) {

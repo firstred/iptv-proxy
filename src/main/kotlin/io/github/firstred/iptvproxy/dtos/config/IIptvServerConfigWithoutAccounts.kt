@@ -10,8 +10,8 @@ interface IIptvServerConfigWithoutAccounts {
     val name: String
 
     val epgUrl: String?
-    val epgBefore: Duration?
-    val epgAfter: Duration?
+    val epgBefore: Duration
+    val epgAfter: Duration
 
     val proxyStream: Boolean
     val proxySendUser: Boolean
