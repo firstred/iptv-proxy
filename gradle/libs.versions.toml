@@ -107,3 +107,5 @@ semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
 apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text" }
+
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

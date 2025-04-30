@@ -51,6 +51,10 @@ kotlin {
     jvmToolchain(21)
 }
 
+tasks.test {
+    useJUnitPlatform()
+}
+
 if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) jib {
     to {
         image = "${localProperties["org.opencontainers.image.location"]}"
@@ -201,4 +205,7 @@ dependencies {
     implementation(libs.cryptography)
     implementation(libs.cryptography.provider.jvm)
     implementation(libs.semver)
+
+    // tests
+    testImplementation(libs.kotlin.test)
 }
