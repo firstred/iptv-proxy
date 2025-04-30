@@ -1,7 +1,10 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object MovieTable : Table("movie") {
     val num: Column<Long> = long("num")
@@ -20,6 +23,8 @@ object MovieTable : Table("movie") {
     val containerExtension: Column<String> = varchar("container_extension", 511)
     val customSid: Column<String?> = varchar("custom_sid", 511).nullable()
     val directSource: Column<String?> = text("direct_source").nullable()
+    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
+    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
 
     override val primaryKey = PrimaryKey(arrayOf(server, num))
 

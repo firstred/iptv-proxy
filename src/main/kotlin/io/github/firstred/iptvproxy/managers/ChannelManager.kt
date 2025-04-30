@@ -70,10 +70,14 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
 
+        serversByName.keys.forEach { channelRepository.signalPlaylistStartedForServer(it) }
+
         for (server in serversByName.values) {
             var xmltv: XmltvDoc? = null
             if (server.config.epgUrl != null) {
                 LOG.info("Waiting for xmltv data to be downloaded")
+
+                epgRepository.signalXmltvStartedForServer(server.name)
 
                 server.withConnection(server.config.accounts?.first()) { serverConnection ->
                     LOG.info("Parsing xmltv data")
@@ -95,7 +99,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                     )
                 }
 
-                channelRepository.upsertPlaylistSourceForServer(server.name)
+                epgRepository.signalXmltvCompletedForServer(server.name)
             }
 
             val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
@@ -103,6 +107,8 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
 
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
+
+
 
                 lateinit var channelsInputStream: InputStream
                 lateinit var m3u: M3uDoc
@@ -166,6 +172,8 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 }
 
                 if (account.isXtream()) {
+                    xtreamRepository.signalXtreamStartedForServer(server.name)
+
                     // Update xtream info
                     // Load live streams
                     lateinit var liveStreamCategories: List<XtreamLiveStreamCategory>
@@ -228,12 +236,14 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                     }
                     xtreamRepository.upsertSeriesAndCategories(series, seriesCategories, server.name)
 
-                    xtreamRepository.upsertXtreamSourceForServer(server.name)
+                    xtreamRepository.signalXtreamCompletedForServer(server.name)
                 }
             }
         }
 
         channelRepository.upsertChannels(newChannels.values.toList())
+
+        serversByName.keys.forEach { channelRepository.signalPlaylistCompletedForServer(it) }
 
         xtreamRepository.matchXtreamWithChannels()
 

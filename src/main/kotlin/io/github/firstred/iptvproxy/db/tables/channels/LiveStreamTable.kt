@@ -1,7 +1,10 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object LiveStreamTable : Table("live_stream") {
     val num: Column<Long> = long("num")
@@ -18,6 +21,8 @@ object LiveStreamTable : Table("live_stream") {
     val tvArchive: Column<Int> = integer("tv_archive").default(0)
     val directSource: Column<String> = varchar("direct_source", 511).default("")
     val tvArchiveDuration: Column<Int> = integer("tv_archive_duration").default(0)
+    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
+    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
 
     override val primaryKey = PrimaryKey(arrayOf(server, num))
 

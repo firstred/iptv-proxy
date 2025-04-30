@@ -9,34 +9,39 @@ import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
+import kotlin.properties.Delegates
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
 
-    fun upsertXtreamSourceForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
-            // Upsert the XMLTV source
-            XmltvSourceTable.upsert {
-                it[XmltvSourceTable.server] = server
-                it[XmltvSourceTable.updatedAt] = Clock.System.now()
-            } }
-        }
-    }
-    fun upsertPlaylistSourceForServer(server: String) {
+    fun signalPlaylistStartedForServer(server: String) {
         transaction { withForeignKeyChecksDisabled {
             PlaylistSourceTable.upsert {
                 it[PlaylistSourceTable.server] = server
-                it[PlaylistSourceTable.updatedAt] = Clock.System.now()
+                it[PlaylistSourceTable.startedAt] = Clock.System.now()
+            } }
+        }
+    }
+    fun signalPlaylistCompletedForServer(server: String) {
+        transaction { withForeignKeyChecksDisabled {
+            PlaylistSourceTable.upsert {
+                it[PlaylistSourceTable.server] = server
+                it[PlaylistSourceTable.completedAt] = Clock.System.now()
             } }
         }
     }
@@ -44,18 +49,24 @@ class ChannelRepository : KoinComponent {
     fun upsertChannels(channels: List<IptvChannel>) {
         channels.chunked(config.database.chunkSize).forEach { chunk ->
             transaction { withForeignKeyChecksDisabled {
-                chunk.forEach { channel -> IptvChannelTable.insertIgnore {
-                    it[IptvChannelTable.server] = channel.server.name
-                    it[IptvChannelTable.name] = channel.name
-                    it[IptvChannelTable.url] = channel.url.toString()
-                    it[IptvChannelTable.mainGroup] = channel.groups.firstOrNull()
-                    it[IptvChannelTable.groups] = channel.groups.joinToString(",")
-                    it[IptvChannelTable.type] = channel.type
-                    it[IptvChannelTable.epgChannelId] = channel.epgId ?: ""
-                    it[IptvChannelTable.externalStreamId] = channel.url.streamId()
-                    it[IptvChannelTable.icon] = channel.logo
-                    it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
-                } }
+                chunk.forEach { channel ->
+                    var id by Delegates.notNull<Long>()
+                    IptvChannelTable.insertIgnore {
+                        it[IptvChannelTable.server] = channel.server.name
+                        it[IptvChannelTable.name] = channel.name
+                        it[IptvChannelTable.url] = channel.url.toString()
+                        it[IptvChannelTable.mainGroup] = channel.groups.firstOrNull()
+                        it[IptvChannelTable.groups] = channel.groups.joinToString(",")
+                        it[IptvChannelTable.type] = channel.type
+                        it[IptvChannelTable.epgChannelId] = channel.epgId ?: ""
+                        it[IptvChannelTable.externalStreamId] = channel.url.streamId()
+                        it[IptvChannelTable.icon] = channel.logo
+                        it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
+                    }.resultedValues?.firstOrNull()?.let { id = it[IptvChannelTable.id].value }
+                    IptvChannelTable.update({ IptvChannelTable.id eq id }) {
+                        it[IptvChannelTable.updatedAt] = Clock.System.now()
+                    }
+                }
             } }
         }
     }
@@ -113,6 +124,19 @@ class ChannelRepository : KoinComponent {
         transaction {
             PlaylistSourceTable.deleteWhere {
                 PlaylistSourceTable.server notInList config.servers.map { it.name }
+            }
+
+            for (server in config.servers.map { it.name }) {
+                val startedAt = PlaylistSourceTable
+                    .select(PlaylistSourceTable.server eq server)
+                    .map { it[PlaylistSourceTable.startedAt] }
+                    .firstOrNull()
+                if (null == startedAt) continue
+
+                IptvChannelTable.deleteWhere {
+                    IptvChannelTable.server eq server and
+                            (IptvChannelTable.updatedAt less startedAt)
+                }
             }
         }
     }

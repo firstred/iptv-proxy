@@ -11,7 +11,10 @@ import io.github.firstred.iptvproxy.db.tables.channels.MovieToCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesToCategoryTable
+import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
+import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeTable
 import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
+import io.github.firstred.iptvproxy.db.tables.sources.XtreamSourceTable
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategoryIdServer
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStreamCategory
@@ -25,6 +28,9 @@ import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.CustomFunction
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.SqlExpressionBuilder
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.TextColumnType
 import org.jetbrains.exposed.sql.and
@@ -46,13 +52,22 @@ import kotlin.collections.forEach
 class XtreamRepository : KoinComponent {
     private val channelRepository: ChannelRepository by inject()
 
-    fun upsertXtreamSourceForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
+    fun signalXtreamStartedForServer(server: String) {
+        transaction {
             // Upsert the XMLTV source
             XmltvSourceTable.upsert {
                 it[XmltvSourceTable.server] = server
-                it[XmltvSourceTable.updatedAt] = Clock.System.now()
-            } }
+                it[XmltvSourceTable.startedAt] = Clock.System.now()
+            }
+        }
+    }
+    fun signalXtreamCompletedForServer(server: String) {
+        transaction {
+            // Upsert the XMLTV source
+            XmltvSourceTable.upsert {
+                it[XmltvSourceTable.server] = server
+                it[XmltvSourceTable.completedAt] = Clock.System.now()
+            }
         }
     }
 
@@ -441,6 +456,42 @@ class XtreamRepository : KoinComponent {
             }
             SeriesTable.deleteWhere {
                 SeriesTable.server notInList config.servers.map { it.name }
+            }
+            XtreamSourceTable.deleteWhere {
+                XtreamSourceTable.server notInList config.servers.map { it.name }
+            }
+
+            for (server in config.servers.map { it.name }) {
+                val startedAt = XtreamSourceTable
+                    .select(XtreamSourceTable.server eq server)
+                    .map { it[XtreamSourceTable.startedAt] }
+                    .firstOrNull()
+                if (null == startedAt) continue
+
+                LiveStreamTable.deleteWhere {
+                    LiveStreamTable.server eq server and
+                            (LiveStreamTable.updatedAt less startedAt)
+                }
+                LiveStreamCategoryTable.deleteWhere {
+                    LiveStreamCategoryTable.server eq server and
+                            (LiveStreamCategoryTable.updatedAt less startedAt)
+                }
+                MovieTable.deleteWhere {
+                    MovieTable.server eq server and
+                            (MovieTable.updatedAt less startedAt)
+                }
+                MovieCategoryTable.deleteWhere {
+                    MovieCategoryTable.server eq server and
+                            (MovieCategoryTable.updatedAt less startedAt)
+                }
+                SeriesTable.deleteWhere {
+                    SeriesTable.server eq server and
+                            (SeriesTable.updatedAt less startedAt)
+                }
+                SeriesCategoryTable.deleteWhere {
+                    SeriesCategoryTable.server eq server and
+                            (SeriesCategoryTable.updatedAt less startedAt)
+                }
             }
         }
     }

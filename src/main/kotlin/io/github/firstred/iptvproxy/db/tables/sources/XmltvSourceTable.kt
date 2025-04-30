@@ -14,7 +14,8 @@ object XmltvSourceTable : Table("xmltv_source") {
     val sourceInfoName: Column<String?> = text("source_info_name").nullable()
     val sourceInfoLogo: Column<String?> = text("source_info_logo").nullable()
     val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
+    val startedAt: Column<Instant> = timestamp("started_at").default(Clock.System.now())
+    val completedAt: Column<Instant> = timestamp("completed_at").default(Clock.System.now())
 
     override val primaryKey = PrimaryKey(arrayOf(server)) // Only one source per server
 }

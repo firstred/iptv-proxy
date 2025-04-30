@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -9,6 +10,7 @@ import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeEpisodeNumberTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammePreviouslyShownTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeRatingTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeTable
+import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvAudio
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvAudioStereo
@@ -24,9 +26,11 @@ import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
@@ -48,7 +52,6 @@ class EpgRepository {
                 it[XmltvSourceTable.sourceInfoUrl] = doc.sourceInfoUrl
                 it[XmltvSourceTable.sourceInfoName] = doc.sourceInfoName
                 it[XmltvSourceTable.sourceInfoLogo] = doc.sourceInfoLogo
-                it[XmltvSourceTable.updatedAt] = Clock.System.now()
             } }
         }
 
@@ -57,6 +60,23 @@ class EpgRepository {
 
         // Upsert the XMLTV programmes
         doc.programmes?.let { upsertXmltvProgrammesForServer(it, server) }
+    }
+
+    fun signalXmltvStartedForServer(server: String) {
+        transaction { withForeignKeyChecksDisabled {
+            XmltvSourceTable.upsert {
+                it[XmltvSourceTable.server] = server
+                it[XmltvSourceTable.startedAt] = Clock.System.now()
+            } }
+        }
+    }
+    fun signalXmltvCompletedForServer(server: String) {
+        transaction { withForeignKeyChecksDisabled {
+            XmltvSourceTable.upsert {
+                it[XmltvSourceTable.server] = server
+                it[XmltvSourceTable.completedAt] = Clock.System.now()
+            } }
+        }
     }
 
     fun upsertXmltvChannelsForServer(channels: List<XmltvChannel>, server: String) {
@@ -69,6 +89,7 @@ class EpgRepository {
                             it[EpgChannelTable.epgChannelId] = channelId
                             it[EpgChannelTable.icon] = channel.icon?.src
                             it[EpgChannelTable.name] = channel.displayNames?.firstOrNull { null == it.language }?.text ?: channel.displayNames?.firstOrNull()?.text ?: ""
+                            it[EpgChannelTable.updatedAt] = Clock.System.now()
                         }
                     } }
 
@@ -103,6 +124,7 @@ class EpgRepository {
                             it[EpgProgrammeTable.subtitle] = programme.subTitle?.text ?: ""
                             it[EpgProgrammeTable.description] = programme.desc?.text ?: ""
                             it[EpgProgrammeTable.icon] = programme.icon?.src
+                            it[EpgProgrammeTable.updatedAt] = Clock.System.now()
                         }
                     }
 
@@ -362,6 +384,23 @@ class EpgRepository {
             }
             XmltvSourceTable.deleteWhere {
                 XmltvSourceTable.server notInList config.servers.map { it.name }
+            }
+
+            for (server in config.servers.map { it.name }) {
+                val startedAt = XmltvSourceTable
+                    .select(XmltvSourceTable.server eq server)
+                    .map { it[XmltvSourceTable.startedAt] }
+                    .firstOrNull()
+                if (null == startedAt) continue
+
+                EpgChannelTable.deleteWhere {
+                    EpgChannelTable.server eq server and
+                            (EpgChannelTable.updatedAt less startedAt)
+                }
+                EpgProgrammeTable.deleteWhere {
+                    EpgProgrammeTable.server eq server and
+                            (EpgProgrammeTable.updatedAt less startedAt)
+                }
             }
         }
     }
