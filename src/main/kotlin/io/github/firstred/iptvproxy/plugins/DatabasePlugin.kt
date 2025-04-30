@@ -6,6 +6,16 @@ import com.zaxxer.hikari.HikariDataSource
 import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.AppDataTable
+import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
+import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
+import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamToCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.MovieCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
+import io.github.firstred.iptvproxy.db.tables.channels.MovieToCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.SeriesCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
+import io.github.firstred.iptvproxy.db.tables.channels.SeriesToCategoryTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -15,15 +25,9 @@ import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammePreviouslyShownTab
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeRatingTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeSubtitlesTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeTable
-import io.github.firstred.iptvproxy.db.tables.sources.M3u8SourceTable
+import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
-import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
-import io.github.firstred.iptvproxy.db.tables.channels.MovieCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
-import io.github.firstred.iptvproxy.db.tables.channels.MovieToCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.SeriesCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
+import io.github.firstred.iptvproxy.db.tables.sources.XtreamSourceTable
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.z4kn4fein.semver.toVersion
@@ -69,7 +73,15 @@ val dataSource = HikariDataSource(HikariConfig().apply {
 })
 
 private val allDbTables = arrayOf(
-    AppDataTable,
+    LiveStreamCategoryTable,
+    LiveStreamTable,
+    LiveStreamToCategoryTable,
+    MovieCategoryTable,
+    MovieTable,
+    MovieToCategoryTable,
+    SeriesCategoryTable,
+    SeriesTable,
+    SeriesToCategoryTable,
     EpgChannelDisplayNameTable,
     EpgChannelTable,
     EpgProgrammeAudioTable,
@@ -79,15 +91,11 @@ private val allDbTables = arrayOf(
     EpgProgrammeRatingTable,
     EpgProgrammeSubtitlesTable,
     EpgProgrammeTable,
-    LiveStreamCategoryTable,
-    LiveStreamTable,
-    M3u8SourceTable,
-    MovieCategoryTable,
-    MovieTable,
-    MovieToCategoryTable,
-    SeriesCategoryTable,
-    SeriesTable,
+    IptvChannelTable,
+    PlaylistSourceTable,
     XmltvSourceTable,
+    XtreamSourceTable,
+    AppDataTable,
 )
 
 val appVersionsWithDestructiveMigrations = listOf("0.3.8".toVersion())

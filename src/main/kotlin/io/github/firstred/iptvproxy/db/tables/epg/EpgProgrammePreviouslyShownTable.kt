@@ -7,7 +7,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammePreviouslyShownTable : Table("epg_programme_previously_shown") {
-    val programmeId: Column<Int> = integer("programme_id")
+    val programmeId: Column<Long> = long("programme_id")
     val server: Column<String> = varchar("server", 511)
     val start: Column<Instant> = timestamp("start")
 

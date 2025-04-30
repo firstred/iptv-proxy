@@ -5,7 +5,7 @@ import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 
 object EpgProgrammeSubtitlesTable : Table("epg_programme_subtitles") {
-    val programmeId: Column<Int> = integer("programme_id")
+    val programmeId: Column<Long> = long("programme_id")
     val server: Column<String> = varchar("server", 511)
     val type: Column<String> = varchar("type", 511)
 

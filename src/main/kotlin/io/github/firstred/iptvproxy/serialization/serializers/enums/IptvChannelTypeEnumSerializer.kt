@@ -5,5 +5,5 @@ import io.github.firstred.iptvproxy.serialization.serializers.EnumIgnoreUndefine
 
 object IptvChannelTypeEnumSerializer : EnumIgnoreUndefinedSerializer<IptvChannelType>(
     IptvChannelType.entries.toTypedArray(),
-    IptvChannelType.LIVE
+    IptvChannelType.live
 )

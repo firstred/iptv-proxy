@@ -6,8 +6,8 @@ import org.jetbrains.exposed.sql.Table
 
 object MovieToCategoryTable : Table("movie_to_category") {
     val server: Column<String> = varchar("server", 511)
-    val num: Column<Int> = integer("num")
-    val categoryId: Column<Int> = integer("category_id")
+    val num: Column<Long> = long("num")
+    val categoryId: Column<Long> = long("category_id")
 
     override val primaryKey = PrimaryKey(arrayOf(server, num, categoryId))
 
@@ -19,8 +19,7 @@ object MovieToCategoryTable : Table("movie_to_category") {
             onDelete = ReferenceOption.CASCADE,
         )
         foreignKey(
-            server to MovieCategoryTable.server,
-            categoryId to MovieCategoryTable.categoryId,
+            categoryId to MovieCategoryTable.id,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
         )

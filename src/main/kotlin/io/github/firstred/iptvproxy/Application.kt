@@ -17,6 +17,7 @@ import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
@@ -104,7 +105,7 @@ private fun startServer() {
                 install(MicrometerMetrics) {
                     registry = appMicrometerRegistry
                 }
-                install(Compression) {
+                if (config.compressResponses) install(Compression) {
                     gzip { priority = .5 }
                     deflate { priority = .3 }
                 }
@@ -130,9 +131,7 @@ private fun startServer() {
                         config.cors.allowOrigins.forEach { allowHost(it) }
                     }
                 }
-                install(ContentNegotiation) {
-                    json
-                }
+                install(ContentNegotiation) { json(json) }
 
                 configureRouting()
                 installHealthCheckRoute()

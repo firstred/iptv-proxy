@@ -6,7 +6,7 @@ import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object XtreamSourceTable : Table("m3u8_source") {
+object XtreamSourceTable : Table("xtream_source") {
     val server: Column<String> = varchar("server", 511)
     val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
     val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())

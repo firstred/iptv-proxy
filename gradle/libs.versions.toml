@@ -8,8 +8,6 @@ kotlinx-serialization-xml = "0.91.0"
 kotlinx-io = "0.7.0"
 sentry = "3.12.0"
 shadow = "8.1.1"
-versions = "0.51.0"
-versionsFilter = "0.1.16"
 prometheus = "1.14.6"
 jib = "3.4.5"
 ktor = "3.1.2"
@@ -66,6 +64,7 @@ janino = { module = "org.codehaus.janino:janino", version.ref = "janino" }
 ktor-client-contentNegotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
 ktor-client-contentNegotiation-json = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 ktor-client-contentNegotiation-xml = { module = "io.ktor:ktor-serialization-kotlinx-xml", version.ref = "ktor" }
+
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-encoding = { module = "io.ktor:ktor-client-encoding", version.ref = "ktor" }
 ktor-client-engine-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }

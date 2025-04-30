@@ -1,18 +1,18 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
+import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.ReferenceOption
-import org.jetbrains.exposed.sql.Table
 
-object MovieCategoryTable : Table("movie_category") {
+object MovieCategoryTable : LongIdTable("movie_category") {
     val server: Column<String> = varchar("server", 511)
-    val categoryId: Column<String> = varchar("category_id", 511)
+    val externalCategoryId: Column<Long> = long("external_category_id")
     val name: Column<String> = text("category_name")
     val parentId: Column<String> = varchar("parent_id", 511).default("0")
 
-    override val primaryKey = PrimaryKey(arrayOf(server, categoryId))
-
     init {
+        uniqueIndex(server, externalCategoryId)
+
         foreignKey(
             server to MovieTable.server,
             onUpdate = ReferenceOption.CASCADE,

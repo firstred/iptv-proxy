@@ -6,7 +6,8 @@ val appModule = module {
     includes(
         coreModule,
         databaseModule,
-        listenerModule,
+        healthcheckModule,
+        metricsModule,
         httpClientModule,
         userModule,
         iptvServerModule,

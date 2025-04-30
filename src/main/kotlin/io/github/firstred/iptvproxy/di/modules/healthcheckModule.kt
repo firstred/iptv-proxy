@@ -6,7 +6,6 @@ import io.github.firstred.iptvproxy.listeners.MetricsListener
 import org.koin.dsl.binds
 import org.koin.dsl.module
 
-val listenerModule = module {
+val healthcheckModule = module {
     single { HealthListener() } binds hooksOf(HealthListener::class)
-    single { MetricsListener() } binds hooksOf(MetricsListener::class)
 }

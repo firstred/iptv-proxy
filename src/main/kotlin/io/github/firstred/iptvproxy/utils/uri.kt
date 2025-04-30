@@ -16,6 +16,10 @@ fun URI.ensureTrailingSlash(): URI = let {
 
 fun URI.isHlsPlaylist(): Boolean = path.endsWith(".m3u") || path.endsWith(".m3u8")
 
+fun String.toProxiedIconUrl(baseUrl: URI, encryptedAccount: String) = toProxiedIconUrl(
+    baseUrl.toString(),
+    encryptedAccount
+)
 fun String.toProxiedIconUrl(baseUrl: String, encryptedAccount: String): String {
     val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
     val matchResult = regex.find(this)

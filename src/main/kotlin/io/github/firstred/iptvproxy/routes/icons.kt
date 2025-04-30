@@ -21,7 +21,7 @@ fun Route.icons() {
     val httpClient : HttpClient by inject(named("icon"))
 
     route("/icon/") {
-        get(Regex("""(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))""")) {
+        get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))$""")) {
             if (isNotMainEndpoint()) return@get
             try {
                 findUserFromEncryptedAccountInRoutingContext()

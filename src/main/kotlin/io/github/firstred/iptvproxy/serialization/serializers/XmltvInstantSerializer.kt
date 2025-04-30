@@ -25,7 +25,8 @@ object XmltvInstantSerializer: KSerializer<Instant> {
             Instant.parse(decoder.decodeString(), DateTimeComponents.Format {
                 byUnicodePattern("yyyyMMddHHmmss Z")
             })
-        } catch (e: Throwable) {
+
+        } catch (_: Throwable) {
             Instant.parse(decoder.decodeString(), DateTimeComponents.Format {
                 byUnicodePattern("yyyyMMddHHmmss")
             })

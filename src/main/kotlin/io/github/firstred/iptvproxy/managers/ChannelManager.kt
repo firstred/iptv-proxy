@@ -2,18 +2,23 @@ package io.github.firstred.iptvproxy.managers
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
+import io.github.firstred.iptvproxy.db.repositories.EpgRepository
+import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvIcon
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStreamCategory
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieCategory
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesCategory
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
-import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
@@ -21,11 +26,12 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnSt
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
-import io.github.firstred.iptvproxy.utils.base64.encodeToBase64UrlString
 import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
+import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -40,8 +46,6 @@ import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
-import java.net.URLDecoder
-import java.net.URLEncoder
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
@@ -53,18 +57,19 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     private val scheduledExecutorService: ScheduledExecutorService by inject()
     private val httpClient: HttpClient by inject()
     private val channelRepository: ChannelRepository by inject()
+    private val epgRepository: EpgRepository by inject()
+    private val xtreamRepository: XtreamRepository by inject()
 
     private suspend fun updateChannels() {
         LOG.info("Updating channels")
 
-        val newChannelsByReference: MutableMap<String, IptvChannel> = mutableMapOf()
-        fun addNewChannel(channel: IptvChannel) {
-            newChannelsByReference[channel.reference] = channel
+        val newChannels: MutableMap<String, IptvChannel> = mutableMapOf()
+        fun addNewChannel(reference: String, channel: IptvChannel) {
+            newChannels[reference] = channel
         }
 
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
 
-        val newXmltv = XmltvDoc()
         for (server in serversByName.values) {
             var xmltv: XmltvDoc? = null
             if (server.config.epgUrl != null) {
@@ -76,22 +81,25 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
                     }
                 }
-                if (null != xmltv) channelRepository.upsertXmltvDocForServer(xmltv, server.name)
+
+                val endOf = Clock.System.now() + server.config.epgAfter
+                val startOf = Clock.System.now() - server.config.epgBefore
+                xmltv?.let {
+                    epgRepository.upsertXmltvSourceForServer(
+                        xmltv.copy(
+                            programmes = it.programmes?.filter { programme ->
+                                (programme.start < endOf) && (programme.stop > startOf)
+                            }?.toMutableList()
+                        ),
+                        server.name
+                    )
+                }
+
+                channelRepository.upsertPlaylistSourceForServer(server.name)
             }
 
             val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
             val xmltvByName: MutableMap<String, XmltvChannel> = mutableMapOf()
-
-            xmltv?.channels?.forEach { ch: XmltvChannel ->
-                ch.id?.let { if (it.isNotBlank()) xmltvById[it] = ch }
-                ch.displayNames?.forEach { textElem ->
-                    textElem.text?.let {
-                        if (it.isNotBlank()) xmltvByName[it] = ch
-                    }
-                }
-            }
-
-            val xmltvIds: MutableMap<String?, String?> = mutableMapOf()
 
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
@@ -107,7 +115,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 m3u.channels.forEach { m3uChannel: M3uChannel ->
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
 
-                    addNewChannel(newChannelsByReference[channelReference] ?: let {
+                    addNewChannel(channelReference, newChannels[channelReference] ?: let {
                         val tvgId: String = m3uChannel.props["tvg-id"] ?: ""
                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
 
@@ -131,23 +139,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
 
                         // Redirect logo URI
-                        val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])?.let {
-                            // Find basename and extension of image URL with regex
-                            val regex = Regex("""^.+/(?<filename>((?<basename>[^.]*)\.(?<extension>.*)))$""")
-                            val matchResult = regex.find(it)
-                            val basename = URLEncoder.encode(
-                                URLDecoder.decode(
-                                    matchResult?.groups?.get("basename")?.value ?: "logo", UTF_8.toString()
-                                ).filterNot { it.isWhitespace() }, UTF_8.toString()
-                            )
-                            val extension = URLEncoder.encode(
-                                URLDecoder.decode(
-                                    matchResult?.groups?.get("extension")?.value ?: "png", UTF_8.toString()
-                                ).filterNot { it.isWhitespace() }, UTF_8.toString()
-                            )
-
-                            "\${BASE_URL}icon/\${ENCRYPTED_ACCOUNT}/${it.aesEncryptToHexString()}/${basename}.${extension}"
-                        }
+                        val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])
 
                         var days = 0
                         var daysStr = m3uChannel.props["tvg-rec"] ?: ""
@@ -160,21 +152,11 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                             }
                         }
 
-                        var xmltvId = xmltvCh?.id
-                        if (!xmltvId.isNullOrBlank()) {
-                            val newId = (server.name + '-' + xmltvId).hash()
-                            if (xmltvIds.putIfAbsent(xmltvId, newId) == null) {
-                                newXmltv.channels?.add(xmltvCh.copy(id = newId, icon = logo?.let { XmltvIcon(it) }))
-                            }
-                            xmltvId = newId
-                        }
-
                         IptvChannel(
-                            reference = channelReference,
                             name = m3uChannel.name,
                             logo = logo,
                             groups = m3uChannel.groups,
-                            epgId = xmltvId,
+                            epgId = m3uChannel.props["tvg-id"],
                             catchupDays = days,
                             url = URI(m3uChannel.url),
                             server = server,
@@ -182,37 +164,86 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                         )
                     })
                 }
-            }
 
-            val endOf = Clock.System.now() + server.config.epgAfter
-            val startOf = Clock.System.now() - server.config.epgBefore
+                if (account.isXtream()) {
+                    // Update xtream info
+                    // Load live streams
+                    lateinit var liveStreamCategories: List<XtreamLiveStreamCategory>
+                    lateinit var liveStreams: List<XtreamLiveStream>
+                    server.withConnection(account) { serverConnection ->
+                        liveStreamCategories = httpClient.get(
+                            serverConnection.config.account.getXtreamLiveStreamCategoriesUrl().toString()
+                        ) {
+                            headers {
+                                accept(ContentType.Application.Json)
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body()
+                    }
+                    server.withConnection(account) { serverConnection ->
+                        liveStreams = httpClient.get(serverConnection.config.account.getXtreamLiveStreamsUrl().toString()) {
+                            headers {
+                                accept(ContentType.Application.Json)
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body()
+                    }
+                    xtreamRepository.upsertLiveStreamsAndCategories(liveStreams, liveStreamCategories, server.name)
 
-            xmltv?.programmes?.forEach { programme: XmltvProgramme? ->
-                if ((programme!!.start < endOf) && (programme.stop > startOf)
-                ) {
-                    val newId = xmltvIds[programme.channel]
-                    if (!newId.isNullOrBlank()) newXmltv.programmes?.add(programme.copy(channel = newId))
+                    // Load movies
+                    lateinit var movieCategories: List<XtreamMovieCategory>
+                    lateinit var movies: List<XtreamMovie>
+                    server.withConnection(account) { serverConnection ->
+                        movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
+                            headers {
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body<List<XtreamMovieCategory>>()
+                    }
+                    server.withConnection(account) { serverConnection ->
+                        movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
+                            headers {
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body<List<XtreamMovie>>()
+                    }
+                    xtreamRepository.upsertMoviesAndCategories(movies, movieCategories, server.name)
+
+                    // Load tv series
+                    lateinit var seriesCategories: List<XtreamSeriesCategory>
+                    lateinit var series: List<XtreamSeries>
+                    server.withConnection(account) { serverConnection ->
+                        seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
+                            headers {
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body<List<XtreamSeriesCategory>>()
+                    }
+                    server.withConnection(account) { serverConnection ->
+                        series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
+                            headers {
+                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                            }
+                        }.body<List<XtreamSeries>>()
+                    }
+                    xtreamRepository.upsertSeriesAndCategories(series, seriesCategories, server.name)
+
+                    xtreamRepository.upsertXtreamSourceForServer(server.name)
                 }
             }
         }
 
+        channelRepository.upsertChannels(newChannels.values.toList())
+
+        xtreamRepository.matchXtreamWithChannels()
+
         val channelCount = channelRepository.getIptvChannelCount()
 
+        // Signal channels are updated
         if (channelCount > 0) dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
 
-        LOG.info("{} channels updated", channelRepository.getIptvChannelCount())
+        LOG.info("{} channels updated", channelCount)
     }
-
-    private fun buildNewLogoURI(it: String, extension: String, baseUrl: URI): URI? = URI(buildNewLogoURI(it, extension, baseUrl.toString()))
-    private fun buildNewLogoURI(it: String, extension: String, baseUrl: String): String = "${baseUrl}icon/${it.encodeToBase64UrlString()}/logo." + when (extension) {
-            "jpg"  -> "jpeg"
-            "jpeg" -> "jpg"
-            "gif"  -> "gif"
-            "png"  -> "png"
-            "webp" -> "webp"
-            "avif" -> "avif"
-            else   -> "png"
-        }
 
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
         val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
@@ -233,7 +264,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     }
 
     suspend fun getChannelPlaylist(
-        channelId: String,
+        streamId: String,
         user: IptvUser,
         baseUrl: URI,
         additionalHeaders: Headers = headersOf(),
@@ -251,9 +282,55 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
-        filterType: IptvChannelType? = null,
     ) {
-        TODO()
+        val outputWriter = outputStream.bufferedWriter(UTF_8)
+        val encryptedAccount = user.toEncryptedAccountHexString()
+
+        outputWriter.write("#EXTM3U\n")
+
+        channelRepository.forEachIptvChannelChunk { chunk ->
+            chunk.forEach { channel: IptvChannel ->
+                outputWriter.write("#EXTINF:-1")
+                outputWriter.write(" tvg-id=\"")
+                outputWriter.write(channel.epgId ?: "")
+                outputWriter.write("\"")
+
+                outputWriter.write(" tvg-logo=\"")
+                channel.logo?.let { if ("null" != channel.logo) outputWriter.write(channel.logo.toProxiedIconUrl(baseUrl, encryptedAccount)) }
+                outputWriter.write("\"")
+
+                if (channel.catchupDays > 0) {
+                    outputWriter.write(" catchup=\"shift\" catchup-days=\"")
+                    outputWriter.write(channel.catchupDays.toString())
+                    outputWriter.write("\"")
+                }
+
+                if (channel.groups.isNotEmpty()) {
+                    outputWriter.write(" group-title=\"")
+                    outputWriter.write(channel.groups.first())
+                    outputWriter.write("\"")
+                }
+
+                outputWriter.write(",")
+                outputWriter.write(channel.name)
+                outputWriter.write("\n")
+
+                if (channel.groups.isNotEmpty()) {
+                    outputWriter.write("#EXTGRP:")
+                    outputWriter.write(java.lang.String.join(";", channel.groups))
+                    outputWriter.write("\n")
+                }
+
+                outputWriter.write(baseUrl.toString())
+                outputWriter.write("${channel.type.urlType()}/")
+                outputWriter.write(("${user.username}_${user.password}".aesEncryptToHexString() + "/"))
+                outputWriter.write(channel.id)
+                outputWriter.write("/channel.m3u8")
+                outputWriter.write("\n")
+
+                outputWriter.flush()
+            }
+        }
     }
     suspend fun getLiveStreamsPlaylist(
         user:
@@ -272,6 +349,8 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                 try {
                     runBlocking {
                         channelRepository.cleanup()
+                        epgRepository.cleanup()
+                        xtreamRepository.cleanup()
                         scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {

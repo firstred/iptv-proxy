@@ -19,7 +19,7 @@ data class IptvServerAccountConfig(
     val userAgent: String? = null,
 ) : Comparable<IptvServerAccountConfig> {
     fun getPlaylistUrl(): URI? {
-        if (!xtreamUsername.isNullOrBlank() && !xtreamPassword.isNullOrBlank() && !url.isNullOrBlank()) {
+        if (isXtream()) {
             try {
                 val uri = URI(url)
                 return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/get.php?username=$xtreamUsername&password=$xtreamPassword&type=m3u_plus&output=m3u8")
@@ -34,16 +34,90 @@ data class IptvServerAccountConfig(
         }
     }
     fun getEpgUrl(): URI? {
-        if (!xtreamUsername.isNullOrBlank() && !xtreamPassword.isNullOrBlank() && !url.isNullOrBlank()) {
+        if (isXtream()) {
             try {
                 val uri = URI(url)
-                return URI("${uri.scheme}://${uri.host}:${uri.port}/xmltv.php?username=$xtreamUsername&password=$xtreamPassword")
+                return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/xmltv.php?username=$xtreamUsername&password=$xtreamPassword")
             } catch (_: URISyntaxException) {
             }
         }
 
         return null
     }
+    fun getXtreamUserInfoUrl(): URI? {
+        if (!isXtream()) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword")
+        } catch (_: URISyntaxException) {
+        }
+
+        return null
+    }
+    fun getXtreamLiveStreamCategoriesUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_live_categories")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamLiveStreamsUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_live_streams")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamMovieCategoriesUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_vod_categories")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamMoviesUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_vod_streams")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamSeriesCategoriesUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_series_categories")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamSeriesUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_series")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+
+    fun isXtream(): Boolean =
+        !xtreamUsername.isNullOrBlank() && !xtreamPassword.isNullOrBlank() && !url.isNullOrBlank()
 
     override fun compareTo(other: IptvServerAccountConfig): Int {
         return when {

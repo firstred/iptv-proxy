@@ -22,7 +22,8 @@ import kotlin.math.max
 import kotlin.text.Charsets.UTF_8
 
 class IptvChannel(
-    val reference: String,
+    val id: String? = null,
+    val externalStreamId: String? = null,
     val name: String,
     val logo: String?,
     val epgId: String?,
@@ -56,7 +57,7 @@ class IptvChannel(
         val outputWriter = outputStream.bufferedWriter(UTF_8)
 
         server.withConnection { connection ->
-            LOG.info("[{}] loading channel: {}, url: {}", user.username, name, reference)
+            LOG.info("[{}] loading channel: {}, url: {}", user.username, name)
 
             var response = connection.httpClient.get(
                 url.appendQueryParameters(additionalQueryParameters).toString(),
@@ -126,7 +127,7 @@ class IptvChannel(
                             val infoLineUri = URI(infoLine)
 
                             infoLine =
-                                "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${reference}/${infoLineUri.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
+                                "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${id}/${infoLineUri.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
                         } catch (_: URISyntaxException) {
                         }
                     }

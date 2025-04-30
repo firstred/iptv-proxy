@@ -5,8 +5,8 @@ import kotlinx.serialization.Serializable
 
 @Serializable(with = XtreamOutputFormatEnumSerializer::class)
 enum class XtreamOutputFormat(val type: String) {
-    M3U8("m3u8"),
-    HLS("hls"),
-    TS("ts"),
-    RTMP("rtmp");
+    m3u8("m3u8"),
+    hls("hls"),
+    ts("ts"),
+    rtmp("rtmp");
 }

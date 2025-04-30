@@ -3,6 +3,7 @@ package io.github.firstred.iptvproxy.di.modules
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
+import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.ktor.client.*
 import io.ktor.client.engine.*
@@ -11,9 +12,11 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.cache.*
 import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.plugins.compression.*
+import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.io.IOException
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
@@ -160,6 +163,7 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
         // Hide authorization header from logs
         sanitizeHeader { header -> header == HttpHeaders.Authorization }
     }
+    install(ContentNegotiation) { json(json) }
     install(ContentEncoding) {
         deflate(.9f)
         gzip(.8f)

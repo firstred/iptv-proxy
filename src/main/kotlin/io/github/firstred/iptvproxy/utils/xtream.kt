@@ -6,8 +6,8 @@ import java.net.URI
 fun URI.channelType() = toString().channelType()
 fun String.channelType(): IptvChannelType {
     return when {
-        matches(Regex("^[^:]+://[^/]+/movie/.*"))  -> IptvChannelType.MOVIE
-        matches(Regex("^[^:]+://[^/]+/series/.*")) -> IptvChannelType.SERIES
-        else                                                -> IptvChannelType.LIVE
+        matches(Regex("^[^:]+://[^/]+/movie/.*"))  -> IptvChannelType.movie
+        matches(Regex("^[^:]+://[^/]+/series/.*")) -> IptvChannelType.series
+        else                                                -> IptvChannelType.live
     }
 }

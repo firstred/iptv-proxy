@@ -12,7 +12,7 @@ object XmltvSourceTable : Table("xmltv_source") {
     val generatorInfoUrl: Column<String?> = text("generator_info_url").nullable()
     val sourceInfoUrl: Column<String?> = text("source_info_url").nullable()
     val sourceInfoName: Column<String?> = text("source_info_name").nullable()
-    val sourceInfoLogo: Column<String?> = varchar("source_info_logo", 2047).nullable()
+    val sourceInfoLogo: Column<String?> = text("source_info_logo").nullable()
     val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
     val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
 

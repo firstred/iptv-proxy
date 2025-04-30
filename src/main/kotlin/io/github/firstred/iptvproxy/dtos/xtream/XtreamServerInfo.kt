@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -14,8 +13,8 @@ data class XtreamServerInfo(
     @SerialName("https_port") val httpsPort: String? = null,
     @SerialName("server_protocol") val protocol: String,
     @SerialName("rtmp_port") val rtmpPort: String? = null,
-    @SerialName("timezone") val timezone: TimeZone? = null,
-    @SerialName("timestamp_now") val timestampNow: Instant? = null,
+    @SerialName("timezone") val timezone: String? = null,
+    @SerialName("timestamp_now") val timestampNow: String? = null,
     @SerialName("time_now") val timeNow: String? = null,
     val process: Boolean? = null,
 ) {
