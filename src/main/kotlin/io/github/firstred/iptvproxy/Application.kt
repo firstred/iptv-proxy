@@ -63,7 +63,7 @@ fun main(args: Array<String>) {
                 // TODO: make configuration location configurable
                 try {
                     LOG.info("Loading config...")
-                    config = loadConfig(File(System.getProperty("config", "config.yml")))
+                    config = loadConfig(File("config.yml"))
                 } catch (e: InvalidPropertyValueException) {
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
                     exitProcess(1)
@@ -150,10 +150,12 @@ private fun startServer() {
     ).start(wait = true)
 }
 
-private fun loadConfig(configFile: File): IptvProxyConfig {
+fun loadConfig(configFile: File): IptvProxyConfig {
     // Read the entire config file in memory
-    var configContent = configFile.readText()
-
+    return loadConfig(configFile.readText())
+}
+fun loadConfig(configFile: String): IptvProxyConfig {
+    var configContent = configFile
     // Add env variables to the config
     val parameters: MutableMap<String, String> = dotenv.entries().associate { it.key to it.value }.toMutableMap()
 

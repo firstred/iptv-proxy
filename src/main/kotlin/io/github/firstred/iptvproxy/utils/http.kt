@@ -10,8 +10,8 @@ fun Headers.filterHttpRequestHeaders(
     whitelistedHeaders: List<String> = config.whitelistIptvClientHeaders,
     blacklistedHeaders: List<String> = config.blacklistIptvClientHeaders,
 ): Headers = filter { key, _ ->
-    (whitelistedHeaders.any { it.equals(key, ignoreCase = true) } || whitelistedHeaders.contains("*"))
-            && !(DROP_REQUEST_HEADERS + blacklistedHeaders).any { it.equals(key, ignoreCase = true) }
+    ((whitelistedHeaders + APP_REQUEST_HEADERS).any { it.equals(key, ignoreCase = true) } || whitelistedHeaders.contains("*"))
+            && !(DROP_REQUEST_HEADERS + blacklistedHeaders - APP_REQUEST_HEADERS).any { it.equals(key, ignoreCase = true) }
 }.toHeaders()
 
 fun HeadersBuilder.filterHttpRequestHeaders(
@@ -20,7 +20,7 @@ fun HeadersBuilder.filterHttpRequestHeaders(
     whitelistedHeaders: List<String> = config.whitelistIptvClientHeaders,
     blacklistedHeaders: List<String> = config.blacklistIptvClientHeaders,
 ) {
-    DROP_REQUEST_HEADERS.forEach { builder.remove(it) }
+    (DROP_REQUEST_HEADERS - APP_REQUEST_HEADERS).forEach { builder.remove(it) }
     context.call.request.headers
         .filterHttpRequestHeaders(whitelistedHeaders, blacklistedHeaders)
         .forEach { key, value -> value.forEach { builder.append(key, it) } }
@@ -30,9 +30,11 @@ fun Headers.filterHttpResponseHeaders(
     whitelistedHeaders: List<String> = config.whitelistIptvServerHeaders,
     blacklistedHeaders: List<String> = config.blacklistIptvServerHeaders,
 ): Headers = filter { key, _ ->
-    (whitelistedHeaders.any { it.equals(key, ignoreCase = true) } || whitelistedHeaders.contains("*"))
+    ((whitelistedHeaders).any { it.equals(key, ignoreCase = true) } || whitelistedHeaders.contains("*"))
             && !(DROP_RESPONSE_HEADERS + blacklistedHeaders).any { it.equals(key, ignoreCase = true) }
 }.toHeaders()
+
+
 
 fun URI.appendQueryParameters(
     queryParameters: Parameters,

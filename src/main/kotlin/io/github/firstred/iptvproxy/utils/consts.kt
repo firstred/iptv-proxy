@@ -4,9 +4,17 @@ const val M3U_TAG_EXTINF = "#EXTINF:"
 const val M3U_TAG_TARGET_DURATION = "#EXT-X-TARGETDURATION:"
 const val EXT_X_MEDIA_SEQUENCE = "#EXT-X-MEDIA-SEQUENCE:"
 
+// These are the headers that are used by the app and should not be removed
+val APP_REQUEST_HEADERS = listOf(
+    "x-iptv-proxy",
+    "proxy-authorization",
+    "forwarded",
+)
+
 val DROP_REQUEST_HEADERS = listOf(
     "host",
     "accept",
+    "accept-charset",
     "accept-encoding",
     "transfer-encoding",
     "x-forwarded-for",

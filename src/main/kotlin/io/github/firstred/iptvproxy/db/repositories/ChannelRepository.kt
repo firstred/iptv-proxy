@@ -22,7 +22,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
-import kotlin.properties.Delegates
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()

@@ -94,7 +94,7 @@ class IptvChannel(
 
                         // This is a stream URL
                         if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
-                            newInfoLine = responseURI.resolve(newInfoLine).toString()
+                            newInfoLine = responseURI.resolve(newInfoLine.replace(" ", "%20")).toString()
                         }
 
                         try {
