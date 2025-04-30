@@ -132,10 +132,10 @@ fun Route.proxyRemotePlaylist() {
             return@get
         }
 
-        val channelId = call.parameters["streamid"] ?: run {
+        val channelId = (call.parameters["streamid"] ?: run {
             call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
             return@get
-        }
+        }).toLong()
 
         withUserPermit(user) {
             call.response.headers.apply {

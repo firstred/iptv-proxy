@@ -6,6 +6,7 @@ import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
 import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
+import io.github.firstred.iptvproxy.utils.isHlsPlaylist
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -57,7 +58,7 @@ class IptvChannel(
         val outputWriter = outputStream.bufferedWriter(UTF_8)
 
         server.withConnection { connection ->
-            LOG.info("[{}] loading channel: {}, url: {}", user.username, name)
+            LOG.info("[{}] loading channel: {}, url: {}", user.username, name, url)
 
             var response = connection.httpClient.get(
                 url.appendQueryParameters(additionalQueryParameters).toString(),
@@ -95,8 +96,9 @@ class IptvChannel(
                 @Suppress("NAME_SHADOWING") var infoLine = infoLine
                 infoLine = infoLine.trim(' ')
 
-                // This is a metadata line
+
                 when {
+                    // This is a metadata line
                     infoLine.startsWith(M3U_TAG_EXTINF) -> {
                         var v = infoLine.substring(M3U_TAG_EXTINF.length)
                         val idx = v.indexOf(',')
@@ -106,6 +108,7 @@ class IptvChannel(
                         maxDurationMillis = max(maxDurationMillis.toDouble(), currentDurationMillis.toDouble()).toLong()
                     }
 
+                    // This is a metadata line
                     infoLine.startsWith(M3U_TAG_TARGET_DURATION) -> {
                         val targetDuration =
                             BigDecimal(infoLine.substring(M3U_TAG_TARGET_DURATION.length)).multiply(
@@ -114,20 +117,26 @@ class IptvChannel(
                         maxDurationMillis = max(maxDurationMillis.toDouble(), targetDuration.toDouble()).toLong()
                     }
 
+                    // This is a metadata line
                     infoLine.startsWith(EXT_X_MEDIA_SEQUENCE) -> {
                         mediaSequenceNumber = infoLine.substring(EXT_X_MEDIA_SEQUENCE.length).toInt()
                     }
 
+                    // This is a URL line
                     !infoLine.startsWith("#") && infoLine.isNotBlank() -> {
                         // This is a stream URL
                         if (!infoLine.startsWith("http://") && !infoLine.startsWith("https://")) {
                             infoLine = responseURI.resolve(infoLine).toString()
                         }
-                        try {
-                            val infoLineUri = URI(infoLine)
 
-                            infoLine =
-                                "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${id}/${infoLineUri.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
+                        try {
+                            val remoteUrl = URI(infoLine)
+                            if (remoteUrl.isHlsPlaylist()) {
+                                infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${id}/${remoteUrl.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
+                            } else {
+                                val extension = remoteUrl.path.substringAfterLast('.', "")
+                                infoLine = "${baseUrl}video/${user.toEncryptedAccountHexString()}/${id}/${remoteUrl.aesEncryptToHexString()}/media.$extension"
+                            }
                         } catch (_: URISyntaxException) {
                         }
                     }

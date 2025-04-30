@@ -19,13 +19,13 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesCategory
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
-import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
@@ -42,7 +42,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
@@ -274,18 +273,15 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
     }
 
     suspend fun getChannelPlaylist(
-        streamId: String,
+        channelId: Long,
         user: IptvUser,
         baseUrl: URI,
         additionalHeaders: Headers = headersOf(),
         additionalQueryParameters: Parameters = parametersOf(),
         headersCallback: ((Headers) -> Unit)? = null,
     ): String {
-        TODO()
-//        iptvChannelsLock.withLock {
-//            return (channelsByReference[channelId] ?: throw RuntimeException("Channel not found: $channelId"))
-//                .getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
-//        }
+        return (channelRepository.getChannelById(channelId)
+        ?: run { throw RuntimeException("Channel not found") }).getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
     }
 
     suspend fun getLiveStreamsPlaylist(
@@ -299,7 +295,7 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         outputWriter.write("#EXTM3U\n")
 
         channelRepository.forEachIptvChannelChunk { chunk ->
-            chunk.forEach { channel: IptvChannel ->
+            chunk.filterNot { null == it.id }.forEach { channel: IptvChannel ->
                 outputWriter.write("#EXTINF:-1")
                 outputWriter.write(" tvg-id=\"")
                 outputWriter.write(channel.epgId ?: "")
@@ -331,26 +327,15 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
                     outputWriter.write("\n")
                 }
 
-                outputWriter.write(baseUrl.toString())
-                outputWriter.write("${channel.type.urlType()}/")
-                outputWriter.write(("${user.username}_${user.password}".aesEncryptToHexString() + "/"))
-                outputWriter.write(channel.id)
-                outputWriter.write("/channel.m3u8")
+                if (channel.type == IptvChannelType.live) {
+                    outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.ts").toString())
+                } else {
+                    outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.${channel.url.toString().substringAfterLast('.')}").toString())
+                }
                 outputWriter.write("\n")
-
                 outputWriter.flush()
             }
         }
-    }
-    suspend fun getLiveStreamsPlaylist(
-        user:
-        IptvUser,
-        actualBaseUrl:
-        URI,
-    ): String {
-        val outputStream = ByteArrayOutputStream()
-        getLiveStreamsPlaylist(outputStream, user, actualBaseUrl)
-        return outputStream.toString("UTF-8")
     }
 
     private fun scheduleChannelCleanups(delay: Long =0, unit: TimeUnit = TimeUnit.MINUTES) {

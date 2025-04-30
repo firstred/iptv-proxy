@@ -49,7 +49,7 @@ fun Route.xtreamApi() {
 
         call.response.headers.apply {
             append(HttpHeaders.ContentType, ContentType.Application.Xml.toString())
-            append(HttpHeaders.ContentDisposition, "attachment; filename=xmltv.xml")
+            append(HttpHeaders.ContentDisposition, "attachment; filename=xmltv_${user.username}.xml")
         }
 
         val baseUrl = config.getActualBaseUrl(call.request).toString()
@@ -213,7 +213,7 @@ fun Route.xtreamApi() {
 
         call.response.headers.apply {
             append(HttpHeaders.ContentType, "audio/mpegurl")
-            append(HttpHeaders.ContentDisposition, "attachment; filename=playlist.m3u8")
+            append(HttpHeaders.ContentDisposition, "attachment; filename=playlist_${user.username}.m3u8")
         }
 
         call.respondOutputStream {
