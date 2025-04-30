@@ -21,14 +21,12 @@ import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
 import org.koin.ktor.ext.inject
-import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.time.Duration
 
 @OptIn(FormatStringsInDatetimeFormats::class)

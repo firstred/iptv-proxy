@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
-import kotlinx.datetime.TimeZone
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
