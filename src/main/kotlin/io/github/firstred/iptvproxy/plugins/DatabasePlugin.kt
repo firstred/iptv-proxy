@@ -152,13 +152,34 @@ fun Transaction.withForeignKeyChecksDisabled(
 }
 
 private fun dropAllTables() {
+    val droppableTables = listOf(
+        "live_stream_category",
+        "live_stream",
+        "live_stream_to_category",
+        "movie_category",
+        "movie",
+        "movie_to_category",
+        "series_category",
+        "series",
+        "series_to_category",
+        "epg_channel_display_name",
+        "epg_channel",
+        "epg_programme_audio",
+        "epg_programme_category",
+        "epg_programme_episode_number",
+        "epg_programme_previously_shown",
+        "epg_programme_rating",
+        "epg_programme_subtitles",
+        "epg_programme",
+    )
+
     transaction {
         withForeignKeyChecksDisabled {
-            allDbTables.forEach { table ->
+            droppableTables.forEach { table ->
                 try {
-                    exec(/** language=SQL */ "DROP TABLE IF EXISTS ${table.tableName}", explicitStatementType = StatementType.DROP)
+                    exec(/** language=SQL */ "DROP TABLE IF EXISTS $table", explicitStatementType = StatementType.DROP)
                 } catch (e: Throwable) {
-                    LOG.error("Error dropping table ${table.tableName}: ${e.message}")
+                    LOG.error("Error dropping table $table: ${e.message}")
                 }
             }
         }
