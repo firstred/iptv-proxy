@@ -87,14 +87,14 @@ data class IptvProxyConfig(
     fun getForwardedValues(forwardedHeaderContent: String?): ForwardedHeaderValues {
         if (null == forwardedHeaderContent) return ForwardedHeaderValues()
 
-        val forwardedPassword = forwardedHeaderContent.split(";").find { it.startsWith("pass=") }?.substringAfter("=")
+        val forwardedPassword = forwardedHeaderContent.split(';', ',').find { it.startsWith("pass=") }?.substringAfter("=")
         if (forwardedPassword != forwardedPass) {
             return ForwardedHeaderValues()
         }
 
-        val forwardedBaseUrl = forwardedHeaderContent.split(";").find { it.startsWith("baseUrl=") }?.substringAfter("=")
+        val forwardedBaseUrl = forwardedHeaderContent.split(';', ',').find { it.startsWith("baseUrl=") }?.substringAfter("=")
         val forwardedIptvProxyUser =
-            forwardedHeaderContent.split(";").find { it.startsWith("proxyUser=") }?.substringAfter("=")
+            forwardedHeaderContent.split(';', ',').find { it.startsWith("proxyUser=") }?.substringAfter("=")
 
         return ForwardedHeaderValues(
             baseUrl = forwardedBaseUrl,
