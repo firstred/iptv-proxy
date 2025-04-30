@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -22,7 +23,6 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvRating
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
 import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
 import kotlinx.datetime.Clock
-import org.jetbrains.exposed.dao.id.EntityID
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
@@ -37,6 +37,7 @@ import org.jetbrains.exposed.sql.insertIgnoreAndGetId
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 
 class EpgRepository {
@@ -111,22 +112,21 @@ class EpgRepository {
             chunk.forEach { programme ->
                 transaction { withForeignKeyChecksDisabled {
                     // Upsert the XMLTV programme
-                    var programmeId: EntityID<Long>? = null
-                    transaction {
-                        programmeId = EpgProgrammeTable.insertIgnoreAndGetId {
-                            it[EpgProgrammeTable.server] = server
-                            it[EpgProgrammeTable.start] = programme.start
-                            it[EpgProgrammeTable.stop] = programme.stop
-                            it[EpgProgrammeTable.epgChannelId] = programme.channel
-                            it[EpgProgrammeTable.title] = programme.title?.text ?: ""
-                            it[EpgProgrammeTable.subtitle] = programme.subTitle?.text ?: ""
-                            it[EpgProgrammeTable.description] = programme.desc?.text ?: ""
-                            it[EpgProgrammeTable.icon] = programme.icon?.src
-                            it[EpgProgrammeTable.updatedAt] = Clock.System.now()
+                    EpgProgrammeTable.insertIgnoreAndGetId {
+                        it[EpgProgrammeTable.server] = server
+                        it[EpgProgrammeTable.start] = programme.start
+                        it[EpgProgrammeTable.stop] = programme.stop
+                        it[EpgProgrammeTable.epgChannelId] = programme.channel
+                        it[EpgProgrammeTable.title] = programme.title?.text ?: ""
+                        it[EpgProgrammeTable.subtitle] = programme.subTitle?.text ?: ""
+                        it[EpgProgrammeTable.description] = programme.desc?.text ?: ""
+                        it[EpgProgrammeTable.icon] = programme.icon?.src
+                        it[EpgProgrammeTable.updatedAt] = Clock.System.now()
+                    }?.value?.let { programmeId ->
+                        EpgProgrammeTable.update({ EpgProgrammeTable.id eq programmeId }) {
+                            it[IptvChannelTable.updatedAt] = Clock.System.now()
                         }
-                    }
 
-                    programmeId?.value?.let { programmeId ->
                         // Upsert the categories
                         programme.category?.let { categories ->
                             EpgProgrammeCategoryTable.batchUpsert(categories) { category ->
@@ -387,7 +387,8 @@ class EpgRepository {
             for (server in config.servers.map { it.name }) {
                 try {
                     val (startedAt, completedAt) = XmltvSourceTable
-                        .select(XmltvSourceTable.server eq server)
+                        .selectAll()
+                        .where { XmltvSourceTable.server eq server }
                         .map { Pair(it[XmltvSourceTable.startedAt], it[XmltvSourceTable.completedAt]) }
                         .first()
                     if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)

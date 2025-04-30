@@ -13,7 +13,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertIgnore
+import org.jetbrains.exposed.sql.insertIgnoreAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -48,8 +48,7 @@ class ChannelRepository : KoinComponent {
         channels.chunked(config.database.chunkSize).forEach { chunk ->
             transaction { withForeignKeyChecksDisabled {
                 chunk.forEach { channel ->
-                    var id by Delegates.notNull<Long>()
-                    IptvChannelTable.insertIgnore {
+                    IptvChannelTable.insertIgnoreAndGetId {
                         it[IptvChannelTable.server] = channel.server.name
                         it[IptvChannelTable.name] = channel.name
                         it[IptvChannelTable.url] = channel.url.toString()
@@ -60,9 +59,10 @@ class ChannelRepository : KoinComponent {
                         it[IptvChannelTable.externalStreamId] = channel.url.streamId()
                         it[IptvChannelTable.icon] = channel.logo
                         it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
-                    }.resultedValues?.firstOrNull()?.let { id = it[IptvChannelTable.id].value }
-                    IptvChannelTable.update({ IptvChannelTable.id eq id }) {
-                        it[IptvChannelTable.updatedAt] = Clock.System.now()
+                    }?.value.let { id ->
+                        IptvChannelTable.update({ IptvChannelTable.id eq id }) {
+                            it[IptvChannelTable.updatedAt] = Clock.System.now()
+                        }
                     }
                 }
             } }
@@ -71,11 +71,12 @@ class ChannelRepository : KoinComponent {
 
     fun getChannelById(id: Long): IptvChannel? {
         return transaction {
-            IptvChannelTable.select(IptvChannelTable.id)
+            IptvChannelTable.selectAll()
                 .where { IptvChannelTable.id eq id }
                 .map {
                     IptvChannel(
                         id = it[IptvChannelTable.id].toString(),
+                        externalStreamId = it[IptvChannelTable.id].toString(),
                         server = serversByName[it[IptvChannelTable.server]]!!,
                         name = it[IptvChannelTable.name],
                         url = URI(it[IptvChannelTable.url]),
@@ -127,7 +128,8 @@ class ChannelRepository : KoinComponent {
             for (server in config.servers.map { it.name }) {
                 try {
                     val (startedAt, completedAt) = PlaylistSourceTable
-                        .select(PlaylistSourceTable.server eq server)
+                        .select(listOf(PlaylistSourceTable.startedAt, PlaylistSourceTable.completedAt))
+                        .where { PlaylistSourceTable.server eq server }
                         .map { Pair(it[PlaylistSourceTable.startedAt], it[PlaylistSourceTable.completedAt]) }
                         .first()
                     if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)

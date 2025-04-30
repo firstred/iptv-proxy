@@ -164,7 +164,7 @@ fun Route.proxyRemotePlaylist() {
 fun Route.proxyRemoteVod() {
     val channelRepository: ChannelRepository by inject()
 
-    get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<streamid>[^.]+)\.(?<extension>.*)$""")) {
+    get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<channelid>[^.]+)\.(?<extension>.*)$""")) {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
@@ -176,11 +176,11 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-        val streamId = call.parameters["streamid"] ?: run {
+        val channelId = call.parameters["channelid"] ?: run {
             call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
             return@get
         }
-        val channel = channelRepository.getChannelById(streamId.toLong()) ?: run {
+        val channel = channelRepository.getChannelById(channelId.toLong()) ?: run {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }

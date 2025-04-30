@@ -15,7 +15,6 @@ interface IIptvServerConfigWithoutAccounts {
 
     val proxyStream: Boolean
     val proxySendUser: Boolean
-    val proxyTransparentClientHeaders: List<String>
 
     val timeouts: IptvPlaylistConfigTimeouts
 

@@ -109,7 +109,6 @@ fun Route.xtreamApi() {
                     append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
                 }
 
-
                 call.respondTextWriter {
                     write("[")
                     var first = true

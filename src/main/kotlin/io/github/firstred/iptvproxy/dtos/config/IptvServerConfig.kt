@@ -18,7 +18,6 @@ data class IptvServerConfig(
 
     override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
-    override val proxyTransparentClientHeaders: List<String> = listOf(),
 
     val accounts: List<IptvServerAccountConfig>? = null,
 

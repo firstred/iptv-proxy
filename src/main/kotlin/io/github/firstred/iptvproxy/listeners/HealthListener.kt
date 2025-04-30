@@ -2,20 +2,21 @@ package io.github.firstred.iptvproxy.listeners
 
 import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
+import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import org.koin.core.component.KoinComponent
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
-class HealthListener : KoinComponent, HasOnApplicationEventHook {
-//    private var channelsAvailable = false
-    private var channelsAvailable = true
+class HealthListener : KoinComponent, HasApplicationOnDatabaseInitializedHook, HasOnApplicationEventHook {
+    private var channelsAvailable = false
+    private var databaseReady = false
 
     fun isReady(): Boolean {
-        return channelsAvailable
+        return channelsAvailable && databaseReady
     }
 
     fun isLive(): Boolean {
-        return channelsAvailable
+        return channelsAvailable && databaseReady
     }
 
     companion object {
@@ -29,5 +30,9 @@ class HealthListener : KoinComponent, HasOnApplicationEventHook {
                 channelsAvailable = true
             }
         }
+    }
+
+    override fun onApplicationDatabaseInitializedHook() {
+        databaseReady = true
     }
 }

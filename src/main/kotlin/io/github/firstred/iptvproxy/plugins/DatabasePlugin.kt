@@ -32,6 +32,10 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDa
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.z4kn4fein.semver.toVersion
 import io.ktor.server.application.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.statements.StatementType
@@ -222,5 +226,8 @@ fun Application.configureDatabase() {
         }
     }
 
-    dispatchHook(HasApplicationOnDatabaseInitializedHook::class)
+    CoroutineScope(Job()).launch {
+        delay(2_000L) // Delay dispatch of this hook - prevent too many db threads at once at start
+        dispatchHook(HasApplicationOnDatabaseInitializedHook::class)
+    }
 }

@@ -17,7 +17,6 @@ data class IptvFlatServerConfig(
 
     override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
-    override val proxyTransparentClientHeaders: List<String> = listOf(),
 
     override val timeouts: IptvPlaylistConfigTimeouts = IptvPlaylistConfigTimeouts(),
 

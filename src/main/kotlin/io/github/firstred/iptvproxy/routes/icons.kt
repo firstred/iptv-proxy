@@ -32,7 +32,7 @@ fun Route.icons() {
 
             val encryptedRemoteUrl = call.parameters["encryptedremoteurl"]
 
-            val uri = URI(encryptedRemoteUrl?.aesDecryptFromHexString() ?: throw IllegalArgumentException("Invalid remote url"))
+            val uri = URI((encryptedRemoteUrl?.aesDecryptFromHexString() ?: throw IllegalArgumentException("Invalid remote url")))
 
             httpClient.request {
                 url(uri.appendQueryParameters(call.request.queryParameters).toString())

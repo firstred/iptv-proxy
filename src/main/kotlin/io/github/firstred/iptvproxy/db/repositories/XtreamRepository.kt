@@ -35,6 +35,7 @@ import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertIgnore
+import org.jetbrains.exposed.sql.insertIgnoreAndGetId
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.stringLiteral
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -69,11 +70,15 @@ class XtreamRepository : KoinComponent {
     private fun upsertLiveStreamCategories(liveStreamCategories: List<XtreamLiveStreamCategory>, server: String) {
         liveStreamCategories.chunked(config.database.chunkSize).forEach { chunk -> chunk.forEach { liveStreamCategory ->
             transaction { withForeignKeyChecksDisabled {
-                LiveStreamCategoryTable.insertIgnore { it
+                LiveStreamCategoryTable.insertIgnoreAndGetId {
                     it[LiveStreamCategoryTable.server] = server
                     it[LiveStreamCategoryTable.externalCategoryId] = liveStreamCategory.id.toLong()
                     it[LiveStreamCategoryTable.name] = liveStreamCategory.name
                     it[LiveStreamCategoryTable.parentId] = liveStreamCategory.parentId
+                }?.value?.let {
+                    LiveStreamCategoryTable.update({ LiveStreamCategoryTable.id eq it }) {
+                        it[LiveStreamCategoryTable.updatedAt] = Clock.System.now()
+                    }
                 }
             } }
         } }
@@ -98,6 +103,7 @@ class XtreamRepository : KoinComponent {
                     this[LiveStreamTable.customSid] = liveStream.customSid
                     this[LiveStreamTable.tvArchive] = liveStream.tvArchive
                     this[LiveStreamTable.tvArchiveDuration] = liveStream.tvArchiveDuration
+                    this[LiveStreamTable.updatedAt] = Clock.System.now()
                 }
 
                 chunk.forEach { liveStream ->
@@ -118,11 +124,16 @@ class XtreamRepository : KoinComponent {
     private fun upsertMovieCategories(movieCategories: List<XtreamMovieCategory>, server: String) {
         movieCategories.chunked(config.database.chunkSize).forEach { chunk -> chunk.forEach { movieCategory ->
             transaction { withForeignKeyChecksDisabled {
-                MovieCategoryTable.insertIgnore { it
+                MovieCategoryTable.insertIgnoreAndGetId { it
                     it[MovieCategoryTable.server] = server
                     it[MovieCategoryTable.externalCategoryId] = movieCategory.id.toLong()
                     it[MovieCategoryTable.name] = movieCategory.name
                     it[MovieCategoryTable.parentId] = movieCategory.parentId
+                    it[MovieCategoryTable.updatedAt] = Clock.System.now()
+                }?.value?.let {
+                    MovieCategoryTable.update({ MovieCategoryTable.id eq it }) {
+                        it[MovieCategoryTable.updatedAt] = Clock.System.now()
+                    }
                 }
             } }
         } }
@@ -148,6 +159,7 @@ class XtreamRepository : KoinComponent {
                     this[MovieTable.mainCategoryId] = movie.categoryId?.toLong()?.let { internalCategoryIds[it]?.id } // Translate external category ID to internal category ID
                     this[MovieTable.containerExtension] = movie.containerExtension
                     this[MovieTable.customSid] = movie.customSid
+                    this[MovieTable.updatedAt] = Clock.System.now()
                 }
 
                 chunk.forEach { movie ->
@@ -168,11 +180,15 @@ class XtreamRepository : KoinComponent {
     private fun upsertSeriesCategories(seriesCategories: List<XtreamSeriesCategory>, server: String) {
         seriesCategories.chunked(config.database.chunkSize).forEach { chunk -> chunk.forEach { seriesCategory ->
             transaction { withForeignKeyChecksDisabled {
-                SeriesCategoryTable.insertIgnore { it
+                SeriesCategoryTable.insertIgnoreAndGetId { it
                     it[SeriesCategoryTable.server] = server
                     it[SeriesCategoryTable.externalCategoryId] = seriesCategory.id.toLong()
                     it[SeriesCategoryTable.name] = seriesCategory.name
                     it[SeriesCategoryTable.parentId] = seriesCategory.parentId
+                }?.value?.let {
+                    SeriesCategoryTable.update({ SeriesCategoryTable.id eq it }) {
+                        it[SeriesCategoryTable.updatedAt] = Clock.System.now()
+                    }
                 }
             } }
         } }
@@ -201,6 +217,7 @@ class XtreamRepository : KoinComponent {
                     this[SeriesTable.youtubeTrailer] = serie.youtubeTrailer
                     this[SeriesTable.tmdb] = serie.tmdb
                     this[SeriesTable.episodeRunTime] = serie.episodeRunTime
+                    this[SeriesTable.updatedAt] = Clock.System.now()
                 }
 
                 chunk.forEach { series ->
@@ -459,7 +476,8 @@ class XtreamRepository : KoinComponent {
             for (server in config.servers.map { it.name }) {
                 try {
                     val (startedAt, completedAt) = XtreamSourceTable
-                        .select(XtreamSourceTable.server eq server)
+                        .select(listOf(XtreamSourceTable.startedAt, XtreamSourceTable.completedAt))
+                        .where  { XtreamSourceTable.server eq server }
                         .map { Pair(it[XtreamSourceTable.startedAt], it[XtreamSourceTable.completedAt]) }
                         .first()
                     if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)

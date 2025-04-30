@@ -34,5 +34,5 @@ fun String.toProxiedIconUrl(baseUrl: String, encryptedAccount: String): String {
         ).filterNot { it.isWhitespace() }, UTF_8.toString()
     )
 
-    return "${baseUrl}icon/$encryptedAccount/${aesEncryptToHexString()}/${basename}.${extension}"
+    return "${baseUrl}icon/$encryptedAccount/${aesEncryptToHexString()}/${basename}.${extension}".replace(" ", "%20")
 }

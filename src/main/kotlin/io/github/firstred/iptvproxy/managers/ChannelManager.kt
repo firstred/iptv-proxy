@@ -23,7 +23,6 @@ import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
-import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.channelType
@@ -50,8 +49,7 @@ import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import kotlin.text.Charsets.UTF_8
 
-class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationOnTerminateHook,
-    HasApplicationOnDatabaseInitializedHook {
+class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicationOnDatabaseInitializedHook {
     private val serversByName: IptvServersByName by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
     private val httpClient: HttpClient by inject()
@@ -384,13 +382,17 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         )
     }
 
-    override fun onApplicationStartHook() {
+    override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
-
         scheduleChannelUpdates()
         scheduleChannelCleanups()
-
         LOG.info("Channel manager started")
+
+        val channelCount = channelRepository.getIptvChannelCount()
+        LOG.info("Channel count: $channelCount")
+        if (channelCount > 0) {
+            dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
+        }
     }
 
     override fun onApplicationTerminateHook() {
@@ -407,14 +409,6 @@ class ChannelManager : KoinComponent, HasApplicationOnStartHook, HasApplicationO
         }
 
         LOG.info("Channel manager stopped")
-    }
-
-    override fun onApplicationDatabaseInitializedHook() {
-        val channelCount = channelRepository.getIptvChannelCount()
-        LOG.info("Channel count: $channelCount")
-        if (channelCount > 0) {
-            dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
-        }
     }
 
     companion object {
