@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.db.repositories
 
-import org.jetbrains.exposed.sql.ResultRow
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
@@ -11,8 +10,6 @@ import io.github.firstred.iptvproxy.db.tables.channels.MovieToCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesToCategoryTable
-import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
-import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeTable
 import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
 import io.github.firstred.iptvproxy.db.tables.sources.XtreamSourceTable
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategoryIdServer
@@ -27,10 +24,10 @@ import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.CustomFunction
 import org.jetbrains.exposed.sql.JoinType
+import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.TextColumnType
 import org.jetbrains.exposed.sql.and
@@ -46,8 +43,6 @@ import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
-import kotlin.collections.chunked
-import kotlin.collections.forEach
 
 class XtreamRepository : KoinComponent {
     private val channelRepository: ChannelRepository by inject()
@@ -462,35 +457,38 @@ class XtreamRepository : KoinComponent {
             }
 
             for (server in config.servers.map { it.name }) {
-                val startedAt = XtreamSourceTable
-                    .select(XtreamSourceTable.server eq server)
-                    .map { it[XtreamSourceTable.startedAt] }
-                    .firstOrNull()
-                if (null == startedAt) continue
+                try {
+                    val (startedAt, completedAt) = XtreamSourceTable
+                        .select(XtreamSourceTable.server eq server)
+                        .map { Pair(it[XtreamSourceTable.startedAt], it[XtreamSourceTable.completedAt]) }
+                        .first()
+                    if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)
 
-                LiveStreamTable.deleteWhere {
-                    LiveStreamTable.server eq server and
-                            (LiveStreamTable.updatedAt less startedAt)
-                }
-                LiveStreamCategoryTable.deleteWhere {
-                    LiveStreamCategoryTable.server eq server and
-                            (LiveStreamCategoryTable.updatedAt less startedAt)
-                }
-                MovieTable.deleteWhere {
-                    MovieTable.server eq server and
-                            (MovieTable.updatedAt less startedAt)
-                }
-                MovieCategoryTable.deleteWhere {
-                    MovieCategoryTable.server eq server and
-                            (MovieCategoryTable.updatedAt less startedAt)
-                }
-                SeriesTable.deleteWhere {
-                    SeriesTable.server eq server and
-                            (SeriesTable.updatedAt less startedAt)
-                }
-                SeriesCategoryTable.deleteWhere {
-                    SeriesCategoryTable.server eq server and
-                            (SeriesCategoryTable.updatedAt less startedAt)
+                    LiveStreamTable.deleteWhere {
+                        LiveStreamTable.server eq server and
+                                (LiveStreamTable.updatedAt less startedAt)
+                    }
+                    LiveStreamCategoryTable.deleteWhere {
+                        LiveStreamCategoryTable.server eq server and
+                                (LiveStreamCategoryTable.updatedAt less startedAt)
+                    }
+                    MovieTable.deleteWhere {
+                        MovieTable.server eq server and
+                                (MovieTable.updatedAt less startedAt)
+                    }
+                    MovieCategoryTable.deleteWhere {
+                        MovieCategoryTable.server eq server and
+                                (MovieCategoryTable.updatedAt less startedAt)
+                    }
+                    SeriesTable.deleteWhere {
+                        SeriesTable.server eq server and
+                                (SeriesTable.updatedAt less startedAt)
+                    }
+                    SeriesCategoryTable.deleteWhere {
+                        SeriesCategoryTable.server eq server and
+                                (SeriesCategoryTable.updatedAt less startedAt)
+                    }
+                } catch (_: NoSuchElementException) {
                 }
             }
         }

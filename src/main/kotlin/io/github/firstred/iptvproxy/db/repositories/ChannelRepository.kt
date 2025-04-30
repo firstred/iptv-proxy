@@ -3,7 +3,6 @@ package io.github.firstred.iptvproxy.db.repositories
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
-import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
@@ -11,7 +10,6 @@ import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
@@ -127,15 +125,18 @@ class ChannelRepository : KoinComponent {
             }
 
             for (server in config.servers.map { it.name }) {
-                val startedAt = PlaylistSourceTable
-                    .select(PlaylistSourceTable.server eq server)
-                    .map { it[PlaylistSourceTable.startedAt] }
-                    .firstOrNull()
-                if (null == startedAt) continue
+                try {
+                    val (startedAt, completedAt) = PlaylistSourceTable
+                        .select(PlaylistSourceTable.server eq server)
+                        .map { Pair(it[PlaylistSourceTable.startedAt], it[PlaylistSourceTable.completedAt]) }
+                        .first()
+                    if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)
 
-                IptvChannelTable.deleteWhere {
-                    IptvChannelTable.server eq server and
-                            (IptvChannelTable.updatedAt less startedAt)
+                    IptvChannelTable.deleteWhere {
+                        IptvChannelTable.server eq server and
+                                (IptvChannelTable.updatedAt less startedAt)
+                    }
+                } catch (_: NoSuchElementException) {
                 }
             }
         }

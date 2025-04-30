@@ -1,7 +1,6 @@
 package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -10,7 +9,6 @@ import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeEpisodeNumberTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammePreviouslyShownTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeRatingTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeTable
-import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.db.tables.sources.XmltvSourceTable
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvAudio
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvAudioStereo
@@ -387,19 +385,22 @@ class EpgRepository {
             }
 
             for (server in config.servers.map { it.name }) {
-                val startedAt = XmltvSourceTable
-                    .select(XmltvSourceTable.server eq server)
-                    .map { it[XmltvSourceTable.startedAt] }
-                    .firstOrNull()
-                if (null == startedAt) continue
+                try {
+                    val (startedAt, completedAt) = XmltvSourceTable
+                        .select(XmltvSourceTable.server eq server)
+                        .map { Pair(it[XmltvSourceTable.startedAt], it[XmltvSourceTable.completedAt]) }
+                        .first()
+                    if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)
 
-                EpgChannelTable.deleteWhere {
-                    EpgChannelTable.server eq server and
-                            (EpgChannelTable.updatedAt less startedAt)
-                }
-                EpgProgrammeTable.deleteWhere {
-                    EpgProgrammeTable.server eq server and
-                            (EpgProgrammeTable.updatedAt less startedAt)
+                    EpgChannelTable.deleteWhere {
+                        EpgChannelTable.server eq server and
+                                (EpgChannelTable.updatedAt less startedAt)
+                    }
+                    EpgProgrammeTable.deleteWhere {
+                        EpgProgrammeTable.server eq server and
+                                (EpgProgrammeTable.updatedAt less startedAt)
+                    }
+                } catch (_: NoSuchElementException) {
                 }
             }
         }
