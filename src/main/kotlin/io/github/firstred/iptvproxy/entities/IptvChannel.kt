@@ -1,12 +1,8 @@
 package io.github.firstred.iptvproxy.entities
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
-import io.github.firstred.iptvproxy.utils.EXT_X_MEDIA_SEQUENCE
-import io.github.firstred.iptvproxy.utils.M3U_TAG_EXTINF
-import io.github.firstred.iptvproxy.utils.M3U_TAG_TARGET_DURATION
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
-import io.github.firstred.iptvproxy.utils.isHlsPlaylist
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -15,11 +11,9 @@ import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
-import java.math.BigDecimal
 import java.net.URI
 import java.net.URISyntaxException
 import java.util.*
-import kotlin.math.max
 import kotlin.text.Charsets.UTF_8
 
 class IptvChannel(
@@ -77,7 +71,8 @@ class IptvChannel(
             while (null != response.headers["Location"] && redirects < maxRedirects) {
                 val location = response.headers["Location"] ?: break
 
-                // Follow redirect
+                // Follow redirects
+                // TODO: replace with ktor client plugin
                 response = connection.httpClient.get(location)
                 response.body<String>()
                 try {
@@ -88,56 +83,33 @@ class IptvChannel(
                 redirects++
             }
 
-            var mediaSequenceNumber = 1
-            var maxDurationMillis = 0L
-            var currentDurationMillis: Long
-
             for (infoLine in response.body<String>().lines()) {
-                @Suppress("NAME_SHADOWING") var infoLine = infoLine
-                infoLine = infoLine.trim(' ')
-
+                var infoLine = infoLine
 
                 when {
-                    // This is a metadata line
-                    infoLine.startsWith(M3U_TAG_EXTINF) -> {
-                        var v = infoLine.substring(M3U_TAG_EXTINF.length)
-                        val idx = v.indexOf(',')
-                        if (idx >= 0) v = v.substring(0, idx)
+                    // Only rewrite direct media URLs this time, no icons etc.
 
-                        currentDurationMillis = BigDecimal(v).multiply(BigDecimal(1000)).toLong()
-                        maxDurationMillis = max(maxDurationMillis.toDouble(), currentDurationMillis.toDouble()).toLong()
-                    }
+                    !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
+                        var newInfoLine = infoLine.trim(' ')
 
-                    // This is a metadata line
-                    infoLine.startsWith(M3U_TAG_TARGET_DURATION) -> {
-                        val targetDuration =
-                            BigDecimal(infoLine.substring(M3U_TAG_TARGET_DURATION.length)).multiply(
-                                BigDecimal(1000)
-                            ).toLong()
-                        maxDurationMillis = max(maxDurationMillis.toDouble(), targetDuration.toDouble()).toLong()
-                    }
-
-                    // This is a metadata line
-                    infoLine.startsWith(EXT_X_MEDIA_SEQUENCE) -> {
-                        mediaSequenceNumber = infoLine.substring(EXT_X_MEDIA_SEQUENCE.length).toInt()
-                    }
-
-                    // This is a URL line
-                    !infoLine.startsWith("#") && infoLine.isNotBlank() -> {
                         // This is a stream URL
-                        if (!infoLine.startsWith("http://") && !infoLine.startsWith("https://")) {
-                            infoLine = responseURI.resolve(infoLine).toString()
+                        if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
+                            newInfoLine = responseURI.resolve(newInfoLine).toString()
                         }
 
                         try {
-                            val remoteUrl = URI(infoLine)
-                            if (remoteUrl.isHlsPlaylist()) {
-                                infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${id}/${remoteUrl.aesEncryptToHexString()}/live_${++mediaSequenceNumber}.ts"
-                            } else {
-                                val extension = remoteUrl.path.substringAfterLast('.', "")
-                                infoLine = "${baseUrl}video/${user.toEncryptedAccountHexString()}/${id}/${remoteUrl.aesEncryptToHexString()}/media.$extension"
-                            }
-                        } catch (_: URISyntaxException) {
+                            val remoteUrl = URI(newInfoLine.replace(" ", "%20"))
+                            val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
+                            val extension = remoteUrl.path.substringAfterLast('.', "")
+
+                            infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/$id/$fileName.$extension"
+                        } catch (e: URISyntaxException) {
+                            LOG.warn(
+                                "[{}] Error while parsing stream URL: {}, error: {}",
+                                user.username,
+                                infoLine,
+                                e.message,
+                            )
                         }
                     }
                 }
