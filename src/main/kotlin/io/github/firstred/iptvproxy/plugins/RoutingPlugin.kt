@@ -38,12 +38,12 @@ fun Application.configureRouting() {
     }
 }
 
-fun RoutingContext.isMainEndpoint() = config.port == call.request.local.localPort
-fun RoutingContext.isNotMainEndpoint() = !isMainEndpoint()
-fun RoutingContext.isHealthcheckEndpoint() = config.healthcheckPort == call.request.local.localPort
-fun RoutingContext.isNotHealthcheckEndpoint() = !isHealthcheckEndpoint()
-fun RoutingContext.isMetricsEndpoint() = config.metricsPort == call.request.local.localPort
-fun RoutingContext.isNotMetricsEndpoint() = !isMetricsEndpoint()
+fun RoutingContext.isMainPort() = config.port == call.request.local.localPort
+fun RoutingContext.isNotMainPort() = !isMainPort()
+fun RoutingContext.isHealthcheckPort() = config.healthcheckPort == call.request.local.localPort
+fun RoutingContext.isNotHealthcheckPort() = !isHealthcheckPort()
+fun RoutingContext.isMetricsPort() = config.metricsPort == call.request.local.localPort
+fun RoutingContext.isNotMetricsPort() = !isMetricsPort()
 
 suspend fun RoutingContext.isReady(): Boolean {
     val health: HealthListener by getKoin().inject()
@@ -121,7 +121,7 @@ fun Route.proxyRemotePlaylist() {
     val channelManager by inject<ChannelManager>()
 
     get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<streamid>[^.]+)\.(?<extension>.*)$""")) {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser
@@ -165,7 +165,7 @@ fun Route.proxyRemoteVod() {
     val channelRepository: ChannelRepository by inject()
 
     get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<streamid>[^.]+)\.(?<extension>.*)$""")) {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser
@@ -216,7 +216,7 @@ fun Route.proxyRemoteHlsStream() {
     val channelRepository: ChannelRepository by inject()
 
     get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         findUserFromEncryptedAccountInRoutingContext()
 
         val channelId = (call.parameters["channelid"] ?: "").toLong()

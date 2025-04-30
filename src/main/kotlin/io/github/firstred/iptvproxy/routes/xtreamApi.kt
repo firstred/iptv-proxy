@@ -13,7 +13,7 @@ import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.plugins.findUserFromXtreamAccountInRoutingContext
-import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
+import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
@@ -36,7 +36,7 @@ fun Route.xtreamApi() {
     val xtreamRepository: XtreamRepository by inject()
 
     get("/xmltv.php") {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser
@@ -90,7 +90,7 @@ fun Route.xtreamApi() {
     }
 
     get("/player_api.php") {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser
@@ -176,7 +176,7 @@ fun Route.xtreamApi() {
     }
 
     get("/panel_api.php") {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser
@@ -200,7 +200,7 @@ fun Route.xtreamApi() {
     }
 
     get("/get.php") {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
         if (isNotReady()) return@get
 
         lateinit var user: IptvUser

@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.plugins.findUserFromEncryptedAccountInRoutingContext
-import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
+import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
@@ -22,7 +22,7 @@ fun Route.icons() {
 
     route("/icon/") {
         get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))$""")) {
-            if (isNotMainEndpoint()) return@get
+            if (isNotMainPort()) return@get
             try {
                 findUserFromEncryptedAccountInRoutingContext()
             } catch (_: Throwable) {

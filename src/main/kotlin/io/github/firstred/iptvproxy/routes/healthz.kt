@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.listeners.HealthListener
-import io.github.firstred.iptvproxy.plugins.isNotHealthcheckEndpoint
+import io.github.firstred.iptvproxy.plugins.isNotHealthcheckPort
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -12,17 +12,17 @@ fun Route.healthcheck() {
 
     route("/healthz/") {
             get("ready") {
-                if (isNotHealthcheckEndpoint()) return@get
+                if (isNotHealthcheckPort()) return@get
 
                 handleReady(health)
             }
             get("live") {
-                if (isNotHealthcheckEndpoint()) return@get
+                if (isNotHealthcheckPort()) return@get
 
                 handleLive(health)
             }
             get {
-                if (isNotHealthcheckEndpoint()) return@get
+                if (isNotHealthcheckPort()) return@get
 
                 handleReady(health)
             }

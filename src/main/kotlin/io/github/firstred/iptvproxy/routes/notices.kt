@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.plugins.isNotMainEndpoint
+import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -23,7 +23,7 @@ fun Route.hlsOnlyNoticeStream() {
     timer(period = 10_000L) { sequenceNumber++ }
 
     get {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
 
         call.response.headers.apply {
             append(HttpHeaders.ContentType, "audio/mpegurl")
@@ -43,7 +43,7 @@ ${config.getActualBaseUrl(call.request)}$basePath/channel.m3u8
     }
 
     get("channel.m3u8") {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
 
         call.response.headers.apply {
             append(HttpHeaders.ContentType, "audio/mpegurl")
@@ -72,7 +72,7 @@ ${baseUrl}$basePath/hlsonly_${sequenceNumber + 3}.ts
     }
 
     get(Regex("""hlsonly_\d+\.ts""")) {
-        if (isNotMainEndpoint()) return@get
+        if (isNotMainPort()) return@get
 
         call.respondFile(
             File(
