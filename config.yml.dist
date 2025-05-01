@@ -1,6 +1,6 @@
 x-default-timeouts: &default-timeouts
-  connect_milliseconds: 5_000
-  socket_milliseconds: 60_000
+  connect_milliseconds: 60_000
+  socket_milliseconds: 300_000
   total_milliseconds: 300_000
   retry_delay_milliseconds: 5_000
   max_retries: 3
