@@ -205,6 +205,8 @@ dependencies {
     implementation(libs.cryptography)
     implementation(libs.cryptography.provider.jvm)
     implementation(libs.semver)
+    implementation(libs.stately.concurrency)
+    implementation(libs.stately.concurrent.collections)
 
     // tests
     testImplementation(libs.kotlin.test)

@@ -1,9 +1,11 @@
 package io.github.firstred.iptvproxy.utils
 
+import co.touchlab.stately.collections.ConcurrentMutableMap
 import io.github.firstred.iptvproxy.config
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
+import kotlinx.coroutines.sync.Mutex
 import java.net.URI
 
 fun Headers.filterHttpRequestHeaders(
@@ -34,8 +36,6 @@ fun Headers.filterHttpResponseHeaders(
             && !(DROP_RESPONSE_HEADERS + blacklistedHeaders).any { it.equals(key, ignoreCase = true) }
 }.toHeaders()
 
-
-
 fun URI.appendQueryParameters(
     queryParameters: Parameters,
 ): URI {
@@ -51,3 +51,18 @@ private fun StringValues.toHeaders() = headers {
         values.forEach { value -> append(key, value) }
     }
 }
+
+private val urlRequestLocks = ConcurrentMutableMap<String, Mutex>()
+
+suspend fun withRequestUrlPermit(
+    url: String,
+    action: suspend () -> Unit,
+) {
+    val lock = urlRequestLocks.getOrPut(url) { Mutex() }
+    try {
+        action()
+    } finally {
+        lock.unlock()
+    }
+}
+

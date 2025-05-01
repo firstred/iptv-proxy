@@ -34,6 +34,7 @@ ipaddress = "5.5.1"
 clikt = "4.3.0"
 cryptography = "0.4.0"
 semver = "3.0.0"
+stately-concurrency = "2.1.0"
 
 
 [plugins]
@@ -103,9 +104,13 @@ ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddre
 cryptography = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
 semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
+stately-concurrency = { module = "co.touchlab:stately-concurrency", version.ref = "stately-concurrency" }
+stately-concurrent-collections = { module = "co.touchlab:stately-concurrent-collections", version.ref = "stately-concurrency" }
+
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }
 apache-commons-text = { module = "org.apache.commons:commons-text", version.ref = "apache-commons-text" }
 
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+

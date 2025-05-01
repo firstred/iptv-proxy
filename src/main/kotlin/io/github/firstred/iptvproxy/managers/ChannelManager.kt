@@ -326,7 +326,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 }
 
                 if (channel.type == IptvChannelType.live) {
-                    outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.ts").toString())
+                    outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.m3u8").toString())
                 } else {
                     outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.${channel.url.toString().substringAfterLast('.')}").toString())
                 }
@@ -384,8 +384,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
     override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
-        scheduleChannelUpdates()
-        scheduleChannelCleanups()
+//        scheduleChannelUpdates()
+//        scheduleChannelCleanups()
         LOG.info("Channel manager started")
 
         val channelCount = channelRepository.getIptvChannelCount()

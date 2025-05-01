@@ -3,6 +3,7 @@ package io.github.firstred.iptvproxy.plugins
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
+import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.ChannelManager
@@ -15,6 +16,9 @@ import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
+import io.github.firstred.iptvproxy.utils.maxRedirects
+import io.ktor.client.request.get
+import io.ktor.client.request.headers
 import io.ktor.client.request.request
 import io.ktor.client.request.url
 import io.ktor.client.statement.*
@@ -24,9 +28,14 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import io.sentry.Sentry
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
+import org.slf4j.LoggerFactory
 import java.net.URI
+import java.net.URISyntaxException
+
+private val LOG = LoggerFactory.getLogger("RoutingPlugin")
 
 fun Application.configureRouting() {
     routing {
@@ -167,6 +176,7 @@ fun Route.proxyRemoteVod() {
     get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<channelid>[^.]+)\.(?<extension>.*)$""")) {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
+        val routingContext = this
 
         lateinit var user: IptvUser
         try {
@@ -191,24 +201,7 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-        withUserPermit(user) {
-            channel.server.withConnection { connection ->
-                connection.httpClient.request {
-                    url(channel.url.appendQueryParameters(call.request.queryParameters).toString())
-                    method = HttpMethod.Get
-                    headers {
-                        filterHttpRequestHeaders(this@headers, this@get)
-                    }
-                }.let { response ->
-                    call.response.headers.apply { allValues().filterHttpResponseHeaders() }
-
-                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
-                        response.bodyAsChannel().copyAndClose(this)
-                        flushAndClose()
-                    }
-                }
-            }
-        }
+        proxyRemoteFileForUser(user, channel, routingContext)
     }
 }
 
@@ -217,10 +210,9 @@ fun Route.proxyRemoteHlsStream() {
 
     get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
         if (isNotMainPort()) return@get
-        findUserFromEncryptedAccountInRoutingContext()
+        val user = findUserFromEncryptedAccountInRoutingContext()
 
         val channelId = (call.parameters["channelid"] ?: "").toLong()
-        val remoteUrl = (call.parameters["encryptedremoteurl"] ?: "").aesDecryptFromHexString()
         if (channelId < 0) {
             call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
             return@get
@@ -230,22 +222,66 @@ fun Route.proxyRemoteHlsStream() {
             return@get
         }
 
+        proxyRemoteFileForUser(user, channel, this, call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) } ?: throw IllegalArgumentException("Invalid remote URL"))
+    }
+}
+
+private suspend fun RoutingContext.proxyRemoteFileForUser(
+    user: IptvUser,
+    channel: IptvChannel,
+    routingContext: RoutingContext,
+    requestUri: URI = channel.url,
+) {
+    withUserPermit(user) {
+        var responseURI = requestUri.appendQueryParameters(call.request.queryParameters)
+
+        lateinit var response: HttpResponse
+        lateinit var responseBody: ByteArray
         channel.server.withConnection { connection ->
-            connection.httpClient.request {
-                url(URI(remoteUrl).appendQueryParameters(call.request.queryParameters).toString())
+            response = connection.httpClient.request {
+                url(responseURI.toString())
                 method = HttpMethod.Get
                 headers {
-                    filterHttpRequestHeaders(this@headers, this@get)
-                }
-            }.let { response ->
-                call.response.headers.apply { allValues().filterHttpResponseHeaders() }
-
-                call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
-                    response.bodyAsChannel().copyAndClose(this)
-                    flushAndClose()
+                    filterHttpRequestHeaders(this@headers, routingContext)
                 }
             }
+
+            var redirects = 0
+
+            // Check if response is a redirect
+            while (null != response.headers["Location"] && redirects < maxRedirects) {
+                val location = response.headers["Location"] ?: break
+
+                // Follow redirects
+                response = connection.httpClient.get(location) {
+                    method = HttpMethod.Get
+                    headers {
+                        filterHttpRequestHeaders(this@headers, routingContext)
+                    }
+                }
+
+                try {
+                    responseURI = responseURI.resolve(URI(location))
+                } catch (_: URISyntaxException) {
+                    LOG.warn("Invalid redirect URI found: $location")
+                    Sentry.captureMessage("Invalid redirect URI found: $location")
+                }
+
+                redirects++
+            }
+
+            // Buffer everything as soon as possible into the array, then release the connection
+            responseBody = response.bodyAsBytes()
         }
+
+        call.response.headers.apply {
+            allValues().filterHttpResponseHeaders()
+        }
+
+        call.respondBytes(
+            contentType = response.contentType(),
+            status = response.status,
+        ) { responseBody }
     }
 }
 

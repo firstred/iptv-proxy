@@ -72,7 +72,6 @@ class IptvChannel(
                 val location = response.headers["Location"] ?: break
 
                 // Follow redirects
-                // TODO: replace with ktor client plugin
                 response = connection.httpClient.get(location)
                 response.body<String>()
                 try {

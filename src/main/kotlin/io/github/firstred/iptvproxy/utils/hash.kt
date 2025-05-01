@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.utils
 
 import org.apache.commons.codec.digest.DigestUtils
 
+// Thread-safe hashing
 fun String.md5(): String = DigestUtils.md5Hex(this)
 fun String.sha1(): String = DigestUtils.sha1Hex(this)
 fun String.sha256(): String = DigestUtils.sha256Hex(this)
