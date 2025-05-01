@@ -245,7 +245,9 @@ private suspend fun RoutingContext.streamRemoteFile(
         lateinit var preparedStatement: HttpStatement
         lateinit var newLocation: String
 
-        channel.server.withConnection { connection, releaseConnectionEarly ->
+        channel.server.withConnection(
+            channel.server.config.timeouts.totalMilliseconds,
+        ) { connection, releaseConnectionEarly ->
             preparedStatement = connection.httpClient.prepareRequest {
                 url(responseURI.toString())
                 method = HttpMethod.Get

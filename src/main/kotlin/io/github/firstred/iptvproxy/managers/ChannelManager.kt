@@ -76,7 +76,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 epgRepository.signalXmltvStartedForServer(server.name)
 
-                server.withConnection(server.config.accounts?.first()) { serverConnection, _ ->
+                server.withConnection(
+                    config.timeouts.playlist.totalMilliseconds,
+                    server.config.accounts?.first(),
+                ) { serverConnection, _ ->
                     LOG.info("Parsing xmltv data")
                     loadXmltv(serverConnection).let { inputStream ->
                         inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
@@ -110,7 +113,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 lateinit var channelsInputStream: InputStream
                 lateinit var m3u: M3uDoc
 
-                server.withConnection(account) { serverConnection, _ ->
+                server.withConnection(
+                    config.timeouts.playlist.totalMilliseconds,
+                    account,
+                ) { serverConnection, _ ->
                     channelsInputStream = loadChannels(serverConnection)
                     m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
                 }
@@ -175,7 +181,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     // Load live streams
                     lateinit var liveStreamCategories: List<XtreamLiveStreamCategory>
                     lateinit var liveStreams: List<XtreamLiveStream>
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         liveStreamCategories = httpClient.get(
                             serverConnection.config.account.getXtreamLiveStreamCategoriesUrl().toString()
                         ) {
@@ -185,7 +194,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             }
                         }.body()
                     }
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         liveStreams = httpClient.get(serverConnection.config.account.getXtreamLiveStreamsUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
@@ -198,14 +210,20 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     // Load movies
                     lateinit var movieCategories: List<XtreamMovieCategory>
                     lateinit var movies: List<XtreamMovie>
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                             }
                         }.body<List<XtreamMovieCategory>>()
                     }
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
@@ -217,14 +235,20 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     // Load tv series
                     lateinit var seriesCategories: List<XtreamSeriesCategory>
                     lateinit var series: List<XtreamSeries>
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                             }
                         }.body<List<XtreamSeriesCategory>>()
                     }
-                    server.withConnection(account) { serverConnection, _ ->
+                    server.withConnection(
+                        config.timeouts.playlist.totalMilliseconds,
+                        account,
+                    ) { serverConnection, _ ->
                         series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }

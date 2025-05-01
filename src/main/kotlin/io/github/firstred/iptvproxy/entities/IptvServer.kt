@@ -3,6 +3,8 @@ package io.github.firstred.iptvproxy.entities
 import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerConfig
 import kotlinx.coroutines.delay
+import java.util.Timer
+import kotlin.concurrent.timer
 
 class IptvServer(
     val name: String,
@@ -10,20 +12,31 @@ class IptvServer(
     private val connections: MutableList<IptvServerConnection>,
 ) {
     suspend fun withConnection(
+        totalTimoutInMilliseconds: Long,
         specificAccount: IptvServerAccountConfig? = null,
         action: suspend (connection: IptvServerConnection, releaseConnectionEarly: () -> Unit) -> Unit,
     ) {
         var released = false
         val connection = acquire(specificAccount)
-        fun releaseEarly() {
+        var connectionTimer: Timer? = null
+
+        fun releaseConnection() {
+            if (released) return
             connection.release()
             released = true
+            connectionTimer?.cancel()
+            connectionTimer = null
+        }
+
+        @Suppress("AssignedValueIsNeverRead")
+        connectionTimer = timer(initialDelay = totalTimoutInMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+            releaseConnection()
         }
 
         try {
-            action(connection, ::releaseEarly)
+            action(connection, ::releaseConnection)
         } finally {
-            if (!released) connection.release()
+            if (!released) releaseConnection()
         }
     }
 
