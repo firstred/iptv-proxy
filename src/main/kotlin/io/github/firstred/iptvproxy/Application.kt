@@ -165,6 +165,11 @@ fun loadConfig(configFile: String): IptvProxyConfig {
 
     val deserializedConfig = yaml.decodeFromString(IptvProxyConfig.serializer(), configContent)
 
+    for (user in deserializedConfig.users) {
+        validateUsernameOrPassword(user.username)
+        validateUsernameOrPassword(user.password)
+    }
+
     deserializedConfig.httpProxy?.run {
         val (_, _, _, username, password) = deserializedConfig.getActualHttpProxyConfiguration()!!
         if (username == null && password == null) return@run
@@ -187,6 +192,15 @@ fun loadConfig(configFile: String): IptvProxyConfig {
     }
 
     return deserializedConfig
+}
+
+private fun validateUsernameOrPassword(usernameOrPassword: String) {
+    if (usernameOrPassword.isEmpty()) {
+        throw IllegalArgumentException("Username or password cannot be empty")
+    }
+    if (usernameOrPassword.contains("_") || usernameOrPassword.contains(";") || usernameOrPassword.contains(":") || usernameOrPassword.contains("/")) {
+        throw IllegalArgumentException("Password/username cannot contain _ , ; : /")
+    }
 }
 
 private fun setProxyAuthenticator(username: String?, password: String?) {
