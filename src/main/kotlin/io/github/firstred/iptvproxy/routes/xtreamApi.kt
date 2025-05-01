@@ -3,6 +3,7 @@ package io.github.firstred.iptvproxy.routes
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
 import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
+import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
@@ -42,6 +43,7 @@ fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
     val epgRepository: EpgRepository by inject()
     val xtreamRepository: XtreamRepository by inject()
+    val serversByName: IptvServersByName by inject()
 
     get("/xmltv.php") {
         if (isNotMainPort()) return@get
@@ -110,6 +112,7 @@ fun Route.xtreamApi() {
         }
 
         val baseUrl = config.getActualBaseUrl(call.request)
+        val encryptedAccount = user.toEncryptedAccountHexString()
 
         when {
             call.request.queryParameters["action"] == "get_live_streams" -> {
@@ -123,7 +126,11 @@ fun Route.xtreamApi() {
                             if (!first) write(",")
                             else first = false
 
-                            write(json.encodeToString(XtreamLiveStream.serializer(), it))
+                            write(json.encodeToString(XtreamLiveStream.serializer(), it.copy(
+                                streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                else it.streamIcon,
+                                server = null,
+                            )))
                             flush()
                         }
                     }
@@ -147,7 +154,11 @@ fun Route.xtreamApi() {
                             if (!first) write(",")
                             else first = false
 
-                            write(json.encodeToString(XtreamMovie.serializer(), it))
+                            write(json.encodeToString(XtreamMovie.serializer(), it.copy(
+                                streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                else it.streamIcon,
+                                server = null
+                            )))
                             flush()
                         }
                     }
@@ -171,7 +182,13 @@ fun Route.xtreamApi() {
                             if (!first) write(",")
                             else first = false
 
-                            write(json.encodeToString(XtreamSeries.serializer(), it))
+                            write(json.encodeToString(XtreamSeries.serializer(), it.copy(
+                                cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                else it.cover,
+                                backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath?.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
+                                else it.backdropPath,
+                                server = null,
+                            )))
                             flush()
                         }
                     }
@@ -220,6 +237,9 @@ fun Route.xtreamApi() {
             return@get
         }
 
+        val baseUrl = config.getActualBaseUrl(call.request)
+        val encryptedAccount = user.toEncryptedAccountHexString()
+
         when {
             // Get EPG
             call.request.queryParameters["action"] == "get_epg" -> {
@@ -257,7 +277,11 @@ fun Route.xtreamApi() {
                                     if (!first) write(",")
                                     else first = false
                                     write("\"${it.categoryId}\": ")
-                                    write(json.encodeToString(XtreamLiveStream.serializer(), it))
+                                    write(json.encodeToString(XtreamLiveStream.serializer(), it.copy(
+                                        streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        else it.streamIcon,
+                                        server = null,
+                                    )))
                                     flush()
                                 }
                             }
@@ -268,7 +292,11 @@ fun Route.xtreamApi() {
                                     if (!first) write(",")
                                     else first = false
                                     write("\"${it.categoryId}\": ")
-                                    write(json.encodeToString(XtreamMovie.serializer(), it))
+                                    write(json.encodeToString(XtreamMovie.serializer(), it.copy(
+                                        streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        else it.streamIcon,
+                                        server = null,
+                                    )))
                                     flush()
                                 }
                             }
@@ -279,7 +307,13 @@ fun Route.xtreamApi() {
                                     if (!first) write(",")
                                     else first = false
                                     write("\"${it.categoryId}\": ")
-                                    write(json.encodeToString(XtreamSeries.serializer(), it))
+                                    write(json.encodeToString(XtreamSeries.serializer(), it.copy(
+                                        cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        else it.cover,
+                                        backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath?.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
+                                        else it.backdropPath,
+                                        server = null,
+                                    )))
                                     flush()
                                 }
                             }
@@ -386,8 +420,7 @@ private fun serverInfo(baseUrl: URI): XtreamServerInfo = XtreamServerInfo(
     url = baseUrl.host,
     port = if ("http" == baseUrl.scheme) (baseUrl.port.let { if (it in 1..65535) it else 80 }.toString()) else "80",
     protocol = baseUrl.scheme,
-    httpsPort = if ("https" == baseUrl.scheme) (baseUrl.port.let { if (it in 1..65535) it else 443 }
-        .toString()) else "",
+    httpsPort = if ("https" == baseUrl.scheme) (baseUrl.port.let { if (it in 1..65535) it else 443 }.toString()) else "",
     rtmpPort = "",
 )
 

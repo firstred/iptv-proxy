@@ -1,15 +1,19 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class XtreamSeries(
     val num: Long,
     val name: String,
     @SerialName("series_id") val seriesId: Long,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.series,
+    @EncodeDefault(EncodeDefault.Mode.NEVER) val server: String? = null,
     val cover: String,
     val plot: String,
     val cast: String,
