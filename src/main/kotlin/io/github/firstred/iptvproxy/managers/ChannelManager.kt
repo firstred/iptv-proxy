@@ -110,8 +110,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
 
-
-
                 lateinit var channelsInputStream: InputStream
                 lateinit var m3u: M3uDoc
 
