@@ -36,6 +36,7 @@ data class IptvFlatServerConfig(
         accounts = listOf(if (idx == 0) account else throw IllegalStateException("Only the first account is supported in flat config")),
         timeouts = timeouts,
         groupFilters = groupFilters,
+        userAgent = userAgent,
     )
 
     override fun getEpgUrl(): URI? {

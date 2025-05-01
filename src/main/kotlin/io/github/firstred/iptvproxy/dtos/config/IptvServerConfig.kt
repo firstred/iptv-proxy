@@ -39,6 +39,7 @@ data class IptvServerConfig(
         account = accounts?.let { it[accountIndex] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
         timeouts = timeouts,
         groupFilters = groupFilters,
+        userAgent = userAgent,
     )
 
     fun toIptvServer(): IptvServer = IptvServer(
