@@ -384,8 +384,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
     override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
-//        scheduleChannelUpdates()
-//        scheduleChannelCleanups()
+        scheduleChannelUpdates()
+        scheduleChannelCleanups()
         LOG.info("Channel manager started")
 
         val channelCount = channelRepository.getIptvChannelCount()
