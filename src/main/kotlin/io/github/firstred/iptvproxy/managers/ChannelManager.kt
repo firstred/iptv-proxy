@@ -29,6 +29,7 @@ import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.hash
+import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -191,8 +192,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         ) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body()
                     }
@@ -203,8 +204,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         liveStreams = httpClient.get(serverConnection.config.account.getXtreamLiveStreamsUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body()
                     }
@@ -219,8 +220,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body<List<XtreamMovieCategory>>()
                     }
@@ -230,8 +231,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
                             headers {
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body<List<XtreamMovie>>()
                     }
@@ -246,8 +247,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body<List<XtreamSeriesCategory>>()
                     }
@@ -257,8 +258,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
                             headers {
-                                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                                 forwardProxyUser(serverConnection.config)
+                                sendUserAgent(serverConnection.config)
                             }
                         }.body<List<XtreamSeries>>()
                     }
@@ -286,8 +287,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
         val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
             headers {
-                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                 forwardProxyUser(serverConnection.config)
+                sendUserAgent(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()
@@ -296,8 +297,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         val response = httpClient.get(serverConnection.config.account.getPlaylistUrl().toString()) {
             headers {
-                serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
                 forwardProxyUser(serverConnection.config)
+                sendUserAgent(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()

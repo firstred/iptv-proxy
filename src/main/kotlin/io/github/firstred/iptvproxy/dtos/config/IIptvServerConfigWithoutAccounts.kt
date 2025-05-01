@@ -21,6 +21,8 @@ interface IIptvServerConfigWithoutAccounts {
 
     val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern>
 
+    val userAgent: String?
+
     fun getEpgUrl(): URI?
     fun getPlaylistUrl(): URI?
 }

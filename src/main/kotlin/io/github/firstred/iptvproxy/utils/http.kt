@@ -60,6 +60,15 @@ fun HeadersBuilder.forwardProxyUser(serverConfig: IIptvServerConfigWithoutAccoun
     }
 }
 
+fun HeadersBuilder.sendUserAgent(serverConfig: IIptvServerConfigWithoutAccounts) {
+    serverConfig.userAgent?.let { userAgent ->
+        if (userAgent.isBlank()) return
+
+        remove(HttpHeaders.UserAgent)
+        append(HttpHeaders.UserAgent, userAgent)
+    }
+}
+
 private val urlRequestLocks = ConcurrentMutableMap<String, Mutex>()
 
 suspend fun withRequestUrlPermit(

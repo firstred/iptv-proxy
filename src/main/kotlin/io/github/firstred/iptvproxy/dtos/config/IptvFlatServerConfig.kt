@@ -22,6 +22,8 @@ data class IptvFlatServerConfig(
     override val timeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
+
+    override val userAgent: String? = null,
 ) : IIptvServerConfigWithoutAccounts {
     fun toIptvServerConfig(idx: Int): IptvServerConfig = IptvServerConfig(
         name = name,

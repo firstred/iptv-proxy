@@ -26,7 +26,8 @@ data class IptvServerConfig(
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
-    ) : IIptvServerConfigWithoutAccounts {
+    override val userAgent: String? = null,
+) : IIptvServerConfigWithoutAccounts {
     fun toFlatIptvServerConfig(accountIndex: Int) = IptvFlatServerConfig(
         name = name,
         epgUrl = epgUrl,
