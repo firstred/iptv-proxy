@@ -24,7 +24,7 @@ class HeadersTest {
     }
 
     @Test
-    fun restRequestHeadersFilter() {
+    fun testRequestHeadersFilter() {
         val headers = headersOf(
             "Accept" to listOf("application/json"),
             "Accept-Charset" to listOf("UTF-8"),

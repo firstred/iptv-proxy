@@ -8,21 +8,14 @@ x-default-timeouts: &default-timeouts
   retry_delay_milliseconds: 1_000
   max_retries: 3
 
-x-channel-playlist-timeouts: &channel-playlist-timeouts
+x-icon-timeouts: &icon-timeouts
   connect_milliseconds: 500_000
   socket_milliseconds: 6_000_000
   total_milliseconds: 3_000_000
   retry_delay_milliseconds: 1_000
   max_retries: 3
 
-x-vod-timeouts: &vod-timeouts
-  connect_milliseconds: 300_000
-  socket_milliseconds: 1_000_000
-  total_milliseconds: 3_000_000
-  retry_delay_milliseconds: 1_000
-  max_retries: 3
-
-x-stream-timeouts: &stream-timeouts
+x-channel-timeouts: &channel-timeouts
   connect_milliseconds: 200_000
   socket_milliseconds: 500_000
   total_milliseconds: 1_000_000
@@ -40,7 +33,6 @@ database:
   jdbc_url: "jdbc:sqlite::memory:"
 timeouts:
   playlist: *default-timeouts
-  epg: *default-timeouts
   icon: *default-timeouts
 client_connection_max_idle_seconds: 60
 update_interval: PT1H
@@ -48,6 +40,7 @@ update_interval_on_failure: PT10M
 cleanup_interval: PT1H
 scheduler_thread_pool_size: 2
 sort_channels: false
+http_proxy: http://localhost:8080
 blacklist_iptv_client_headers:
   - l5d-dst-override
   - l5d-connection-secure
@@ -84,13 +77,10 @@ servers:
     epg_url: http://test.localhost
     epg_before: P7D
     epg_after: P7D
+    user_agent: "iptv-proxy-test/1.0.0"
     proxy_stream: true
     proxy_send_user: true
-    timeouts:
-      playlist: *channel-playlist-timeouts
-      catchup: *vod-timeouts
-      vod: *vod-timeouts
-      stream: *stream-timeouts
+    timeouts: *channel-timeouts
 users:
   - username: 98442
     password: login1
