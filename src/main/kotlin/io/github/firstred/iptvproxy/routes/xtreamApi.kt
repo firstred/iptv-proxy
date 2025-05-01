@@ -21,7 +21,6 @@ import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import jdk.internal.net.http.common.Log.channel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
@@ -164,9 +163,9 @@ fun Route.xtreamApi() {
                             timestampNow = (Clock.System.now() + Duration.parse("P365D")).epochSeconds.toString(),
                             process = true,
                             url = baseUrl.host,
-                            port = baseUrl.port.toString(),
+                            port = if ("http" == baseUrl.scheme) (baseUrl.port.let { if (it in 1..65535) it else 80 }.toString()) else "80",
                             protocol = baseUrl.scheme,
-                            httpsPort = if ("https" == baseUrl.scheme) "443" else "",
+                            httpsPort = if ("https" == baseUrl.scheme) (baseUrl.port.let { if (it in 1..65535) it else 443 }.toString()) else "",
                             rtmpPort = "",
                         ),
                     )
