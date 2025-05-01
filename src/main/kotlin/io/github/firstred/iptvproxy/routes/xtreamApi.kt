@@ -143,7 +143,7 @@ fun Route.xtreamApi() {
                 call.respondTextWriter(contentType = ContentType.Application.Json) { writeLiveCategories() }
             }
 
-            listOf("get_vod_streams", "get_movies_streams").contains(call.request.queryParameters["action"]) -> {
+            listOf("get_vod_streams", "get_movie_streams", "get_movies_streams").contains(call.request.queryParameters["action"]) -> {
                 val categoryId = call.request.queryParameters["category_id"]?.toLongOrNull()
 
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
@@ -167,8 +167,12 @@ fun Route.xtreamApi() {
                 }
             }
 
-            listOf("get_vod_categories", "get_movies_categories").contains(call.request.queryParameters["action"]) -> {
+            listOf("get_vod_categories", "get_movie_categories", "get_movies_categories").contains(call.request.queryParameters["action"]) -> {
                 call.respondTextWriter(contentType = ContentType.Application.Json) { writeMovieCategories() }
+            }
+
+            listOf("get_vod_info", "get_movie_info", "get_movies_info").contains(call.request.queryParameters["action"]) -> {
+                call.respondText("[]]", ContentType.Application.Json, HttpStatusCode.OK)
             }
 
             call.request.queryParameters["action"] == "get_series" -> {
@@ -206,7 +210,7 @@ fun Route.xtreamApi() {
             }
 
             call.request.queryParameters["action"] == "get_series_info" -> {
-                call.respondText("Not implemented", ContentType.Text.Plain, HttpStatusCode.NotImplemented)
+                call.respondText("[]]", ContentType.Application.Json, HttpStatusCode.OK)
             }
 
             // Get EPG
