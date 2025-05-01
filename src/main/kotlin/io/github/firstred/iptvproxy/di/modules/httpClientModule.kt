@@ -100,13 +100,13 @@ val httpClientModule = module {
 
             install(HttpRequestRetry) {
                 defaultRetryHandler {
-                    delayMillis { flatServerConfig.timeouts.playlist.retryDelayMilliseconds }
+                    delayMillis { flatServerConfig.timeouts.retryDelayMilliseconds }
                 }
             }
             install(HttpTimeout) {
-                connectTimeoutMillis = flatServerConfig.timeouts.playlist.connectMilliseconds
-                socketTimeoutMillis = flatServerConfig.timeouts.playlist.connectMilliseconds
-                requestTimeoutMillis = flatServerConfig.timeouts.playlist.totalMilliseconds
+                connectTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds
+                socketTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds
+                requestTimeoutMillis = flatServerConfig.timeouts.totalMilliseconds
             }
         }
     }
