@@ -24,6 +24,7 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
 import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
@@ -193,7 +194,7 @@ class EpgRepository {
     fun forEachEpgChannelChunk(
         server: String? = null,
         chunkSize: Int = config.database.chunkSize,
-        sortedByName: Boolean = false,
+        sortedByName: Boolean = config.sortChannelsByName,
         action: (List<XmltvChannel>) -> Unit,
     ) {
         var offset = 0L
@@ -201,7 +202,11 @@ class EpgRepository {
         do {
             val channelQuery = EpgChannelTable.selectAll()
             server?.let { channelQuery.where { EpgChannelTable.server eq it } }
-            if (sortedByName) channelQuery.orderBy(EpgChannelTable.name)
+            if (sortedByName) {
+                channelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
+            } else {
+                channelQuery.orderBy(EpgChannelTable.server to SortOrder.ASC, EpgChannelTable.epgChannelId to SortOrder.ASC)
+            }
             channelQuery
                 .limit(chunkSize)
                 .offset(offset)

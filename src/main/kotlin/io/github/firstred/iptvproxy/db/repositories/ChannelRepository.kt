@@ -8,6 +8,7 @@ import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
@@ -92,7 +93,7 @@ class ChannelRepository : KoinComponent {
 
     fun forEachIptvChannelChunk(
         server: String? = null,
-        sortedByName: Boolean = false,
+        sortedByName: Boolean = config.sortChannelsByName,
         chunkSize: Int = config.database.chunkSize,
         action: (List<IptvChannel>) -> Unit,
     ) {
@@ -101,7 +102,11 @@ class ChannelRepository : KoinComponent {
         do {
             val channelQuery = IptvChannelTable.selectAll()
             server?.let { channelQuery.where { IptvChannelTable.server eq it } }
-            if (sortedByName) channelQuery.orderBy(IptvChannelTable.name)
+            if (sortedByName) {
+                channelQuery.orderBy(IptvChannelTable.name to SortOrder.ASC)
+            } else {
+                channelQuery.orderBy(IptvChannelTable.server to SortOrder.ASC, IptvChannelTable.externalStreamId to SortOrder.ASC)
+            }
             channelQuery
                 .limit(chunkSize)
                 .offset(offset)

@@ -26,6 +26,7 @@ import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.CustomFunction
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
+import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
@@ -354,7 +355,7 @@ class XtreamRepository : KoinComponent {
 
     fun forEachLiveStreamChunk(
         server: String? = null,
-        sortedByName: Boolean = false,
+        sortedByName: Boolean = config.sortChannelsByName,
         categoryId: Long? = null,
         chunkSize: Int = config.database.chunkSize,
         action: (List<XtreamLiveStream>) -> Unit,
@@ -404,7 +405,11 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(LiveStreamTable.externalStreamId, LiveStreamTable.server)
             server?.let { liveStreamQuery.where { LiveStreamTable.server eq it } }
-            if (sortedByName) liveStreamQuery.orderBy(LiveStreamTable.name)
+            if (sortedByName) {
+                liveStreamQuery.orderBy(LiveStreamTable.name to SortOrder.ASC)
+            } else {
+                liveStreamQuery.orderBy(LiveStreamTable.server to SortOrder.ASC, LiveStreamTable.externalStreamId to SortOrder.ASC)
+            }
             if (categoryId != null) liveStreamQuery.andWhere { LiveStreamToCategoryTable.categoryId eq categoryId }
             liveStreamQuery
                 .limit(chunkSize)
@@ -446,7 +451,7 @@ class XtreamRepository : KoinComponent {
 
     fun forEachMovieChunk(
         server: String? = null,
-        sortedByName: Boolean = false,
+        sortedByName: Boolean = config.sortChannelsByName,
         categoryId: Long? = null,
         chunkSize: Int = config.database.chunkSize,
         action: (List<XtreamMovie>) -> Unit,
@@ -498,7 +503,11 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(MovieTable.externalStreamId, MovieTable.server)
             server?.let { movieQuery.where { MovieTable.server eq it } }
-            if (sortedByName) movieQuery.orderBy(MovieTable.name)
+            if (sortedByName) {
+                movieQuery.orderBy(MovieTable.name to SortOrder.ASC)
+            } else {
+                movieQuery.orderBy(MovieTable.server to SortOrder.ASC, MovieTable.externalStreamId to SortOrder.ASC)
+            }
             if (categoryId != null) movieQuery.andWhere { MovieToCategoryTable.categoryId eq categoryId }
             movieQuery
                 .limit(chunkSize)
@@ -584,7 +593,11 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(SeriesTable.num, SeriesTable.server)
             server?.let { seriesQuery.where { SeriesTable.server eq it } }
-            if (sortedByName) seriesQuery.orderBy(SeriesTable.name)
+            if (sortedByName) {
+                seriesQuery.orderBy(SeriesTable.name to SortOrder.ASC)
+            } else {
+                seriesQuery.orderBy(SeriesTable.server to SortOrder.ASC, SeriesTable.seriesId to SortOrder.ASC)
+            }
             if (categoryId != null) seriesQuery.andWhere { SeriesToCategoryTable.categoryId eq categoryId }
             seriesQuery
                 .limit(chunkSize)
