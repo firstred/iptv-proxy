@@ -52,6 +52,8 @@ data class IptvProxyConfig(
     val whitelistIptvServerHeaders: List<String> = listOf("*"),
     val blacklistIptvServerHeaders: List<String> = listOf(),
 
+    val gracefulShutdownPeriod: Duration = Duration.parse("PT30S"),
+
     val sentry: IptvProxyConfigSentry? = null,
 ) {
     private fun getBaseCacheDirectory(): String {
