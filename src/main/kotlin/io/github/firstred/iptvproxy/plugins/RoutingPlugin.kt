@@ -196,13 +196,6 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-
-        // Direct video access requires an HTTP Range header to be set
-        if (null == call.request.headers[HttpHeaders.Range]) {
-            call.respond(HttpStatusCode.BadRequest, "Missing HTTP Range header")
-            return@get
-        }
-
         streamRemoteFile(user, channel, routingContext)
     }
 }
