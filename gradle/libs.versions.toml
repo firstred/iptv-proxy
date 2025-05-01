@@ -35,6 +35,7 @@ clikt = "4.3.0"
 cryptography = "0.4.0"
 semver = "3.0.0"
 stately-concurrency = "2.1.0"
+arrow = "2.1.1"
 
 
 [plugins]
@@ -106,7 +107,9 @@ cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-pr
 semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
 stately-concurrency = { module = "co.touchlab:stately-concurrency", version.ref = "stately-concurrency" }
 stately-concurrent-collections = { module = "co.touchlab:stately-concurrent-collections", version.ref = "stately-concurrency" }
-
+arrow = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
+arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
+arrow-suspendapp = { module = "io.arrow-kt:suspendapp-jvm", version.ref = "arrow" }
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }

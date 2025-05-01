@@ -1,5 +1,7 @@
 package io.github.firstred.iptvproxy
 
+import arrow.continuations.SuspendApp
+import arrow.fx.coroutines.resourceScope
 import com.charleskorn.kaml.InvalidPropertyValueException
 import com.charleskorn.kaml.YamlException
 import com.github.ajalt.clikt.core.CliktCommand
@@ -28,6 +30,7 @@ import io.ktor.server.plugins.compression.*
 import io.ktor.server.plugins.contentnegotiation.*
 import io.ktor.server.plugins.cors.routing.*
 import io.sentry.Sentry
+import kotlinx.coroutines.awaitCancellation
 import org.apache.commons.text.StringSubstitutor
 import org.koin.ktor.plugin.Koin
 import org.koin.logger.slf4jLogger
@@ -48,39 +51,41 @@ lateinit var dotenv: Dotenv
 
 private val LOG: Logger = LoggerFactory.getLogger(Application::class.java)
 
-
-fun main(args: Array<String>) {
-    try {
-        argv = args
-        dotenv = dotenv { ignoreIfMissing = true }
-        val sentryDsn = dotenv.get("SENTRY_DSN") ?: ""
-        if (sentryDsn.isNotEmpty()) Sentry.init { options ->
-            options.dsn = sentryDsn
-            options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
-            options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
-        }
-
-        object : CliktCommand(printHelpOnEmptyArgs = false) {
-            override fun run() {
-                // TODO: make configuration location configurable
-                try {
-                    LOG.info("Loading config...")
-                    config = loadConfig(File("config.yml"))
-                } catch (e: InvalidPropertyValueException) {
-                    LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
-                    exitProcess(1)
-                } catch (e: YamlException) {
-                    LOG.error("Error parsing config file: ${e.message}")
-                    exitProcess(1)
-                }
-
-                startServer()
+fun main(args: Array<String>) = SuspendApp {
+    resourceScope {
+        try {
+            argv = args
+            dotenv = dotenv { ignoreIfMissing = true }
+            val sentryDsn = dotenv.get("SENTRY_DSN") ?: ""
+            if (sentryDsn.isNotEmpty()) Sentry.init { options ->
+                options.dsn = sentryDsn
+                options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
+                options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
             }
+
+            object : CliktCommand(printHelpOnEmptyArgs = false) {
+                override fun run() {
+                    // TODO: make configuration location configurable
+                    try {
+                        LOG.info("Loading config...")
+                        config = loadConfig(File("config.yml"))
+                    } catch (e: InvalidPropertyValueException) {
+                        LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
+                        exitProcess(1)
+                    } catch (e: YamlException) {
+                        LOG.error("Error parsing config file: ${e.message}")
+                        exitProcess(1)
+                    }
+
+                    startServer()
+                }
+            }
+                .main(args)
+        } catch (e: Exception) {
+            LOG.error("fatal error", e)
+            exitProcess(1)
         }
-            .main(args)
-    } catch (e: Exception) {
-        LOG.error("fatal error", e)
-        exitProcess(1)
+        awaitCancellation()
     }
 }
 
