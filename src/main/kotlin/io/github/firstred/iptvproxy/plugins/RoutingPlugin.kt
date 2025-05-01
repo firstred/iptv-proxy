@@ -17,10 +17,7 @@ import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.maxRedirects
-import io.ktor.client.request.get
-import io.ktor.client.request.headers
-import io.ktor.client.request.request
-import io.ktor.client.request.url
+import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -64,6 +61,7 @@ suspend fun RoutingContext.isReady(): Boolean {
 
     return true
 }
+
 suspend fun RoutingContext.isNotReady() = !isReady()
 
 suspend fun RoutingContext.isLive(): Boolean {
@@ -76,6 +74,7 @@ suspend fun RoutingContext.isLive(): Boolean {
 
     return true
 }
+
 suspend fun RoutingContext.isNotLive() = !isLive()
 
 fun RoutingContext.findUserFromUrlInRoutingContext(): IptvUser {
@@ -186,22 +185,16 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-        val channelId = call.parameters["channelid"] ?: run {
+        val streamId = call.parameters["channelid"] ?: run {
             call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
             return@get
         }
-        val channel = channelRepository.getChannelById(channelId.toLong()) ?: run {
+        val channel = channelRepository.getChannelById(streamId.toLong()) ?: run {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }
 
-        // Direct video access requires an HTTP Range header to be set
-        if (null == call.request.headers[HttpHeaders.Range]) {
-            call.respond(HttpStatusCode.BadRequest, "Missing HTTP Range header")
-            return@get
-        }
-
-        proxyRemoteFileForUser(user, channel, routingContext)
+        respondRemoteFile(user, channel, routingContext)
     }
 }
 
@@ -211,6 +204,7 @@ fun Route.proxyRemoteHlsStream() {
     get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
         if (isNotMainPort()) return@get
         val user = findUserFromEncryptedAccountInRoutingContext()
+        val routingContext = this
 
         val channelId = (call.parameters["channelid"] ?: "").toLong()
         if (channelId < 0) {
@@ -222,23 +216,30 @@ fun Route.proxyRemoteHlsStream() {
             return@get
         }
 
-        proxyRemoteFileForUser(user, channel, this, call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) } ?: throw IllegalArgumentException("Invalid remote URL"))
+        respondRemoteFile(
+            user,
+            channel,
+            routingContext,
+            (call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
+                ?: throw IllegalArgumentException("Invalid remote URL"))
+        )
     }
 }
 
-private suspend fun RoutingContext.proxyRemoteFileForUser(
+private suspend fun RoutingContext.respondRemoteFile(
     user: IptvUser,
     channel: IptvChannel,
     routingContext: RoutingContext,
-    requestUri: URI = channel.url,
+    remoteUrl: URI = channel.url,
 ) {
     withUserPermit(user) {
-        var responseURI = requestUri.appendQueryParameters(call.request.queryParameters)
+        var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
-        lateinit var response: HttpResponse
-        lateinit var responseBody: ByteArray
+        lateinit var preparedStatement: HttpStatement
+        lateinit var newLocation: String
+
         channel.server.withConnection { connection ->
-            response = connection.httpClient.request {
+            preparedStatement = connection.httpClient.prepareRequest {
                 url(responseURI.toString())
                 method = HttpMethod.Get
                 headers {
@@ -248,40 +249,43 @@ private suspend fun RoutingContext.proxyRemoteFileForUser(
 
             var redirects = 0
 
-            // Check if response is a redirect
-            while (null != response.headers["Location"] && redirects < maxRedirects) {
-                val location = response.headers["Location"] ?: break
+            do {
+                preparedStatement.execute { response ->
+                    newLocation = response.headers["Location"] ?: ""
 
-                // Follow redirects
-                response = connection.httpClient.get(location) {
-                    method = HttpMethod.Get
-                    headers {
-                        filterHttpRequestHeaders(this@headers, routingContext)
+                    if (newLocation.isNotBlank()) {
+                        // Follow redirects
+                        preparedStatement = connection.httpClient.prepareGet(newLocation) {
+                            method = HttpMethod.Get
+                            headers {
+                                filterHttpRequestHeaders(this@headers, routingContext)
+                            }
+                        }
+
+                        try {
+                            responseURI = responseURI.resolve(URI(newLocation))
+                        } catch (_: URISyntaxException) {
+                            LOG.warn("Invalid redirect URI found: $newLocation")
+                            Sentry.captureMessage("Invalid redirect URI found: $newLocation")
+                        }
+
+                        redirects++
+                    } else {
+                        call.response.headers.apply {
+                            allValues().filterHttpResponseHeaders()
+                        }
+
+                        call.respondBytesWriter(
+                            contentType = response.contentType(),
+                            status = response.status,
+                            contentLength = response.contentLength(),
+                        ) {
+                            response.bodyAsChannel().copyAndClose(this)
+                        }
                     }
                 }
-
-                try {
-                    responseURI = responseURI.resolve(URI(location))
-                } catch (_: URISyntaxException) {
-                    LOG.warn("Invalid redirect URI found: $location")
-                    Sentry.captureMessage("Invalid redirect URI found: $location")
-                }
-
-                redirects++
-            }
-
-            // Buffer everything as soon as possible into the array, then release the connection
-            responseBody = response.bodyAsBytes()
+            } while (newLocation.isNotBlank() && redirects < maxRedirects)
         }
-
-        call.response.headers.apply {
-            allValues().filterHttpResponseHeaders()
-        }
-
-        call.respondBytes(
-            contentType = response.contentType(),
-            status = response.status,
-        ) { responseBody }
     }
 }
 
