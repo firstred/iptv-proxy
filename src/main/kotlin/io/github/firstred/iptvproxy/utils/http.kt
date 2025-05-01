@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.utils
 
 import co.touchlab.stately.collections.ConcurrentMutableMap
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
@@ -49,6 +50,13 @@ fun URI.appendQueryParameters(
 private fun StringValues.toHeaders() = headers {
     forEach { key, values ->
         values.forEach { value -> append(key, value) }
+    }
+}
+
+fun HeadersBuilder.forwardProxyUser(serverConfig: IIptvServerConfigWithoutAccounts) {
+    if (!serverConfig.proxyStream) return
+    serverConfig.proxyForwardedUser?.let { user ->
+        append(HttpHeaders.Forwarded, "proxyUser=$user;pass=${serverConfig.proxyForwardedPassword}")
     }
 }
 

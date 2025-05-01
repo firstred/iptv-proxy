@@ -27,6 +27,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTe
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
+import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
@@ -191,6 +192,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             headers {
                                 accept(ContentType.Application.Json)
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body()
                     }
@@ -202,6 +204,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             headers {
                                 accept(ContentType.Application.Json)
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body()
                     }
@@ -217,6 +220,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body<List<XtreamMovieCategory>>()
                     }
@@ -227,6 +231,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body<List<XtreamMovie>>()
                     }
@@ -242,6 +247,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body<List<XtreamSeriesCategory>>()
                     }
@@ -252,6 +258,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
                             headers {
                                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                                forwardProxyUser(serverConnection.config)
                             }
                         }.body<List<XtreamSeries>>()
                     }
@@ -280,6 +287,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
             headers {
                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                forwardProxyUser(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()
@@ -289,6 +297,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         val response = httpClient.get(serverConnection.config.account.getPlaylistUrl().toString()) {
             headers {
                 serverConnection.config.account.userAgent?.let { append("User-Agent", it) }
+                forwardProxyUser(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()

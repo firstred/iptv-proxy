@@ -3,6 +3,7 @@ package io.github.firstred.iptvproxy.entities
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
+import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -59,6 +60,7 @@ class IptvChannel(
             ) {
                 headers {
                     additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
+                    forwardProxyUser(server.config)
                 }
             }
             headersCallback?.invoke(response.headers)
