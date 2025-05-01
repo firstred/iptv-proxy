@@ -105,7 +105,7 @@ fun RoutingContext.findUserFromXtreamAccountInRoutingContext(): IptvUser {
 }
 
 private fun RoutingContext.findUserFromProxyHeader(userManager: UserManager): IptvUser {
-    val proxyUsername = config.getForwardedValues(call.request.headers["Forwarded"]).proxyUser
+    val proxyUsername = config.getForwardedValues(call.request.headers.getAll("Forwarded")).proxyUser
     val username = proxyUsername ?: call.parameters["username"]
     val password = proxyUsername?.let { getKoin().get<IptvUsersByName>()[it]?.password } ?: call.parameters["password"]
 

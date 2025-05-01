@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.config
 
+import arrow.core.split
 import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
@@ -88,17 +89,15 @@ data class IptvProxyConfig(
         } ?: checkDir(getBaseCacheDirectory() + "/download")
     }
 
-    fun getForwardedValues(forwardedHeaderContent: String?): ForwardedHeaderValues {
-        if (null == forwardedHeaderContent) return ForwardedHeaderValues()
+    fun getForwardedValues(forwardedHeadersContentList: List<String>?): ForwardedHeaderValues {
+        if (null == forwardedHeadersContentList) return ForwardedHeaderValues()
+        val forwardedHeaderContent = forwardedHeadersContentList.joinToString(",")
 
-        val forwardedPassword = forwardedHeaderContent.split(';', ',').find { it.startsWith("pass=") }?.substringAfter("=")
-        if (forwardedPassword != forwardedPass) {
-            return ForwardedHeaderValues()
-        }
+        val forwardedPassword = forwardedHeaderContent.split(';', ',').map { it.trim(' ') }.find { it.startsWith("pass=") }?.substringAfter("=")
+        if (forwardedPassword != forwardedPass) return ForwardedHeaderValues()
 
-        val forwardedBaseUrl = forwardedHeaderContent.split(';', ',').find { it.startsWith("baseUrl=") }?.substringAfter("=")
-        val forwardedIptvProxyUser =
-            forwardedHeaderContent.split(';', ',').find { it.startsWith("proxyUser=") }?.substringAfter("=")
+        val forwardedBaseUrl = forwardedHeaderContent.split(';', ',').map { it.trim(' ') }.find { it.startsWith("baseUrl=") }?.substringAfter("=")
+        val forwardedIptvProxyUser = forwardedHeaderContent.split(';', ',').map { it.trim(' ') }.find { it.startsWith("proxyUser=") }?.substringAfter("=")
 
         return ForwardedHeaderValues(
             baseUrl = forwardedBaseUrl,
@@ -106,7 +105,7 @@ data class IptvProxyConfig(
         )
     }
 
-    fun getActualForwardedBaseUrl(request: RoutingRequest): String? = getForwardedValues(request.headers["Forwarded"]).baseUrl
+    fun getActualForwardedBaseUrl(request: RoutingRequest): String? = getForwardedValues(request.headers.getAll("Forwarded")).baseUrl
     fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
     fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
 
