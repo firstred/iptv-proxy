@@ -5,7 +5,7 @@ x-default-timeouts: &default-timeouts
   retry_delay_milliseconds: 5_000
   max_retries: 3
 
-x-default-timeouts: &icon-timeouts
+x-icon-timeouts: &icon-timeouts
   connect_milliseconds: 2_000
   socket_milliseconds: 2_000
   total_milliseconds: 10_000
@@ -13,7 +13,7 @@ x-default-timeouts: &icon-timeouts
   max_retries: 3
 
 x-channel-timeouts: &channel-timeouts
-  connect_milliseconds: 2_000
+  connect_milliseconds: 5_000
   socket_milliseconds: 30_000
   total_milliseconds: 60_000
   retry_delay_milliseconds: 2_000
