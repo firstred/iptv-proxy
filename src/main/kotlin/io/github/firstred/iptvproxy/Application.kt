@@ -37,7 +37,9 @@ import org.slf4j.event.Level
 import java.io.File
 import java.net.Authenticator
 import java.net.PasswordAuthentication
+import java.net.URLEncoder
 import kotlin.system.exitProcess
+import kotlin.text.Charsets.UTF_8
 
 var argv = emptyArray<String>()
 
@@ -200,6 +202,9 @@ private fun validateUsernameOrPassword(usernameOrPassword: String) {
     }
     if (usernameOrPassword.contains("_") || usernameOrPassword.contains(";") || usernameOrPassword.contains(":") || usernameOrPassword.contains("/")) {
         throw IllegalArgumentException("Password/username cannot contain _ , ; : /")
+    }
+    if (URLEncoder.encode(usernameOrPassword, UTF_8.toString()) != usernameOrPassword) {
+        throw IllegalArgumentException("Username or password contains characters that are not allowed in a URL, which is required for IPTV: $usernameOrPassword")
     }
 }
 
