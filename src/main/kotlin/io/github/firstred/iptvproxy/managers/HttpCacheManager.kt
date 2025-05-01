@@ -71,13 +71,13 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
 
     override fun onApplicationStartHook() {
         if (!config.clientHttpCache.enabled) {
-            LOG.info("Client HTTP cache is disabled -- skipping cache manager startup")
+            LOG.info("Client HTTP cache is disabled -- skipping http cache manager startup")
             return
         }
 
-        LOG.info("Cache manager starting")
+        LOG.info("Http cache manager starting")
         scheduleCleanups()
-        LOG.info("Cache manager started")
+        LOG.info("Http cache manager started")
     }
 
     companion object {
