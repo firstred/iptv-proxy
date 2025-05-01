@@ -17,11 +17,5 @@ object SeriesCategoryTable : LongIdTable("series_category") {
 
     init {
         uniqueIndex(server, externalCategoryId)
-
-        foreignKey(
-            server to SeriesTable.server,
-            onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE
-        )
     }
 }

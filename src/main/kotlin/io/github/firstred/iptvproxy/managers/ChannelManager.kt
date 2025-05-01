@@ -272,8 +272,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         serversByName.keys.forEach { channelRepository.signalPlaylistCompletedForServer(it) }
 
-        xtreamRepository.matchXtreamWithChannels()
-
         val channelCount = channelRepository.getIptvChannelCount()
 
         // Signal channels are updated

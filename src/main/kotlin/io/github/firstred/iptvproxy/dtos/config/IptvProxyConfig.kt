@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.dtos.config
 
-import arrow.core.split
 import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash

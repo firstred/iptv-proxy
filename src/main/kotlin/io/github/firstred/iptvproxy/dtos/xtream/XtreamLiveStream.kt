@@ -6,16 +6,16 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class XtreamLiveStream(
-    val num: Int,
+    val num: Long,
     val name: String,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.live,
-    @SerialName("stream_id") val streamId: Int,
+    @SerialName("stream_id") val streamId: Long,
     @SerialName("stream_icon") val streamIcon: String? = null,
     @SerialName("epg_channel_id") val epgChannelId: String? = null,
     val added: String = "0",
     @SerialName("is_adult") val isAdult: Int = 0,
     @SerialName("category_id") val categoryId: String?,
-    @SerialName("category_ids") val categoryIds: List<String?>? = null,
+    @SerialName("category_ids") val categoryIds: List<Long?>? = null,
     @SerialName("custom_sid") val customSid: String? = null,
     @SerialName("tv_archive") val tvArchive: Int = 0,
     @SerialName("direct_source") val directSource: String = "",

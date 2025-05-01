@@ -6,10 +6,10 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class XtreamMovie(
-    val num: Int,
+    val num: Long,
     val name: String,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.movie,
-    @SerialName("stream_id") val streamId: Int,
+    @SerialName("stream_id") val streamId: Long,
     @SerialName("stream_icon") val streamIcon: String,
     val rating: String,
     @SerialName("rating_5based") val rating5Based: Double,
@@ -18,7 +18,7 @@ data class XtreamMovie(
     val added: String,
     @SerialName("is_adult") val isAdult: Int,
     @SerialName("category_id") val categoryId: String?,
-    @SerialName("category_ids") val categoryIds: List<String?>? = null,
+    @SerialName("category_ids") val categoryIds: List<Long?>? = null,
     @SerialName("container_extension") val containerExtension: String,
     @SerialName("custom_sid") val customSid: String? = null,
     @SerialName("direct_source") val directSource: String,

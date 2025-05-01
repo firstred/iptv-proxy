@@ -21,7 +21,7 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgrammePreviouslyShown
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvRating
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
-import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
+import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -33,7 +33,6 @@ import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertIgnore
-import org.jetbrains.exposed.sql.insertIgnoreAndGetId
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -42,7 +41,7 @@ import org.jetbrains.exposed.sql.upsert
 
 class EpgRepository {
     fun upsertXmltvSourceForServer(doc: XmltvDoc, server: String) {
-        transaction { withForeignKeyChecksDisabled {
+        transaction { withForeignKeyConstraintsDisabled {
             // Upsert the XMLTV source
             XmltvSourceTable.upsert {
                 it[XmltvSourceTable.server] = server
@@ -62,7 +61,7 @@ class EpgRepository {
     }
 
     fun signalXmltvStartedForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
+        transaction { withForeignKeyConstraintsDisabled {
             XmltvSourceTable.upsert {
                 it[XmltvSourceTable.server] = server
                 it[XmltvSourceTable.startedAt] = Clock.System.now()
@@ -70,7 +69,7 @@ class EpgRepository {
         }
     }
     fun signalXmltvCompletedForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
+        transaction { withForeignKeyConstraintsDisabled {
             XmltvSourceTable.upsert {
                 it[XmltvSourceTable.server] = server
                 it[XmltvSourceTable.completedAt] = Clock.System.now()
@@ -82,7 +81,7 @@ class EpgRepository {
         channels.chunked(config.database.chunkSize).forEach { chunk ->
             chunk.forEach { channel ->
                 channel.id?.let { channelId ->
-                    transaction { withForeignKeyChecksDisabled {
+                    transaction { withForeignKeyConstraintsDisabled {
                         EpgChannelTable.upsert {
                             it[EpgChannelTable.server] = server
                             it[EpgChannelTable.epgChannelId] = channelId
@@ -93,7 +92,7 @@ class EpgRepository {
                     } }
 
                     channel.displayNames?.let { displayNames ->
-                        transaction { withForeignKeyChecksDisabled {
+                        transaction { withForeignKeyConstraintsDisabled {
                             EpgChannelDisplayNameTable.batchUpsert(displayNames) { displayName ->
                                 this[EpgChannelDisplayNameTable.server] = server
                                 this[EpgChannelDisplayNameTable.epgChannelId] = channelId
@@ -110,9 +109,9 @@ class EpgRepository {
     fun upsertXmltvProgrammesForServer(programmes: List<XmltvProgramme>, server: String) {
         programmes.chunked(config.database.chunkSize).forEach { chunk ->
             chunk.forEach { programme ->
-                transaction { withForeignKeyChecksDisabled {
+                transaction { withForeignKeyConstraintsDisabled {
                     // Upsert the XMLTV programme
-                    EpgProgrammeTable.insertIgnoreAndGetId {
+                    EpgProgrammeTable.insertIgnore {
                         it[EpgProgrammeTable.server] = server
                         it[EpgProgrammeTable.start] = programme.start
                         it[EpgProgrammeTable.stop] = programme.stop
@@ -122,7 +121,14 @@ class EpgRepository {
                         it[EpgProgrammeTable.description] = programme.desc?.text ?: ""
                         it[EpgProgrammeTable.icon] = programme.icon?.src
                         it[EpgProgrammeTable.updatedAt] = Clock.System.now()
-                    }?.value?.let { programmeId ->
+                    }
+                    EpgProgrammeTable.select(EpgProgrammeTable.id)
+                        .where {
+                            (EpgProgrammeTable.server eq server) and
+                                    (EpgProgrammeTable.start eq programme.start) and
+                                    (EpgProgrammeTable.epgChannelId eq programme.channel)
+                        }
+                        .firstOrNull()?.let { row -> row[EpgProgrammeTable.id].value }?.let { programmeId ->
                         EpgProgrammeTable.update({ EpgProgrammeTable.id eq programmeId }) {
                             it[IptvChannelTable.updatedAt] = Clock.System.now()
                         }

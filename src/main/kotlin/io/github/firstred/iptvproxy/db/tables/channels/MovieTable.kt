@@ -1,8 +1,10 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
+import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
@@ -10,7 +12,6 @@ object MovieTable : Table("movie") {
     val num: Column<Long> = long("num")
     val server: Column<String> = varchar("server", 511)
     val name: Column<String> = text("name")
-    val streamId: Column<Long?> = long("stream_id").nullable() // From IptvChannel
     val externalStreamId: Column<String> = varchar("external_stream_id", 511)
     val externalStreamIcon: Column<String?> = text("external_stream_icon").nullable()
     val rating: Column<String?> = varchar("rating", 511).nullable()
@@ -30,6 +31,5 @@ object MovieTable : Table("movie") {
 
     init {
         uniqueIndex(server, externalStreamId)
-        index(false, server, streamId)
     }
 }

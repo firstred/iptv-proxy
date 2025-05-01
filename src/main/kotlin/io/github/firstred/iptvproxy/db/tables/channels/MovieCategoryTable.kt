@@ -17,11 +17,5 @@ object MovieCategoryTable : LongIdTable("movie_category") {
 
     init {
         uniqueIndex(server, externalCategoryId)
-
-        foreignKey(
-            server to MovieTable.server,
-            onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE
-        )
     }
 }

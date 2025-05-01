@@ -17,11 +17,5 @@ object LiveStreamCategoryTable : LongIdTable("live_stream_category") {
 
     init {
         uniqueIndex(server, externalCategoryId)
-
-        foreignKey(
-            server to LiveStreamTable.server,
-            onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE
-        )
     }
 }

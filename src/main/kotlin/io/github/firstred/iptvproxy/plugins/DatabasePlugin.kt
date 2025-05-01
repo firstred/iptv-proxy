@@ -144,7 +144,7 @@ private fun Transaction.disableForeignKeyChecks() {
     }
 }
 
-fun Transaction.withForeignKeyChecksDisabled(
+fun Transaction.withForeignKeyConstraintsDisabled(
     block: Transaction.() -> Unit
 ) {
     disableForeignKeyChecks()
@@ -178,7 +178,7 @@ private fun dropAllTables() {
     )
 
     transaction {
-        withForeignKeyChecksDisabled {
+        withForeignKeyConstraintsDisabled {
             droppableTables.forEach { table ->
                 try {
                     exec(/** language=SQL */ "DROP TABLE IF EXISTS $table", explicitStatementType = StatementType.DROP)

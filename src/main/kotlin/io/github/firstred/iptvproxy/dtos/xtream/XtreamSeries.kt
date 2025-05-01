@@ -6,9 +6,9 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class XtreamSeries(
-    val num: Int,
+    val num: Long,
     val name: String,
-    @SerialName("series_id") val seriesId: Int,
+    @SerialName("series_id") val seriesId: Long,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.series,
     val cover: String,
     val plot: String,
@@ -16,6 +16,7 @@ data class XtreamSeries(
     val director: String,
     val genre: String,
     @SerialName("releaseDate") val releaseDate: String,
+    @SerialName("release_date") val releaseDateUnderscore: String? = null,
     @SerialName("last_modified") val lastModified: String,
     val rating: String,
     @SerialName("rating_5based") val rating5Based: String,
@@ -24,5 +25,5 @@ data class XtreamSeries(
     val tmdb: String,
     @SerialName("episode_run_time") val episodeRunTime: String,
     @SerialName("category_id") val categoryId: String?,
-    @SerialName("category_ids") val categoryIds: List<String?>? = null,
+    @SerialName("category_ids") val categoryIds: List<Long?>? = null,
 )

@@ -5,7 +5,7 @@ import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.plugins.withForeignKeyChecksDisabled
+import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -13,7 +13,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertIgnoreAndGetId
+import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
@@ -27,7 +27,7 @@ class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
 
     fun signalPlaylistStartedForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
+        transaction { withForeignKeyConstraintsDisabled {
             PlaylistSourceTable.upsert {
                 it[PlaylistSourceTable.server] = server
                 it[PlaylistSourceTable.startedAt] = Clock.System.now()
@@ -35,7 +35,7 @@ class ChannelRepository : KoinComponent {
         }
     }
     fun signalPlaylistCompletedForServer(server: String) {
-        transaction { withForeignKeyChecksDisabled {
+        transaction { withForeignKeyConstraintsDisabled {
             PlaylistSourceTable.upsert {
                 it[PlaylistSourceTable.server] = server
                 it[PlaylistSourceTable.completedAt] = Clock.System.now()
@@ -45,9 +45,9 @@ class ChannelRepository : KoinComponent {
 
     fun upsertChannels(channels: List<IptvChannel>) {
         channels.chunked(config.database.chunkSize).forEach { chunk ->
-            transaction { withForeignKeyChecksDisabled {
+            transaction { withForeignKeyConstraintsDisabled {
                 chunk.forEach { channel ->
-                    IptvChannelTable.insertIgnoreAndGetId {
+                    IptvChannelTable.insertIgnore {
                         it[IptvChannelTable.server] = channel.server.name
                         it[IptvChannelTable.name] = channel.name
                         it[IptvChannelTable.url] = channel.url.toString()
@@ -55,13 +55,13 @@ class ChannelRepository : KoinComponent {
                         it[IptvChannelTable.groups] = channel.groups.joinToString(",")
                         it[IptvChannelTable.type] = channel.type
                         it[IptvChannelTable.epgChannelId] = channel.epgId ?: ""
-                        it[IptvChannelTable.externalStreamId] = channel.url.streamId()
+                        it[IptvChannelTable.externalStreamId] = channel.url.extractStreamId()
                         it[IptvChannelTable.icon] = channel.logo
                         it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
-                    }?.value.let { id ->
-                        IptvChannelTable.update({ IptvChannelTable.id eq id }) {
-                            it[IptvChannelTable.updatedAt] = Clock.System.now()
-                        }
+                    }
+
+                    IptvChannelTable.update({ (IptvChannelTable.server eq channel.server.name) and (IptvChannelTable.url eq channel.url.toString()) }) {
+                        it[IptvChannelTable.updatedAt] = Clock.System.now()
                     }
                 }
             } }
@@ -113,6 +113,29 @@ class ChannelRepository : KoinComponent {
             offset += chunkSize
         } while (channels.isNotEmpty())
     }
+    fun forEachIptvChannelIdChunk(
+        chunkSize: Int = config.database.chunkSize,
+        action: (List<Pair<Long, Long?>>) -> Unit, // id, streamId, externalStreamId
+    ) {
+        var offset = 0L
+
+        do {
+            val idQuery = IptvChannelTable.select(IptvChannelTable.id, IptvChannelTable.externalStreamId)
+            idQuery
+                .limit(chunkSize)
+                .offset(offset)
+            val ids = transaction {
+                idQuery.map {
+                    Pair(it[IptvChannelTable.id].value, it[IptvChannelTable.externalStreamId]?.toLong())
+                }
+            }
+
+            if (ids.isEmpty()) break
+
+            action(ids)
+            offset += chunkSize
+        } while (ids.isNotEmpty())
+    }
 
     fun getIptvChannelCount(): Long = transaction {
         IptvChannelTable.selectAll().count()
@@ -144,7 +167,7 @@ class ChannelRepository : KoinComponent {
     }
 
     companion object {
-        private fun URI.streamId(): String? {
+        private fun URI.extractStreamId(): String {
             return this.toString().substringAfterLast("/", "").substringBeforeLast(".")
         }
 

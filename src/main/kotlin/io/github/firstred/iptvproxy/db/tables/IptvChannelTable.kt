@@ -11,7 +11,7 @@ object IptvChannelTable : LongIdTable("iptv_channel") {
     // id = streamId
     val epgChannelId: Column<String> = varchar("epg_channel_id", 511)
     val url: Column<String> = text("url")
-    val externalStreamId: Column<String?> = varchar("external_stream_id", 511).nullable()
+    val externalStreamId: Column<String> = varchar("external_stream_id", 511)
     val server: Column<String> = varchar("server", 511)
     val icon: Column<String?> = text("icon").nullable()
     val name: Column<String> = text("name")
