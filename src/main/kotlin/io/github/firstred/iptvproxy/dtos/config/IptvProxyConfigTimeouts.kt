@@ -11,13 +11,6 @@ data class IptvProxyConfigTimeouts(
         retryDelayMilliseconds = 1_000L,
         maxRetries = 3,
     ),
-    val epg: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(
-        connectMilliseconds = 5_000L,
-        socketMilliseconds = 60_000L,
-        totalMilliseconds = 300_000L,
-        retryDelayMilliseconds = 1_000L,
-        maxRetries = 3,
-    ),
     val icon: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(
         connectMilliseconds = 5_000L,
         socketMilliseconds = 60_000L,

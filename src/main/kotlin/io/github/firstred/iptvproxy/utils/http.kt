@@ -8,7 +8,7 @@ import io.ktor.util.*
 import kotlinx.coroutines.sync.Mutex
 import java.net.URI
 
-fun Headers.filterHttpRequestHeaders(
+fun Headers.filterAndAppendHttpRequestHeaders(
     whitelistedHeaders: List<String> = config.whitelistIptvClientHeaders,
     blacklistedHeaders: List<String> = config.blacklistIptvClientHeaders,
 ): Headers = filter { key, _ ->
@@ -16,7 +16,7 @@ fun Headers.filterHttpRequestHeaders(
             && !(DROP_REQUEST_HEADERS + blacklistedHeaders - APP_REQUEST_HEADERS).any { it.equals(key, ignoreCase = true) }
 }.toHeaders()
 
-fun HeadersBuilder.filterHttpRequestHeaders(
+fun HeadersBuilder.filterAndAppendHttpRequestHeaders(
     builder: HeadersBuilder,
     context: RoutingContext,
     whitelistedHeaders: List<String> = config.whitelistIptvClientHeaders,
@@ -24,7 +24,7 @@ fun HeadersBuilder.filterHttpRequestHeaders(
 ) {
     (DROP_REQUEST_HEADERS - APP_REQUEST_HEADERS).forEach { builder.remove(it) }
     context.call.request.headers
-        .filterHttpRequestHeaders(whitelistedHeaders, blacklistedHeaders)
+        .filterAndAppendHttpRequestHeaders(whitelistedHeaders, blacklistedHeaders)
         .forEach { key, value -> value.forEach { builder.append(key, it) } }
 }
 

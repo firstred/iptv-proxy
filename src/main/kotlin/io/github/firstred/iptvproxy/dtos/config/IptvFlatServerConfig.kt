@@ -15,15 +15,11 @@ data class IptvFlatServerConfig(
     override val epgBefore: Duration = Duration.INFINITE,
     override val epgAfter: Duration = Duration.INFINITE,
 
-    override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
+    override val proxyForwardedUser: String? = null,
+    override val proxyForwardedPassword: String? = null,
 
-    override val timeouts: IptvPlaylistConfigTimeouts = IptvPlaylistConfigTimeouts(),
-
-    override val playlistTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val catchupTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val vodTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val streamTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
+    override val timeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 ) : IIptvServerConfigWithoutAccounts {
@@ -32,14 +28,11 @@ data class IptvFlatServerConfig(
         epgUrl = epgUrl,
         epgBefore = epgBefore,
         epgAfter = epgAfter,
-        proxySendUser = proxySendUser,
+        proxyForwardedUser = proxyForwardedUser,
+        proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
         accounts = listOf(if (idx == 0) account else throw IllegalStateException("Only the first account is supported in flat config")),
         timeouts = timeouts,
-        playlistTimeouts = playlistTimeouts,
-        catchupTimeouts = catchupTimeouts,
-        vodTimeouts = vodTimeouts,
-        streamTimeouts = streamTimeouts,
         groupFilters = groupFilters,
     )
 

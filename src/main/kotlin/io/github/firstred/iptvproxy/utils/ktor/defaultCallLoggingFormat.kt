@@ -17,10 +17,12 @@ fun CallLoggingConfig.defaultCallLoggingFormat() {
             call.request.queryParameters
                 .entries()
                 .joinToString(", ") { "${it.key}=${it.value}" }
-        val headers =
+        val requestHeaders =
             call.request.headers
                 .entries()
                 .joinToString(", ") { "${it.key}=${it.value}" }
+        val responseHeaders = call.response.headers.allValues().entries()
+            .joinToString(", ") { "${it.key}=${it.value}" }
         val duration = call.processingTimeMillis()
         val remoteHost = call.request.origin.remoteHost
         val responseSize = (call.response.headers["Content-Length"] ?: "0").toHumanReadableSize()
@@ -39,7 +41,8 @@ fun CallLoggingConfig.defaultCallLoggingFormat() {
 | Client IP/Host: $remoteHost
 | Path: $path
 | Query Params: $queryParams
-| Headers: $headers
+| Request Headers: $requestHeaders
+| Response Headers: $responseHeaders
 | Response Size: $responseSize
 | Duration: ${duration}ms
 |------------------------------------------------------------------"""

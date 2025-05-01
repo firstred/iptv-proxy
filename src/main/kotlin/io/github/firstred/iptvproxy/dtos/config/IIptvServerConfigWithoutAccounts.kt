@@ -14,14 +14,10 @@ interface IIptvServerConfigWithoutAccounts {
     val epgAfter: Duration
 
     val proxyStream: Boolean
-    val proxySendUser: Boolean
+    val proxyForwardedUser: String?
+    val proxyForwardedPassword: String?
 
-    val timeouts: IptvPlaylistConfigTimeouts
-
-    val playlistTimeouts: ConnectionTimeoutsConfig
-    val catchupTimeouts: ConnectionTimeoutsConfig
-    val vodTimeouts: ConnectionTimeoutsConfig
-    val streamTimeouts: ConnectionTimeoutsConfig
+    val timeouts: ConnectionTimeoutsConfig
 
     val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern>
 

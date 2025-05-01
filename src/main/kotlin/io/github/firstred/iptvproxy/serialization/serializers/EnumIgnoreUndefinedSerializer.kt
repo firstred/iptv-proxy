@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.serialization.serializers
 
+import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.exceptions.UndefinedEnumSerializerException
 import io.sentry.Sentry
 import kotlinx.serialization.KSerializer
@@ -30,7 +31,11 @@ abstract class EnumIgnoreUndefinedSerializer<T : Enum<T>>(values: Array<out T>, 
         val serialName = decoder.decodeString()
         val value = revLookup[serialName]
         return if (null == value) {
-            Sentry.captureException(UndefinedEnumSerializerException(this::class.java.simpleName, serialName))
+            if (!config.sentry?.dsn.isNullOrBlank()) {
+                Sentry.captureException(
+                    UndefinedEnumSerializerException(this::class.java.simpleName, serialName),
+                )
+            }
             defaultValue
         } else {
             value

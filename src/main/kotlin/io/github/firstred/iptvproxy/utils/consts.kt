@@ -2,46 +2,44 @@ package io.github.firstred.iptvproxy.utils
 
 // These are the headers that are used by the app and should not be removed
 val APP_REQUEST_HEADERS = listOf(
-    "x-iptv-proxy",
-    "proxy-authorization",
-    "forwarded",
+    "x-iptv-proxy",        // Headers required for this app
+    "proxy-authorization", // Headers required for this app
+    "forwarded",           // Headers required for this app
 )
 
 val DROP_REQUEST_HEADERS = listOf(
-    "host",
-    "accept",
-    "accept-charset",
-    "accept-encoding",
-    "transfer-encoding",
-    "x-forwarded-for",
-    "x-forwarded-proto",
-    "x-forwarded-host",
-    "x-forwarded-port",
-    "x-real-ip",
-    "x-remote-ip",
-    "x-remote-port",
-    "x-remote-addr",
-    "x-remote-user",
-    "x-remote-proto",
-    "x-remote-host",
+    "host",                // Let KTOR client handle this
+    "accept",              // Let KTOR client handle this
+    "accept-charset",      // Let KTOR client handle this
+    "accept-encoding",     // Let KTOR client handle this
+    "transfer-encoding",   // Let KTOR client handle this
+
+    "x-forwarded-for",     // Reserved for reverse proxies
+    "x-forwarded-proto",   // Reserved for reverse proxies
+    "x-forwarded-host",    // Reserved for reverse proxies
+    "x-forwarded-port",    // Reserved for reverse proxies
+    "x-real-ip",           // Reserved for reverse proxies
+    "x-remote-ip",         // Reserved for reverse proxies
+    "x-remote-port",       // Reserved for reverse proxies
+    "x-remote-addr",       // Reserved for reverse proxies
+    "x-remote-user",       // Reserved for reverse proxies
+    "x-remote-proto",      // Reserved for reverse proxies
+    "x-remote-host",       // Reserved for reverse proxies
 )
 
 val DROP_RESPONSE_HEADERS = listOf(
-    "content-encoding",
-    "transfer-encoding",
-    "content-length",
-    "connection",
-    "date",
-    "access-control-allow-credentials",
-    "access-control-allow-origin",
-    "access-control-allow-headers",
-    "access-control-allow-methods",
-    "access-control-expose-headers",
-    "origin",
-    "vary",
-    "x-memory",
-    "x-route-time",
-    "x-run-time",
+    "content-encoding",   // Let KTOR server handle this
+    "transfer-encoding",  // Let KTOR server handle this
+    "connection",         // Let KTOR server handle this
+    "origin",             // Let KTOR server handle this
+    "vary",               // Let KTOR server handle this
+    "content-length",     // Relay manually
+
+    "access-control-allow-credentials",  // Should be set with CORS config
+    "access-control-allow-origin",       // Should be set with CORS config
+    "access-control-allow-headers",      // Should be set with CORS config
+    "access-control-allow-methods",      // Should be set with CORS config
+    "access-control-expose-headers",     // Should be set with CORS config
 )
 
 const val maxRedirects = 5 // HTTP 1.0 guidance recommends 5

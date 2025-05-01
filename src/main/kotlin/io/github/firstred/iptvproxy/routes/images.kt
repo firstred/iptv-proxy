@@ -4,7 +4,7 @@ import io.github.firstred.iptvproxy.plugins.findUserFromEncryptedAccountInRoutin
 import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
-import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
+import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -17,10 +17,12 @@ import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
 import java.net.URI
 
-fun Route.icons() {
+const val imagesRoute = "images"
+
+fun Route.images() {
     val httpClient : HttpClient by inject(named("icon"))
 
-    route("/icon/") {
+    route("/$imagesRoute/") {
         get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))$""")) {
             if (isNotMainPort()) return@get
             try {
@@ -34,15 +36,17 @@ fun Route.icons() {
 
             val uri = URI((encryptedRemoteUrl?.aesDecryptFromHexString() ?: throw IllegalArgumentException("Invalid remote url")))
 
-            httpClient.request {
+            httpClient.prepareRequest {
                 url(uri.appendQueryParameters(call.request.queryParameters).toString())
                 method = HttpMethod.Get
                 headers {
-                    filterHttpRequestHeaders(this@headers, this@get)
+                    filterAndAppendHttpRequestHeaders(this@headers, this@get)
                 }
-            }.let { response ->
+            }.execute { response ->
                 call.response.headers.apply {
-                    allValues().filterHttpResponseHeaders()
+                    response.headers.filterHttpResponseHeaders().forEach { key, value ->
+                        value.forEach { append(key, it) }
+                    }
                 }
 
                 call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {

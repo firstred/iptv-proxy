@@ -9,12 +9,12 @@ import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.managers.UserManager
 import io.github.firstred.iptvproxy.routes.hls
-import io.github.firstred.iptvproxy.routes.icons
+import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.notices
 import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
-import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
+import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.ktor.client.request.*
@@ -36,7 +36,7 @@ private val LOG = LoggerFactory.getLogger("RoutingPlugin")
 
 fun Application.configureRouting() {
     routing {
-        icons()
+        images()
         xtreamApi()
         hls()
 
@@ -159,7 +159,7 @@ fun Route.proxyRemotePlaylist() {
                     channelId,
                     user,
                     config.getActualBaseUrl(call.request),
-                    call.request.headers.filterHttpRequestHeaders(),
+                    call.request.headers.filterAndAppendHttpRequestHeaders(),
                     call.request.queryParameters,
                 ) { headers ->
                     headers.filterHttpResponseHeaders().entries()
@@ -194,7 +194,14 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-        respondRemoteFile(user, channel, routingContext)
+
+        // Direct video access requires an HTTP Range header to be set
+        if (null == call.request.headers[HttpHeaders.Range]) {
+            call.respond(HttpStatusCode.BadRequest, "Missing HTTP Range header")
+            return@get
+        }
+
+        streamRemoteFile(user, channel, routingContext)
     }
 }
 
@@ -216,7 +223,7 @@ fun Route.proxyRemoteHlsStream() {
             return@get
         }
 
-        respondRemoteFile(
+        streamRemoteFile(
             user,
             channel,
             routingContext,
@@ -226,7 +233,7 @@ fun Route.proxyRemoteHlsStream() {
     }
 }
 
-private suspend fun RoutingContext.respondRemoteFile(
+private suspend fun RoutingContext.streamRemoteFile(
     user: IptvUser,
     channel: IptvChannel,
     routingContext: RoutingContext,
@@ -238,12 +245,12 @@ private suspend fun RoutingContext.respondRemoteFile(
         lateinit var preparedStatement: HttpStatement
         lateinit var newLocation: String
 
-        channel.server.withConnection { connection ->
+        channel.server.withConnection { connection, releaseConnectionEarly ->
             preparedStatement = connection.httpClient.prepareRequest {
                 url(responseURI.toString())
                 method = HttpMethod.Get
                 headers {
-                    filterHttpRequestHeaders(this@headers, routingContext)
+                    filterAndAppendHttpRequestHeaders(this@headers, routingContext)
                 }
             }
 
@@ -258,7 +265,7 @@ private suspend fun RoutingContext.respondRemoteFile(
                         preparedStatement = connection.httpClient.prepareGet(newLocation) {
                             method = HttpMethod.Get
                             headers {
-                                filterHttpRequestHeaders(this@headers, routingContext)
+                                filterAndAppendHttpRequestHeaders(this@headers, routingContext)
                             }
                         }
 
@@ -266,13 +273,17 @@ private suspend fun RoutingContext.respondRemoteFile(
                             responseURI = responseURI.resolve(URI(newLocation))
                         } catch (_: URISyntaxException) {
                             LOG.warn("Invalid redirect URI found: $newLocation")
-                            Sentry.captureMessage("Invalid redirect URI found: $newLocation")
+                            if (!config.sentry?.dsn.isNullOrBlank()) {
+                                Sentry.captureMessage("Invalid redirect URI found: $newLocation")
+                            }
                         }
 
                         redirects++
                     } else {
                         call.response.headers.apply {
-                            allValues().filterHttpResponseHeaders()
+                            response.headers.filterHttpResponseHeaders().forEach { key, value ->
+                                value.forEach { append(key, it) }
+                            }
                         }
 
                         call.respondBytesWriter(
@@ -281,6 +292,8 @@ private suspend fun RoutingContext.respondRemoteFile(
                             contentLength = response.contentLength(),
                         ) {
                             response.bodyAsChannel().copyAndClose(this)
+                            // Immediately release the connection after the read channel is closed
+                            releaseConnectionEarly()
                         }
                     }
                 }

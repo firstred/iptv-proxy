@@ -11,13 +11,19 @@ class IptvServer(
 ) {
     suspend fun withConnection(
         specificAccount: IptvServerAccountConfig? = null,
-        action: suspend (connection: IptvServerConnection) -> Unit,
+        action: suspend (connection: IptvServerConnection, releaseConnectionEarly: () -> Unit) -> Unit,
     ) {
+        var released = false
         val connection = acquire(specificAccount)
-        try {
-            action(connection)
-        } finally {
+        fun releaseEarly() {
             connection.release()
+            released = true
+        }
+
+        try {
+            action(connection, ::releaseEarly)
+        } finally {
+            if (!released) connection.release()
         }
     }
 

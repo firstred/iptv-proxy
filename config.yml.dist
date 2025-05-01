@@ -2,28 +2,21 @@ x-default-timeouts: &default-timeouts
   connect_milliseconds: 5_000
   socket_milliseconds: 60_000
   total_milliseconds: 300_000
-  retry_delay_milliseconds: 1_000
+  retry_delay_milliseconds: 5_000
   max_retries: 3
 
-x-channel-playlist-timeouts: &channel-playlist-timeouts
-  connect_milliseconds: 5_000
-  socket_milliseconds: 60_000
-  total_milliseconds: 300_000
-  retry_delay_milliseconds: 1_000
-  max_retries: 3
-
-x-vod-timeouts: &vod-timeouts
-  connect_milliseconds: 3_000
-  socket_milliseconds: 10_000
-  total_milliseconds: 30_000
-  retry_delay_milliseconds: 1_000
-  max_retries: 3
-
-x-stream-timeouts: &stream-timeouts
+x-default-timeouts: &icon-timeouts
   connect_milliseconds: 2_000
-  socket_milliseconds: 5_000
+  socket_milliseconds: 2_000
   total_milliseconds: 10_000
   retry_delay_milliseconds: 1_000
+  max_retries: 3
+
+x-channel-timeouts: &channel-timeouts
+  connect_milliseconds: 2_000
+  socket_milliseconds: 30_000
+  total_milliseconds: 60_000
+  retry_delay_milliseconds: 2_000
   max_retries: 3
 
 host: 127.0.0.1 # IPv4 or IPv6 address to bind to, use `::` (dual-stack) or `0.0.0.0` (IPv4 only) to bind to all interfaces
@@ -33,8 +26,10 @@ app_secret: "Changeme!"
 log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
 timeouts:
   playlist: *default-timeouts
-  epg: *default-timeouts
-  icon: *default-timeouts
+  icon: *icon-timeouts
+client_http_cache:
+  enabled: true
+  cleanup_interval: PT1H # Interval to clean up old cache entries
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
 update_interval_on_failure: PT10M # Interval to retry failed updates
@@ -88,13 +83,10 @@ servers:
     epg_url: https://epg.example.com/epg.xml.gz
     epg_before: P7D
     epg_after: P7D
-    send_user: true
     proxy_stream: true
-    timeouts:
-      playlist: *channel-playlist-timeouts
-      catchup: *vod-timeouts
-      vod: *vod-timeouts
-      stream: *stream-timeouts
+    proxy_forwarded_user: true
+    proxy_forwarded_pass: "test"
+    timeouts: *channel-timeouts
 users:
   - username: 12345
     password: login1

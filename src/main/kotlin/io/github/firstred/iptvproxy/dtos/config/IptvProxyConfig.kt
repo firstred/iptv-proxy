@@ -24,6 +24,8 @@ data class IptvProxyConfig(
 
     val database: IptvProxyDatabaseConfig = IptvProxyDatabaseConfig(),
 
+    val clientHttpCache: IptvProxyClientHttpCacheConfig = IptvProxyClientHttpCacheConfig(),
+
     val clientConnectionMaxIdleSeconds: Int = 60,
 
     val updateInterval: Duration = Duration.parse("PT1H"),

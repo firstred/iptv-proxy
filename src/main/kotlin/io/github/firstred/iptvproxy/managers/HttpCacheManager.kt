@@ -48,7 +48,7 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
     }
 
     fun cleanIcons() {
-        val iconDir = File(config.getActualHttpCacheDirectory("icons"))
+        val iconDir = File(config.getActualHttpCacheDirectory("images"))
         if (!iconDir.exists() || !iconDir.isDirectory) return
 
         for (cacheFile in iconDir.listFiles()) {

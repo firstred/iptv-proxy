@@ -1,8 +1,10 @@
 package io.github.firstred.iptvproxy.di.modules
 
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
+import io.github.firstred.iptvproxy.managers.HttpCacheManager
 import io.github.firstred.iptvproxy.plugins.ktor.client.ProxyFileStorage
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
@@ -20,12 +22,15 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.io.IOException
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
+import org.koin.dsl.binds
 import org.koin.dsl.module
 import java.io.File
 import java.net.URI
 import java.util.*
 
 val httpClientModule = module {
+    single { HttpCacheManager() } binds hooksOf(HttpCacheManager::class)
+
     // Client used for all other requests - referred to as `channels_*` in the configuration
     single<HttpClient> {
         HttpClient(OkHttp) {
@@ -57,8 +62,8 @@ val httpClientModule = module {
             expectSuccess = false
             followRedirects = true
 
-            install(HttpCache) {
-                publicStorage(ProxyFileStorage(File(config.getActualHttpCacheDirectory("icons"))))
+            if (config.clientHttpCache.enabled) install(HttpCache) {
+                publicStorage(ProxyFileStorage(File(config.getActualHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
                 defaultRetryHandler {

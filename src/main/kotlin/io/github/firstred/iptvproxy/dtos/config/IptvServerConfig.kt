@@ -16,17 +16,13 @@ data class IptvServerConfig(
     override val epgBefore: Duration = Duration.INFINITE,
     override val epgAfter: Duration = Duration.INFINITE,
 
-    override val proxySendUser: Boolean = false,
     override val proxyStream: Boolean = true,
+    override val proxyForwardedUser: String? = null,
+    override val proxyForwardedPassword: String? = null,
 
     val accounts: List<IptvServerAccountConfig>? = null,
 
-    override val timeouts: IptvPlaylistConfigTimeouts = IptvPlaylistConfigTimeouts(),
-
-    override val playlistTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val catchupTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val vodTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
-    override val streamTimeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
+    override val timeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
@@ -36,14 +32,11 @@ data class IptvServerConfig(
         epgUrl = epgUrl,
         epgBefore = epgBefore,
         epgAfter = epgAfter,
-        proxySendUser = proxySendUser,
+        proxyForwardedUser = proxyForwardedUser,
+        proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
         account = accounts?.let { it[accountIndex] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
         timeouts = timeouts,
-        playlistTimeouts = playlistTimeouts,
-        catchupTimeouts = catchupTimeouts,
-        vodTimeouts = vodTimeouts,
-        streamTimeouts = streamTimeouts,
         groupFilters = groupFilters,
     )
 

@@ -51,7 +51,7 @@ class IptvChannel(
     ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
 
-        server.withConnection { connection ->
+        server.withConnection { connection, _ ->
             LOG.info("[{}] loading channel: {}, url: {}", user.username, name, url)
 
             var response = connection.httpClient.get(

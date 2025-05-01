@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.utils
 
+import io.github.firstred.iptvproxy.routes.imagesRoute
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -34,5 +35,5 @@ fun String.toProxiedIconUrl(baseUrl: String, encryptedAccount: String): String {
         ).filterNot { it.isWhitespace() }, UTF_8.toString()
     )
 
-    return "${baseUrl}icon/$encryptedAccount/${aesEncryptToHexString()}/${basename}.${extension}".replace(" ", "%20")
+    return "${baseUrl}$imagesRoute/$encryptedAccount/${aesEncryptToHexString()}/${basename}.${extension}".replace(" ", "%20")
 }

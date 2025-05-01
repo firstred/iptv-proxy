@@ -21,6 +21,7 @@ import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import jdk.internal.net.http.common.Log.channel
 import kotlinx.datetime.Clock
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
@@ -56,17 +57,17 @@ fun Route.xtreamApi() {
         val encryptedAccount = user.toEncryptedAccountHexString()
         call.respondTextWriter {
             write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
-            for (server in config.servers.map { it.name }) {
-                epgRepository.forEachEpgChannelChunk(server) {
+            for (server in config.servers) {
+                epgRepository.forEachEpgChannelChunk(server.name) {
                     it.forEach { row ->
                         write(
                             xml.encodeToString(
                                 XmltvChannel.serializer(), row.copy(
                                     icon = row.icon?.copy(
-                                        src = row.icon.src?.toProxiedIconUrl(
-                                            baseUrl,
-                                            encryptedAccount
-                                        )
+                                        src = row.icon.src?.let {
+                                            if (server.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                            else it
+                                        },
                                     ),
                                 )
                             )
