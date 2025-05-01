@@ -156,7 +156,15 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
     defaultRequest {
         // Handle proxy authentication part of the configuration
         config.httpProxy?.let {
-            val (_, _, _, username, password) = config.getActualHttpProxyConfiguration()!!
+            var (_, _, _, username, password) = config.getActualHttpProxyConfiguration()!!
+
+            // No authentication required -- continue
+            if (username.isNullOrBlank() && password.isNullOrBlank()) return@let
+
+            // Ensure proper formatting of username and password
+            if (username.isNullOrBlank()) username = ""
+            if (password.isNullOrBlank()) password = ""
+
             val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
             header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
         }
