@@ -265,7 +265,7 @@ fun Route.xtreamApi() {
                                                 put(key, buildJsonObject {
                                                     value.jsonObject.entries.forEach { (infoKey, infoValue) ->
                                                         put(infoKey, when (infoKey) {
-                                                            "kinopoisk_url", "cover_big", "movie_image" -> JsonPrimitive(
+                                                            "kinopoisk_url", "cover", "cover_big", "movie_image" -> JsonPrimitive(
                                                                 infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
                                                                     baseUrl,
                                                                     encryptedAccount
@@ -432,7 +432,7 @@ fun Route.xtreamApi() {
                                                         add(buildJsonObject {
                                                             for ((seasonsKey, seasonsValue) in season.jsonObject.entries) {
                                                                 when (seasonsKey) {
-                                                                    "overview", "cover", "cover_tmdb", "cover_big" -> put(
+                                                                    "overview", "cover", "cover_big", "cover_tmdb" -> put(
                                                                         seasonsKey,
                                                                         JsonPrimitive(
                                                                             seasonsValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
