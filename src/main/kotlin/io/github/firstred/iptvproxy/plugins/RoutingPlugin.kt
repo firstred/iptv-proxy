@@ -15,6 +15,7 @@ import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
+import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
@@ -161,7 +162,7 @@ fun Route.proxyRemotePlaylist() {
                     channelId,
                     user,
                     config.getActualBaseUrl(call.request),
-                    call.request.headers.filterAndAppendHttpRequestHeaders(),
+                    call.request.headers.filterHttpRequestHeaders(),
                     call.request.queryParameters,
                 ) { headers ->
                     headers.filterHttpResponseHeaders().entries()
@@ -174,7 +175,7 @@ fun Route.proxyRemotePlaylist() {
 fun Route.proxyRemoteVod() {
     val channelRepository: ChannelRepository by inject()
 
-    get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<channelid>[^.]+)\.(?<extension>.*)$""")) {
+    get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<channelid>[^.]+?)(?:\.(?<extension>.*))?$""")) {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
         val routingContext = this
@@ -203,7 +204,7 @@ fun Route.proxyRemoteVod() {
 fun Route.proxyRemoteHlsStream() {
     val channelRepository: ChannelRepository by inject()
 
-    get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
+    get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+?)(?:\.(?<extension>.*))?$""")) {
         if (isNotMainPort()) return@get
         val user = findUserFromEncryptedAccountInRoutingContext()
         val routingContext = this

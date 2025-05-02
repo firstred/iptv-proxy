@@ -5,7 +5,7 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dotenv
 import io.github.firstred.iptvproxy.loadConfig
 import io.github.firstred.iptvproxy.testConfig
-import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
+import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.ktor.http.*
 import org.junit.jupiter.api.BeforeAll
@@ -31,7 +31,7 @@ class HeadersTest {
             "Accept-Encoding" to listOf("deflate;q=0.9,gzip;q=0.8"),
             "Proxy-Authorization" to listOf("Basic a2V1cmlnOlJOTDdDdEtzZnhUb3RzQlFmWkRX"),
             "user-agent" to listOf("Dart/3.7 (dart:io)"),
-        ).filterAndAppendHttpRequestHeaders()
+        ).filterHttpRequestHeaders()
 
         assertNull(headers["accept"])
         assertNull(headers["accept-charset"])

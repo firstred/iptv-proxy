@@ -216,6 +216,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
+                                accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }
@@ -227,6 +228,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
                             headers {
+                                accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }
@@ -243,6 +245,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
+                                accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }
@@ -254,6 +257,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
                             headers {
+                                accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }

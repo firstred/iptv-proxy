@@ -14,6 +14,8 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
+import io.github.firstred.iptvproxy.entities.IptvServer
+import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
@@ -23,13 +25,16 @@ import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
+import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
+import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.call.*
 import io.ktor.client.request.accept
-import io.ktor.client.request.request
-import io.ktor.client.request.url
+import io.ktor.client.request.get
+import io.ktor.client.request.headers
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
@@ -217,21 +222,20 @@ fun Route.xtreamApi() {
 
                 channel.server.let { iptvServer ->
                     iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
-                        val account =
-                            iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
+                        val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
                         val targetUrl = account?.getXtreamMoviesInfoUrl()
                         if (null == targetUrl) return@withConnection
 
                         try {
-                            val response = connection.httpClient.request {
-                                url("$targetUrl&vod_id=$vodId")
-                                method = HttpMethod.Get
+                            var response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
                                 headers {
                                     accept(ContentType.Application.Json)
                                     forwardProxyUser(iptvServer.config)
                                     sendUserAgent(iptvServer.config)
                                 }
                             }
+                            response = followRedirects(response, connection, iptvServer, call.request.headers)
+
                             val responseContent: String = response.body()
                             releaseConnectionEarly()
 
@@ -381,14 +385,16 @@ fun Route.xtreamApi() {
                         if (null == targetUrl) return@withConnection
 
                         try {
-                            val response = connection.httpClient.request {
-                                url("$targetUrl&series_id=$seriesId")
-                                method = HttpMethod.Get
+                            var response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
                                 headers {
+                                    accept(ContentType.Application.Json)
                                     forwardProxyUser(iptvServer.config)
                                     sendUserAgent(iptvServer.config)
                                 }
                             }
+
+                            response = followRedirects(response, connection, iptvServer, call.request.headers)
+
                             val responseContent: String = response.body()
                             releaseConnectionEarly()
 
@@ -676,6 +682,42 @@ fun Route.xtreamApi() {
             }
         }
     }
+}
+
+private suspend fun followRedirects(
+    response: HttpResponse,
+    connection: IptvServerConnection,
+    iptvServer: IptvServer,
+    headers: Headers,
+): HttpResponse {
+    var newResponse = response
+    var redirects = 0
+    var newLocation = newResponse.headers["Location"] ?: ""
+
+    while (newLocation.isNotBlank() && redirects < maxRedirects) {
+        // Follow redirects
+        newResponse = connection.httpClient.get(newLocation) {
+            headers {
+                headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) } }
+                accept(ContentType.Application.Json)
+                forwardProxyUser(iptvServer.config)
+                sendUserAgent(iptvServer.config)
+            }
+        }
+        newLocation = newResponse.headers["Location"] ?: ""
+
+        try {
+            (URI(newLocation))
+        } catch (_: URISyntaxException) {
+            LOG.warn("Invalid redirect URI found: $newLocation")
+            if (!config.sentry?.dsn.isNullOrBlank()) {
+                Sentry.captureMessage("Invalid redirect URI found: $newLocation")
+            }
+        }
+
+        redirects++
+    }
+    return newResponse
 }
 
 private fun Writer.writeSeriesCategories() {
