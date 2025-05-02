@@ -73,8 +73,7 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
         }
     }
     from {
-        image = "docker.io/bellsoft/liberica-openjdk-alpine"
-        version = "21"
+        image = "docker.io/bellsoft/liberica-openjdk-alpine:21"
 
         platforms {
             platform {
