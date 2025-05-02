@@ -23,6 +23,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
+import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
@@ -191,9 +192,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         ) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body()
                     }
@@ -204,9 +203,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         liveStreams = httpClient.get(serverConnection.config.account.getXtreamLiveStreamsUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body()
                     }
@@ -222,9 +219,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body<List<XtreamCategory>>()
                     }
@@ -235,9 +230,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body<List<XtreamMovie>>()
                     }
@@ -253,9 +246,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body<List<XtreamCategory>>()
                     }
@@ -266,9 +257,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
-                                forwardProxyUser(serverConnection.config)
-                                sendUserAgent(serverConnection.config)
-                                sendBasicAuth(serverConnection.config.account)
+                                addDefaultClientHeaders(serverConnection.config)
                             }
                         }.body<List<XtreamSeries>>()
                     }
@@ -294,9 +283,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
         val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
             headers {
-                forwardProxyUser(serverConnection.config)
-                sendUserAgent(serverConnection.config)
-                sendBasicAuth(serverConnection.config.account)
+                addDefaultClientHeaders(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()
@@ -305,9 +292,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         val response = httpClient.get(serverConnection.config.account.getPlaylistUrl().toString()) {
             headers {
-                forwardProxyUser(serverConnection.config)
-                sendUserAgent(serverConnection.config)
-                sendBasicAuth(serverConnection.config.account)
+                addDefaultClientHeaders(serverConnection.config)
             }
         }
         return response.bodyAsChannel().toInputStream()

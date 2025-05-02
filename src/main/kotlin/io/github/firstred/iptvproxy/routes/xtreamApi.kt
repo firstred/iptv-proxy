@@ -25,6 +25,7 @@ import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
+import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
@@ -232,9 +233,7 @@ fun Route.xtreamApi() {
                                         (key, value) -> value.forEach { append(key, it) }
                                     }
                                     accept(ContentType.Application.Json)
-                                    forwardProxyUser(connection.config)
-                                    sendUserAgent(connection.config)
-                                    sendBasicAuth(connection.config.account)
+                                    addDefaultClientHeaders(connection.config)
                                 }
                             }
                             response = followRedirects(response, connection, iptvServer, call.request.headers)
@@ -393,9 +392,7 @@ fun Route.xtreamApi() {
                             var response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
                                 headers {
                                     accept(ContentType.Application.Json)
-                                    forwardProxyUser(connection.config)
-                                    sendUserAgent(connection.config)
-                                    sendBasicAuth(connection.config.account)
+                                    addDefaultClientHeaders(connection.config)
                                 }
                             }
 
@@ -706,9 +703,7 @@ private suspend fun followRedirects(
             headers {
                 headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) } }
                 accept(ContentType.Application.Json)
-                forwardProxyUser(connection.config)
-                sendUserAgent(connection.config)
-                sendBasicAuth(connection.config.account)
+                addDefaultClientHeaders(connection.config)
             }
         }
         newLocation = newResponse.headers["Location"] ?: ""

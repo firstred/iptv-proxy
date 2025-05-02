@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
+import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
 import io.ktor.server.routing.*
@@ -52,6 +53,12 @@ private fun StringValues.toHeaders() = headers {
     forEach { key, values ->
         values.forEach { value -> append(key, value) }
     }
+}
+
+fun HeadersBuilder.addDefaultClientHeaders(serverConfig: IptvFlatServerConfig) {
+    forwardProxyUser(serverConfig)
+    sendUserAgent(serverConfig)
+    sendBasicAuth(serverConfig.account)
 }
 
 fun HeadersBuilder.forwardProxyUser(serverConfig: IIptvServerConfigWithoutAccounts) {

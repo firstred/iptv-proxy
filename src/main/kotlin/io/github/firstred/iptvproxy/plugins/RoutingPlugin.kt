@@ -12,6 +12,7 @@ import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.notices
 import io.github.firstred.iptvproxy.routes.xtreamApi
+import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
@@ -250,9 +251,7 @@ private suspend fun RoutingContext.streamRemoteFile(
                 method = HttpMethod.Get
                 headers {
                     filterAndAppendHttpRequestHeaders(this@headers, routingContext)
-                    forwardProxyUser(connection.config)
-                    sendUserAgent(connection.config)
-                    sendBasicAuth(connection.config.account)
+                    addDefaultClientHeaders(connection.config)
                 }
             }
 
@@ -268,9 +267,7 @@ private suspend fun RoutingContext.streamRemoteFile(
                             method = HttpMethod.Get
                             headers {
                                 filterAndAppendHttpRequestHeaders(this@headers, routingContext)
-                                forwardProxyUser(connection.config)
-                                sendUserAgent(connection.config)
-                                sendBasicAuth(connection.config.account)
+                                addDefaultClientHeaders(connection.config)
                             }
                         }
 
