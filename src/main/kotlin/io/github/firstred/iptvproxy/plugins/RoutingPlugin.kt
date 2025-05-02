@@ -19,6 +19,7 @@ import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
+import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -249,8 +250,9 @@ private suspend fun RoutingContext.streamRemoteFile(
                 method = HttpMethod.Get
                 headers {
                     filterAndAppendHttpRequestHeaders(this@headers, routingContext)
-                    forwardProxyUser(channel.server.config)
-                    sendUserAgent(channel.server.config)
+                    forwardProxyUser(connection.config)
+                    sendUserAgent(connection.config)
+                    sendBasicAuth(connection.config.account)
                 }
             }
 
@@ -266,8 +268,9 @@ private suspend fun RoutingContext.streamRemoteFile(
                             method = HttpMethod.Get
                             headers {
                                 filterAndAppendHttpRequestHeaders(this@headers, routingContext)
-                                forwardProxyUser(channel.server.config)
-                                sendUserAgent(channel.server.config)
+                                forwardProxyUser(connection.config)
+                                sendUserAgent(connection.config)
+                                sendBasicAuth(connection.config.account)
                             }
                         }
 

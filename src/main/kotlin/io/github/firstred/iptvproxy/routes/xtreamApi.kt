@@ -28,6 +28,7 @@ import io.github.firstred.iptvproxy.serialization.xml
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
+import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.call.*
@@ -227,12 +228,13 @@ fun Route.xtreamApi() {
                         try {
                             var response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
                                 headers {
-                                    call.request.headers.filterHttpRequestHeaders(blacklistedHeaders = config.blacklistIptvClientHeaders + listOf("accept", "authorization")).entries().forEach {
+                                    call.request.headers.filterHttpRequestHeaders().entries().forEach {
                                         (key, value) -> value.forEach { append(key, it) }
                                     }
                                     accept(ContentType.Application.Json)
-                                    forwardProxyUser(iptvServer.config)
-                                    sendUserAgent(iptvServer.config)
+                                    forwardProxyUser(connection.config)
+                                    sendUserAgent(connection.config)
+                                    sendBasicAuth(connection.config.account)
                                 }
                             }
                             response = followRedirects(response, connection, iptvServer, call.request.headers)
@@ -391,8 +393,9 @@ fun Route.xtreamApi() {
                             var response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
                                 headers {
                                     accept(ContentType.Application.Json)
-                                    forwardProxyUser(iptvServer.config)
-                                    sendUserAgent(iptvServer.config)
+                                    forwardProxyUser(connection.config)
+                                    sendUserAgent(connection.config)
+                                    sendBasicAuth(connection.config.account)
                                 }
                             }
 
@@ -703,8 +706,9 @@ private suspend fun followRedirects(
             headers {
                 headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) } }
                 accept(ContentType.Application.Json)
-                forwardProxyUser(iptvServer.config)
-                sendUserAgent(iptvServer.config)
+                forwardProxyUser(connection.config)
+                sendUserAgent(connection.config)
+                sendBasicAuth(connection.config.account)
             }
         }
         newLocation = newResponse.headers["Location"] ?: ""

@@ -2,10 +2,14 @@ package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
+import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
 import io.ktor.server.routing.*
-import io.ktor.util.*
+import io.ktor.util.StringValues
+import io.ktor.util.filter
 import java.net.URI
+import java.util.*
+import kotlin.text.Charsets.UTF_8
 
 fun Headers.filterHttpRequestHeaders(
     whitelistedHeaders: List<String> = config.whitelistIptvClientHeaders,
@@ -66,3 +70,14 @@ fun HeadersBuilder.sendUserAgent(serverConfig: IIptvServerConfigWithoutAccounts)
         append(HttpHeaders.UserAgent, userAgent)
     }
 }
+
+fun HeadersBuilder.sendBasicAuth(accountConfig: IptvServerAccountConfig) {
+    accountConfig.login?.let { login ->
+        if (login.isBlank()) return
+        val password = accountConfig.password ?: ""
+
+        remove(HttpHeaders.Authorization)
+        append(HttpHeaders.Authorization, "Basic ${Base64.getEncoder().encodeToString("$login:$password".toByteArray(UTF_8))}")
+    }
+}
+

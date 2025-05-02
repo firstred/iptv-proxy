@@ -13,6 +13,7 @@ import java.io.File
 import java.io.IOException
 import java.net.URI
 import kotlin.random.Random
+import kotlin.text.Charsets.UTF_8
 
 private val LOG = LoggerFactory.getLogger("Encryption")
 
@@ -43,7 +44,7 @@ private fun getSecretSalt(): ByteArray {
             file.writeText(content)
         } catch (_: IOException) {
             LOG.warn("Unable to generate random salt, using default salt")
-            return "331360bb09dd709ad3f7f5eef505ddb5".toByteArray()
+            return "331360bb09dd709ad3f7f5eef505ddb5".toByteArray(UTF_8)
         }
     }
 
@@ -96,7 +97,7 @@ private fun getSecretKey(): AES.GCM.Key {
             salt = getSecretSalt(),
         )
 
-        val secret = secretDerivation.deriveSecretBlocking(config.appSecret.toByteArray())
+        val secret = secretDerivation.deriveSecretBlocking(config.appSecret.toByteArray(UTF_8))
 
         val decoder = provider.get(AES.GCM).keyDecoder()
         privateSecretKey = decoder.decodeFromByteStringBlocking(AES.Key.Format.RAW, secret)
@@ -105,7 +106,7 @@ private fun getSecretKey(): AES.GCM.Key {
     return privateSecretKey
 }
 
-fun String.aesEncrypt(): ByteArray = getSecretKey().cipher().encryptBlocking(toByteArray())
+fun String.aesEncrypt(): ByteArray = getSecretKey().cipher().encryptBlocking(toByteArray(UTF_8))
 
 @OptIn(ExperimentalStdlibApi::class)
 fun String.aesEncryptToHexString(): String = aesEncrypt().toHexString()

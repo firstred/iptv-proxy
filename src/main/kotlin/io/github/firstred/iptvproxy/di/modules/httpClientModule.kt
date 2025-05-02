@@ -27,6 +27,7 @@ import org.koin.dsl.module
 import java.io.File
 import java.net.URI
 import java.util.*
+import kotlin.text.Charsets.UTF_8
 
 val httpClientModule = module {
     single { HttpCacheManager() } binds hooksOf(HttpCacheManager::class)
@@ -165,7 +166,7 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
             if (username.isNullOrBlank()) username = ""
             if (password.isNullOrBlank()) password = ""
 
-            val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray())
+            val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray(UTF_8))
             header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
         }
     }

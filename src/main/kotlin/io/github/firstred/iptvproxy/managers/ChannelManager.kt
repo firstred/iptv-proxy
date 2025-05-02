@@ -27,6 +27,7 @@ import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.hash
+import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
@@ -192,6 +193,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body()
                     }
@@ -204,6 +206,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body()
                     }
@@ -221,6 +224,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body<List<XtreamCategory>>()
                     }
@@ -233,6 +237,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body<List<XtreamMovie>>()
                     }
@@ -250,6 +255,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body<List<XtreamCategory>>()
                     }
@@ -262,6 +268,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 accept(ContentType.Application.Json)
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
+                                sendBasicAuth(serverConnection.config.account)
                             }
                         }.body<List<XtreamSeries>>()
                     }
@@ -289,6 +296,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             headers {
                 forwardProxyUser(serverConnection.config)
                 sendUserAgent(serverConnection.config)
+                sendBasicAuth(serverConnection.config.account)
             }
         }
         return response.bodyAsChannel().toInputStream()
@@ -299,6 +307,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             headers {
                 forwardProxyUser(serverConnection.config)
                 sendUserAgent(serverConnection.config)
+                sendBasicAuth(serverConnection.config.account)
             }
         }
         return response.bodyAsChannel().toInputStream()
