@@ -14,6 +14,7 @@ import io.github.firstred.iptvproxy.plugins.configureDatabase
 import io.github.firstred.iptvproxy.plugins.configureRouting
 import io.github.firstred.iptvproxy.plugins.installHealthCheckRoute
 import io.github.firstred.iptvproxy.plugins.installMetricsRoute
+import io.github.firstred.iptvproxy.plugins.ktor.server.SentryPlugin
 import io.github.firstred.iptvproxy.plugins.startLifecycleHooks
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.yaml
@@ -107,6 +108,7 @@ private fun startServer() {
                 }
                 configureDatabase()
 
+                install(SentryPlugin)
                 install(AutoHeadResponse)
                 install(CallLogging) {
                     logger = LOG
