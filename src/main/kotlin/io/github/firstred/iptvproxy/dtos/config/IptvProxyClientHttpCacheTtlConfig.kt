@@ -6,5 +6,4 @@ import kotlin.time.Duration
 @Serializable
 data class IptvProxyClientHttpCacheTtlConfig (
     val icons: Duration = Duration.Companion.parse("PT10M"),
-    val videoChunks: Duration = Duration.Companion.parse("PT1H"),
 )

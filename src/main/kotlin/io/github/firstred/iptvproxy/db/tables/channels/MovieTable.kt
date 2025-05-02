@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
-import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.Column

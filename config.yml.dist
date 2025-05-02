@@ -30,6 +30,14 @@ timeouts:
 client_http_cache:
   enabled: true
   cleanup_interval: PT1H # Interval to clean up old cache entries
+  ttl:
+    icon: P30D # Time to live for icons
+server_http_cache:
+  enabled: true
+  duration:
+    video_chunk: PT1M
+    movie: P1D
+    series: PT1H
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
 update_interval_on_failure: PT10M # Interval to retry failed updates

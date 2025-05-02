@@ -25,6 +25,7 @@ data class IptvProxyConfig(
     val database: IptvProxyDatabaseConfig = IptvProxyDatabaseConfig(),
 
     val clientHttpCache: IptvProxyClientHttpCacheConfig = IptvProxyClientHttpCacheConfig(),
+    val serverHttpCache: IptvProxyServerHttpCacheConfig = IptvProxyServerHttpCacheConfig(),
 
     val clientConnectionMaxIdleSeconds: Int = 60,
 
@@ -42,6 +43,7 @@ data class IptvProxyConfig(
     val httpProxy: String? = null, // http://<username>:<password>@server_host:port
 
     val cacheDirectory: String? = System.getProperty("java.io.tmpdir"),
+
 
     val compressResponses: Boolean = true,
 

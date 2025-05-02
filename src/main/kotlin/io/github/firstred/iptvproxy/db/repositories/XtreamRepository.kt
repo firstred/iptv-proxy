@@ -43,7 +43,6 @@ import org.jetbrains.exposed.sql.unionAll
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 
 class XtreamRepository : KoinComponent {
     fun signalXtreamStartedForServer(server: String) {

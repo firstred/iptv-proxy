@@ -178,6 +178,7 @@ dependencies {
     implementation(libs.ktor.server.defaultHeaders)
     implementation(libs.ktor.server.engine.cio)
     implementation(libs.ktor.server.metrics.micrometer)
+    implementation(libs.ktor.server.simpleCache)
     implementation(libs.micrometer.prometheus)
 
     // koin

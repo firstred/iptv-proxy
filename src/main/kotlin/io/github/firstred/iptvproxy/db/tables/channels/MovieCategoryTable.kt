@@ -4,7 +4,6 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.dao.id.LongIdTable
 import org.jetbrains.exposed.sql.Column
-import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object MovieCategoryTable : LongIdTable("movie_category") {

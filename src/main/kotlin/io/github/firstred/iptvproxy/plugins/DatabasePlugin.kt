@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.plugins
 
-import MigrationUtils
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.firstred.iptvproxy.BuildConfig

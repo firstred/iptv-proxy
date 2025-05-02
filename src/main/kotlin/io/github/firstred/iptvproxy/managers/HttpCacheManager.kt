@@ -2,8 +2,6 @@ package io.github.firstred.iptvproxy.managers
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -39,12 +37,7 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
     }
 
     fun cleanCache() {
-        runBlocking {
-            awaitAll(
-    async { cleanIcons() },
-                async { cleanVideoChunks() },
-            )
-        }
+        cleanIcons()
     }
 
     fun cleanIcons() {
@@ -53,17 +46,6 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
 
         for (cacheFile in iconDir.listFiles()) {
             if (cacheFile.lastModified() < (System.currentTimeMillis() - config.clientHttpCache.ttl.icons.inWholeMilliseconds)) {
-                cacheFile.delete()
-            }
-        }
-    }
-
-    fun cleanVideoChunks() {
-        val iconDir = File(config.getActualHttpCacheDirectory("chunks"))
-        if (!iconDir.exists() || !iconDir.isDirectory) return
-
-        for (cacheFile in iconDir.listFiles()) {
-            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.clientHttpCache.ttl.videoChunks.inWholeMilliseconds)) {
                 cacheFile.delete()
             }
         }

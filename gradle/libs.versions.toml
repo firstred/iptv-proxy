@@ -13,6 +13,7 @@ jib = "3.4.5"
 ktor = "3.1.2"
 koin-bom = "4.1.0-Beta7"
 buildconfig = "5.6.4"
+ktor-simple-cache = "0.53.4"
 
 exposed = "0.61.0"
 hikaricp = "6.3.0"
@@ -83,6 +84,7 @@ ktor-server-autoHeadResponse = { module = "io.ktor:ktor-server-auto-head-respons
 ktor-server-defaultHeaders = { module = "io.ktor:ktor-server-default-headers", version.ref = "ktor" }
 ktor-server-engine-cio = { module = "io.ktor:ktor-server-cio-jvm", version.ref = "ktor" }
 ktor-server-metrics-micrometer = { module = "io.ktor:ktor-server-metrics-micrometer", version.ref = "ktor" }
+ktor-server-simpleCache = { module = "com.ucasoft.ktor:ktor-simple-cache", version.ref = "ktor-simple-cache" }
 micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus", version.ref = "prometheus" }
 
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
