@@ -20,8 +20,8 @@ object SeriesToCategoryTable : Table("series_to_category") {
             name ="fk_pohnbmdv8sdfh8sdfh8sdf",
         )
         foreignKey(
-            server to SeriesCategoryTable.server,
-            categoryId to SeriesCategoryTable.externalCategoryId,
+            server to CategoryTable.server,
+            categoryId to CategoryTable.externalCategoryId,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_sfdoijgj8sdfh8sdfh8sdf",

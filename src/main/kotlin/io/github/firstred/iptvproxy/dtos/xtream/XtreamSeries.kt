@@ -13,6 +13,7 @@ data class XtreamSeries(
     val name: String,
     @SerialName("series_id") val seriesId: Long,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.series,
+    @SerialName("type_name") val typeName: IptvChannelType = IptvChannelType.series,
     @EncodeDefault(EncodeDefault.Mode.NEVER) val server: String? = null,
     val cover: String,
     val plot: String,

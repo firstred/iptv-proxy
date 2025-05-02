@@ -12,6 +12,7 @@ data class XtreamMovie(
     val num: Long,
     val name: String,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.movie,
+    @SerialName("type_name") val typeName: IptvChannelType = IptvChannelType.movie,
     @SerialName("stream_id") val streamId: Long,
     @SerialName("stream_icon") val streamIcon: String,
     @EncodeDefault(EncodeDefault.Mode.NEVER) val server: String? = null,

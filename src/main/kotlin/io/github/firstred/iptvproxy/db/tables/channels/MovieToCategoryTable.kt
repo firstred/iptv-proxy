@@ -20,7 +20,7 @@ object MovieToCategoryTable : Table("movie_to_category") {
             name = "fk_lkdasjf8sdfh8sdfh8sdf",
         )
         foreignKey(
-            categoryId to MovieCategoryTable.id,
+            categoryId to CategoryTable.id,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_lakdsjhf8sdfh8sdfh8sdf",

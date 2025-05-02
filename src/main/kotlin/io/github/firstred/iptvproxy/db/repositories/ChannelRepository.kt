@@ -2,17 +2,20 @@ package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
+import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
@@ -23,6 +26,8 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
+import kotlin.collections.associateBy
+import kotlin.text.toLong
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
@@ -90,7 +95,6 @@ class ChannelRepository : KoinComponent {
         }
     }
 
-
     fun forEachIptvChannelChunk(
         server: String? = null,
         sortedByName: Boolean = config.sortChannelsByName,
@@ -118,28 +122,13 @@ class ChannelRepository : KoinComponent {
             offset += chunkSize
         } while (channels.isNotEmpty())
     }
-    fun forEachIptvChannelIdChunk(
-        chunkSize: Int = config.database.chunkSize,
-        action: (List<Pair<Long, Long?>>) -> Unit, // id, streamId, externalStreamId
-    ) {
-        var offset = 0L
 
-        do {
-            val idQuery = IptvChannelTable.select(IptvChannelTable.id, IptvChannelTable.externalStreamId)
-            idQuery
-                .limit(chunkSize)
-                .offset(offset)
-            val ids = transaction {
-                idQuery.map {
-                    Pair(it[IptvChannelTable.id].value, it[IptvChannelTable.externalStreamId]?.toLong())
-                }
-            }
-
-            if (ids.isEmpty()) break
-
-            action(ids)
-            offset += chunkSize
-        } while (ids.isNotEmpty())
+    fun findInternalIdsByExternalIds(externalIds: List<Long>, server: String) = transaction {
+        IptvChannelTable
+            .select(IptvChannelTable.externalStreamId, IptvChannelTable.id)
+            .where { IptvChannelTable.externalStreamId inList externalIds.map { it.toString() } }
+            .andWhere { IptvChannelTable.server eq server }
+            .associateBy({ it[IptvChannelTable.externalStreamId].toLong() }, { it[IptvChannelTable.id].value })
     }
 
     fun getIptvChannelCount(): Long = transaction {

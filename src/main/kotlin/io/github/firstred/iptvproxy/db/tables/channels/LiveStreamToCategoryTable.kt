@@ -20,7 +20,7 @@ object LiveStreamToCategoryTable : Table("live_stream_to_category") {
             name = "fk_dfopijds98f8sdfh8sdf",
         )
         foreignKey(
-            categoryId to LiveStreamCategoryTable.id,
+            categoryId to CategoryTable.id,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_sdaoifuasd98f8sdfh8sdf",

@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.utils.ktor
+package io.github.firstred.iptvproxy.plugins.ktor.server
 
 import com.ucasoft.ktor.simpleCache.SimpleCacheConfig
 import com.ucasoft.ktor.simpleCache.SimpleCacheProvider
@@ -22,16 +22,15 @@ class SimpleExpiringMemoryCacheProvider(config: Config) : SimpleCacheProvider(co
         }
     }
 
-
     override suspend fun setCache(key: String, content: Any, invalidateAt: Duration?) {
-        cache[key] = SimpleExpiringMemoryCacheObject(content, invalidateAt ?: this.invalidateAt)
+        if (invalidateAt == null || invalidateAt.inWholeMilliseconds <= 0) return
 
-        invalidateAt?.let {
-            timers[key] = timer(initialDelay = it.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                cache.remove(key)
-                cancel()
-                timers.remove(key)
-            }
+        cache[key] = SimpleExpiringMemoryCacheObject(content, invalidateAt)
+
+        timers[key] = timer(initialDelay = invalidateAt.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+            cache.remove(key)
+            cancel()
+            timers.remove(key)
         }
     }
 

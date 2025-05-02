@@ -19,7 +19,7 @@ import io.github.firstred.iptvproxy.plugins.startLifecycleHooks
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.yaml
 import io.github.firstred.iptvproxy.utils.ktor.defaultCallLoggingFormat
-import io.github.firstred.iptvproxy.utils.ktor.expiringMemoryCache
+import io.github.firstred.iptvproxy.plugins.ktor.server.expiringMemoryCache
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -45,7 +45,6 @@ import java.net.PasswordAuthentication
 import java.net.URLEncoder
 import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
-import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 var argv = emptyArray<String>()
@@ -147,7 +146,7 @@ private fun startServer() {
                 install(ContentNegotiation) { json(json) }
                 install(SimpleCache) {
                     expiringMemoryCache {
-                        invalidateAt = 0.seconds
+                        invalidateAt = 10.seconds
                     }
                 }
 

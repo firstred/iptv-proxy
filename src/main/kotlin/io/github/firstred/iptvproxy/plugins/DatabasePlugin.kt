@@ -6,13 +6,11 @@ import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.AppDataTable
 import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
-import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamCategoryTable
+import io.github.firstred.iptvproxy.db.tables.channels.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamToCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.MovieCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
 import io.github.firstred.iptvproxy.db.tables.channels.MovieToCategoryTable
-import io.github.firstred.iptvproxy.db.tables.channels.SeriesCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.channels.SeriesToCategoryTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
@@ -77,13 +75,11 @@ val dataSource = HikariDataSource(HikariConfig().apply {
 })
 
 private val allDbTables = arrayOf(
-    LiveStreamCategoryTable,
+    CategoryTable,
     LiveStreamTable,
     LiveStreamToCategoryTable,
-    MovieCategoryTable,
     MovieTable,
     MovieToCategoryTable,
-    SeriesCategoryTable,
     SeriesTable,
     SeriesToCategoryTable,
     EpgChannelDisplayNameTable,

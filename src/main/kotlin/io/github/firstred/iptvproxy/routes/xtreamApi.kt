@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.routes
 
+import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
 import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
@@ -8,14 +10,13 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStreamCategory
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
 import io.github.firstred.iptvproxy.entities.IptvUser
+import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.plugins.findUserFromXtreamAccountInRoutingContext
@@ -23,24 +24,44 @@ import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
+import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
+import io.ktor.client.call.body
+import io.ktor.client.request.accept
+import io.ktor.client.request.request
+import io.ktor.client.request.url
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.sentry.Sentry
 import kotlinx.datetime.Clock
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import org.koin.ktor.ext.inject
 import org.koin.mp.KoinPlatform.getKoin
+import org.slf4j.LoggerFactory
 import java.io.Writer
 import java.net.URI
+import java.net.URISyntaxException
 import kotlin.time.Duration
+
+val LOG = LoggerFactory.getLogger("xtreamApi")
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
+    val channelRepository: ChannelRepository by inject()
     val epgRepository: EpgRepository by inject()
     val xtreamRepository: XtreamRepository by inject()
     val serversByName: IptvServersByName by inject()
@@ -172,7 +193,127 @@ fun Route.xtreamApi() {
             }
 
             listOf("get_vod_info", "get_movie_info", "get_movies_info").contains(call.request.queryParameters["action"]) -> {
-                call.respondText("[]]", ContentType.Application.Json, HttpStatusCode.OK)
+                val internalVodId = call.request.queryParameters["vod_id"]?.toLongOrNull()
+                if (null == internalVodId || internalVodId <= 0L) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"A valid Movie ID is required\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+
+                // Find server
+                val channel = channelRepository.getChannelById(internalVodId)
+                val vodId = channel?.externalStreamId?.toLongOrNull() ?: 0L
+                if (null == channel || vodId <= 0L) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"Series not found\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+
+                channel.server.let { iptvServer ->
+                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
+                        val account =
+                            iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
+                        val targetUrl = account?.getXtreamMoviesInfoUrl()
+                        if (null == targetUrl) return@withConnection
+
+                        try {
+                            val response = connection.httpClient.request {
+                                url("$targetUrl&vod_id=$vodId")
+                                method = HttpMethod.Get
+                                headers {
+                                    accept(ContentType.Application.Json)
+                                    forwardProxyUser(iptvServer.config)
+                                    sendUserAgent(iptvServer.config)
+                                }
+                            }
+                            val responseContent: String = response.body()
+                            releaseConnectionEarly()
+
+                            val responseElement: JsonElement = json.parseToJsonElement(responseContent)
+
+                            // First gather all external stream IDs from the response so they can be mapped in one go
+                            val foundMovieStreamIds = mutableListOf<Long>()
+
+                            responseElement.jsonObject.entries.forEach {
+                                if (it.key == "movie_data") {
+                                    it.value.jsonObject.entries.forEach { (key, value) ->
+                                        if (key == "stream_id") foundMovieStreamIds.add(value.jsonPrimitive.longOrNull ?: 0L)
+                                    }
+                                }
+                            }
+
+                            val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundMovieStreamIds, iptvServer.name)
+
+                            try {
+                                call.respond(buildJsonObject {
+                                    for ((key, value) in responseElement.jsonObject.entries) {
+                                        when (key) {
+                                            "info" -> {
+                                                put(key, buildJsonObject {
+                                                    value.jsonObject.entries.forEach { (infoKey, infoValue) ->
+                                                        put(infoKey, when (infoKey) {
+                                                            "kinopoisk_url", "cover_big", "movie_image" -> JsonPrimitive(
+                                                                infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                    baseUrl,
+                                                                    encryptedAccount
+                                                                )
+                                                            )
+
+                                                            "backdrop_path" -> buildJsonArray {
+                                                                infoValue.jsonArray.forEach { backdrop ->
+                                                                    add(
+                                                                        JsonPrimitive(
+                                                                            backdrop.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                                baseUrl,
+                                                                                encryptedAccount
+                                                                            )
+                                                                        )
+                                                                    )
+                                                                }
+                                                            }
+
+                                                            else -> infoValue
+                                                        })
+                                                    }
+                                                })
+                                            }
+
+                                            "movie_data" -> {
+                                                put(key, buildJsonObject {
+                                                    value.jsonObject.entries.forEach { (movieKey, movieValue) ->
+                                                        put(movieKey, when (movieKey) {
+                                                            "stream_id" -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.longOrNull ?: 0L])
+                                                            "cover"     -> JsonPrimitive(movieValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(baseUrl, encryptedAccount))
+                                                            else        -> movieValue
+                                                        })
+                                                    }
+                                                })
+                                            }
+
+                                            else -> put(key, value)
+                                        }
+                                    }
+                                })
+                            } catch (_: IllegalArgumentException) {
+                                call.respond(responseElement)
+                            }
+                        } catch (_: URISyntaxException) {
+                        }
+                    }
+                }
+
+                call.respondText(
+                    "{\"success\": false, \"error\": \"An unknown error occurred\"}",
+                    ContentType.Application.Json,
+                    HttpStatusCode.InternalServerError,
+                )
+                return@get
             }
 
             call.request.queryParameters["action"] == "get_series" -> {
@@ -210,7 +351,206 @@ fun Route.xtreamApi() {
             }
 
             call.request.queryParameters["action"] == "get_series_info" -> {
-                call.respondText("[]]", ContentType.Application.Json, HttpStatusCode.OK)
+                val seriesId = call.request.queryParameters["series"]?.toLongOrNull()
+                    ?: call.request.queryParameters["series_id"]?.toLongOrNull()
+                if (null == seriesId || seriesId <= 0L) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"A valid Series ID is required\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+
+                // Find server
+                val serverName = xtreamRepository.findServerBySeriesId(seriesId)
+                if (serverName.isNullOrBlank()) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"Series not found\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+
+                serversByName[serverName]?.let { iptvServer ->
+                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
+                        val account =
+                            iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
+                        val targetUrl = account?.getXtreamSeriesInfoUrl()
+                        if (null == targetUrl) return@withConnection
+
+                        try {
+                            val response = connection.httpClient.request {
+                                url("$targetUrl&series_id=$seriesId")
+                                method = HttpMethod.Get
+                                headers {
+                                    forwardProxyUser(iptvServer.config)
+                                    sendUserAgent(iptvServer.config)
+                                }
+                            }
+                            val responseContent: String = response.body()
+                            releaseConnectionEarly()
+
+                            val responseElement: JsonElement = json.parseToJsonElement(responseContent)
+
+                            // First gather all external stream IDs from the response so they can be mapped in one go
+                            val foundEpisodeStreamIds = mutableListOf<Long>()
+
+                            responseElement.jsonObject.entries.forEach {
+                                if (it.key == "episodes") {
+                                    it.value.jsonObject.entries.forEach { season ->
+                                        season.value.jsonArray.forEach { episode ->
+                                            foundEpisodeStreamIds.add(episode.jsonObject["id"]?.jsonPrimitive?.longOrNull ?: 0L)
+                                        }
+                                    }
+                                }
+                            }
+
+                            val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName)
+
+                            // Rewrite images and remap external IDs to internal IDs, keeping the old JSON structure intact
+                            call.respond(buildJsonObject {
+                                for ((key, value) in responseElement.jsonObject.entries) {
+                                    when (key) {
+                                        "seasons" -> {
+                                            put(key, buildJsonArray {
+                                                value.jsonArray.forEach { season ->
+                                                    try {
+                                                        add(buildJsonObject {
+                                                            for ((seasonsKey, seasonsValue) in season.jsonObject.entries) {
+                                                                when (seasonsKey) {
+                                                                    "overview", "cover", "cover_tmdb", "cover_big" -> put(
+                                                                        seasonsKey,
+                                                                        JsonPrimitive(
+                                                                            seasonsValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                                baseUrl,
+                                                                                encryptedAccount
+                                                                            )
+                                                                        )
+                                                                    )
+
+                                                                    else -> put(seasonsKey, seasonsValue)
+                                                                }
+                                                            }
+                                                        })
+                                                    } catch (e: IllegalArgumentException) {
+                                                        Sentry.captureException(e)
+                                                        add(season)
+                                                    }
+                                                }
+                                            })
+                                        }
+
+                                        "info" -> {
+                                            put(key, buildJsonObject {
+                                                for ((infoKey, infoValue) in value.jsonObject.entries) {
+                                                    when (infoKey) {
+                                                        "cover" -> put(
+                                                            infoKey,
+                                                            JsonPrimitive(
+                                                                infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                    baseUrl,
+                                                                    encryptedAccount
+                                                                )
+                                                            )
+                                                        )
+
+                                                        "backdrop_path" -> {
+                                                            put(
+                                                                infoKey,
+                                                                buildJsonArray {
+                                                                    infoValue.jsonArray.forEach { backdrop ->
+                                                                        add(
+                                                                            JsonPrimitive(
+                                                                                backdrop.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                                    baseUrl,
+                                                                                    encryptedAccount
+                                                                                )
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                })
+                                                        }
+
+                                                        else -> put(infoKey, infoValue)
+                                                    }
+                                                }
+                                            })
+                                        }
+
+                                        "episodes" -> {
+                                            put(key, buildJsonObject {
+                                                value.jsonObject.entries.forEach { (seasonNumber, season) ->
+                                                    try {
+                                                        put(seasonNumber, buildJsonArray {
+                                                            for (episode in season.jsonArray) {
+                                                                add(buildJsonObject {
+                                                                    for ((episodeKey, episodeValue) in episode.jsonObject.entries) {
+                                                                        when (episodeKey) {
+                                                                            "id" -> put(
+                                                                                episodeKey,
+                                                                                JsonPrimitive(streamIdMapping[episodeValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: ""),
+                                                                            )
+
+                                                                            "info" -> {
+                                                                                try {
+                                                                                    put("info", buildJsonObject {
+                                                                                        for ((infoKey, infoValue) in episodeValue.jsonObject.entries) {
+                                                                                            when (infoKey) {
+                                                                                                "movie_image" -> put(
+                                                                                                    infoKey,
+                                                                                                    JsonPrimitive(
+                                                                                                        infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
+                                                                                                            baseUrl,
+                                                                                                            encryptedAccount
+                                                                                                        )
+                                                                                                    )
+                                                                                                )
+
+                                                                                                else -> put(
+                                                                                                    infoKey,
+                                                                                                    infoValue
+                                                                                                )
+                                                                                            }
+                                                                                        }
+                                                                                    })
+                                                                                } catch (e: IllegalArgumentException) {
+                                                                                    Sentry.captureException(e)
+                                                                                    put("info", episode)
+                                                                                }
+                                                                            }
+
+                                                                            else -> put(episodeKey, episodeValue)
+                                                                        }
+                                                                    }
+                                                                })
+                                                            }
+                                                        })
+                                                    } catch (e: IllegalArgumentException) {
+                                                        Sentry.captureException(e)
+                                                        put(seasonNumber, season)
+                                                    }
+                                                }
+                                            })
+                                        }
+
+                                        else -> put(key, value)
+                                    }
+                                }
+                            })
+                        } catch (e: URISyntaxException) {
+                            Sentry.captureException(e)
+                        }
+                    }
+                }
+
+                call.respondText(
+                    "{\"success\": false, \"error\": \"An unknown error occurred\"}",
+                    ContentType.Application.Json,
+                    HttpStatusCode.InternalServerError,
+                )
+                return@get
             }
 
             // Get EPG
@@ -269,10 +609,6 @@ fun Route.xtreamApi() {
                             write("\"movies\": ")
                             writeMovieCategories()
                             flush()
-                            write(",")
-                            write("\"series\": ")
-                            writeSeriesCategories()
-                            flush()
                         write("},")
                         write("\"available_channels\": {")
                             var first = true
@@ -280,7 +616,7 @@ fun Route.xtreamApi() {
                                 list.forEachIndexed { idx, it ->
                                     if (!first) write(",")
                                     else first = false
-                                    write("\"${it.categoryId}\": ")
+                                    write("\"${it.streamId}\": ")
                                     write(json.encodeToString(XtreamLiveStream.serializer(), it.copy(
                                         streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
                                         else it.streamIcon,
@@ -295,27 +631,10 @@ fun Route.xtreamApi() {
                                 list.forEachIndexed { idx, it ->
                                     if (!first) write(",")
                                     else first = false
-                                    write("\"${it.categoryId}\": ")
+                                    write("\"${it.streamId}\": ")
                                     write(json.encodeToString(XtreamMovie.serializer(), it.copy(
                                         streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
                                         else it.streamIcon,
-                                        server = null,
-                                    )))
-                                    flush()
-                                }
-                            }
-                            write(",")
-                            first = true
-                            xtreamRepository.forEachSeriesChunk { list ->
-                                list.forEachIndexed { idx, it ->
-                                    if (!first) write(",")
-                                    else first = false
-                                    write("\"${it.categoryId}\": ")
-                                    write(json.encodeToString(XtreamSeries.serializer(), it.copy(
-                                        cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                        else it.cover,
-                                        backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath?.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
-                                        else it.backdropPath,
                                         server = null,
                                     )))
                                     flush()
@@ -364,12 +683,12 @@ private fun Writer.writeSeriesCategories() {
 
     write("[")
     var first = true
-    xtreamRepository.forEachSeriesCategoryChunk { list ->
+    xtreamRepository.forEachCategoryChunk(type = IptvChannelType.series) { list ->
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
 
-            write(json.encodeToString(XtreamSeriesCategory.serializer(), it))
+            write(json.encodeToString(XtreamCategory.serializer(), it))
             flush()
         }
     }
@@ -382,12 +701,12 @@ private fun Writer.writeMovieCategories() {
 
     write("[")
     var first = true
-    xtreamRepository.forEachMovieCategoryChunk { list ->
+    xtreamRepository.forEachCategoryChunk(type = IptvChannelType.movie) { list ->
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
 
-            write(json.encodeToString(XtreamMovieCategory.serializer(), it))
+            write(json.encodeToString(XtreamCategory.serializer(), it))
             flush()
         }
     }
@@ -400,12 +719,12 @@ private fun Writer.writeLiveCategories() {
 
     write("[")
     var first = true
-    xtreamRepository.forEachLiveStreamCategoryChunk { list ->
+    xtreamRepository.forEachCategoryChunk(type = IptvChannelType.live) { list ->
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
 
-            write(json.encodeToString(XtreamLiveStreamCategory.serializer(), it))
+            write(json.encodeToString(XtreamCategory.serializer(), it))
             flush()
         }
     }

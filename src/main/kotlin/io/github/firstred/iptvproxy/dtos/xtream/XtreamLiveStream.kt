@@ -12,6 +12,7 @@ data class XtreamLiveStream constructor(
     val num: Long,
     val name: String,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.live,
+    @SerialName("type_name") val typeName: IptvChannelType = IptvChannelType.live,
     @SerialName("stream_id") val streamId: Long,
     @SerialName("stream_icon") val streamIcon: String? = null,
     @SerialName("epg_channel_id") val epgChannelId: String? = null,

@@ -94,6 +94,16 @@ data class IptvServerAccountConfig(
         }
         return null
     }
+    fun getXtreamMoviesInfoUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_vod_info")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
     fun getXtreamSeriesCategoriesUrl(): URI? {
         if (!isXtream() || null == url) return null
 
@@ -110,6 +120,16 @@ data class IptvServerAccountConfig(
         try {
             val uri = URI(url)
             return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_series")
+        } catch (_: URISyntaxException) {
+        }
+        return null
+    }
+    fun getXtreamSeriesInfoUrl(): URI? {
+        if (!isXtream() || null == url) return null
+
+        try {
+            val uri = URI(url)
+            return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/player_api.php?username=$xtreamUsername&password=$xtreamPassword&action=get_series_info")
         } catch (_: URISyntaxException) {
         }
         return null

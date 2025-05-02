@@ -13,6 +13,7 @@ val json = Json {
     ignoreUnknownKeys = true
     isLenient = true
     encodeDefaults = true
+    coerceInputValues = true
     explicitNulls = false
     useArrayPolymorphism = true
 }

@@ -44,7 +44,6 @@ data class IptvProxyConfig(
 
     val cacheDirectory: String? = System.getProperty("java.io.tmpdir"),
 
-
     val compressResponses: Boolean = true,
 
     val cors: IptvProxyCorsConfig = IptvProxyCorsConfig(),

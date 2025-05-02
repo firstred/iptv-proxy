@@ -187,7 +187,7 @@ create table if not exists live_stream
 create unique index if not exists unq_uiuoio8sdfh8sdfh8sdf
     on live_stream (server, external_stream_id);
 
-create table if not exists live_stream_category
+create table if not exists category
 (
     id                   BIGINT
         primary key auto_increment,
@@ -195,11 +195,12 @@ create table if not exists live_stream_category
     external_category_id BIGINT                                         not null,
     category_name        TEXT                                           not null,
     parent_id            VARCHAR(255) default '0'                       not null,
+    type                 VARCHAR(255)                                   not null,
     created_at           TEXT         default '2025-05-01 12:10:55.183' not null,
     updated_at           TEXT         default '2025-05-01 12:10:55.183' not null
 );
 create unique index if not exists unq_jhyyty8sdfh8sdfh8sdf
-    on live_stream_category (server, external_category_id);
+    on category (server, external_category_id);
 
 create table if not exists live_stream_to_category
 (
@@ -211,7 +212,7 @@ create table if not exists live_stream_to_category
 );
 alter table live_stream_to_category
     add constraint fk_sdaoifuasd98f8sdfh8sdf
-        foreign key if not exists (server, category_id) references live_stream_category (server, external_category_id)
+        foreign key if not exists (server, category_id) references category (server, external_category_id)
             on update cascade on delete cascade;
 
 create table if not exists movie
@@ -240,25 +241,6 @@ create table if not exists movie
 create unique index if not exists unq_oidfhjasdufiisdfh8sdf
     on movie (server, external_stream_id);
 
-create table if not exists movie_category
-(
-    id                   BIGINT
-        primary key auto_increment,
-    server               VARCHAR(255)                                   not null,
-    external_category_id BIGINT                                         not null,
-    category_name        TEXT                                           not null,
-    parent_id            VARCHAR(255) default '0'                       not null,
-    created_at           TEXT         default '2025-05-01 12:10:55.186' not null,
-    updated_at           TEXT         default '2025-05-01 12:10:55.186' not null
-);
-alter table movie_category
-    add constraint fk_qasdvbnasbpo8sdfasdf
-        foreign key if not exists (server) references movie (server)
-            on update cascade on delete cascade;
-
-create unique index if not exists unq_lkjohsdf8sdfh8sdfh8sdf
-    on movie_category (server, external_category_id);
-
 create table if not exists movie_to_category
 (
     server      VARCHAR(255) not null,
@@ -269,7 +251,7 @@ create table if not exists movie_to_category
 );
 alter table movie_to_category
     add constraint fk_lakdsjhf8sdfh8sdfh8sdf
-        foreign key if not exists (server, category_id) references movie_category (server, external_category_id)
+        foreign key if not exists (server, category_id) references category (server, external_category_id)
             on update cascade on delete cascade;
 
 create table if not exists playlist_source
@@ -307,21 +289,6 @@ create table if not exists series
         primary key (server, num)
 );
 
-create table if not exists series_category
-(
-    id                   BIGINT
-        primary key auto_increment,
-    server               VARCHAR(255)                                   not null,
-    external_category_id BIGINT                                         not null,
-    category_name        TEXT                                           not null,
-    parent_id            VARCHAR(255) default '0'                       not null,
-    created_at           TEXT         default '2025-05-01 12:10:55.187' not null,
-    updated_at           TEXT         default '2025-05-01 12:10:55.187' not null
-);
-
-create unique index if not exists unq_oliksdjf8sdfh8sdfh8sdf
-    on series_category (server, external_category_id);
-
 create table if not exists series_to_category
 (
     server      VARCHAR(255) not null,
@@ -336,7 +303,7 @@ alter table series_to_category
             on update cascade on delete cascade;
 alter table series_to_category
     add constraint fk_sfdoijgj8sdfh8sdfh8sdf
-        foreign key if not exists (server, category_id) references series_category (server, external_category_id)
+        foreign key if not exists (server, category_id) references category (server, external_category_id)
             on update cascade on delete cascade;
 
 create table if not exists xmltv_source

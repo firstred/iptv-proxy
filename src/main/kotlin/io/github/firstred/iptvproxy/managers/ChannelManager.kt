@@ -11,11 +11,9 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStreamCategory
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesCategory
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
@@ -179,7 +177,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                     // Update xtream info
                     // Load live streams
-                    lateinit var liveStreamCategories: List<XtreamLiveStreamCategory>
+                    lateinit var liveStreamCategories: List<XtreamCategory>
                     lateinit var liveStreams: List<XtreamLiveStream>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -210,7 +208,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     xtreamRepository.upsertLiveStreamsAndCategories(liveStreams, liveStreamCategories, server.name)
 
                     // Load movies
-                    lateinit var movieCategories: List<XtreamMovieCategory>
+                    lateinit var movieCategories: List<XtreamCategory>
                     lateinit var movies: List<XtreamMovie>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -221,7 +219,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }
-                        }.body<List<XtreamMovieCategory>>()
+                        }.body<List<XtreamCategory>>()
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -237,7 +235,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     xtreamRepository.upsertMoviesAndCategories(movies, movieCategories, server.name)
 
                     // Load tv series
-                    lateinit var seriesCategories: List<XtreamSeriesCategory>
+                    lateinit var seriesCategories: List<XtreamCategory>
                     lateinit var series: List<XtreamSeries>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -248,7 +246,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 forwardProxyUser(serverConnection.config)
                                 sendUserAgent(serverConnection.config)
                             }
-                        }.body<List<XtreamSeriesCategory>>()
+                        }.body<List<XtreamCategory>>()
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
