@@ -154,22 +154,6 @@ fun OkHttpConfig.configureProxyConnection() {
 
 // OkHttp is the engine used for HTTP Client - this is the default configuration
 fun HttpClientConfig<OkHttpConfig>.defaults() {
-    defaultRequest {
-        // Handle proxy authentication part of the configuration
-        config.httpProxy?.let {
-            var (_, _, _, username, password) = config.getActualHttpProxyConfiguration()!!
-
-            // No authentication required -- continue
-            if (username.isNullOrBlank() && password.isNullOrBlank()) return@let
-
-            // Ensure proper formatting of username and password
-            if (username.isNullOrBlank()) username = ""
-            if (password.isNullOrBlank()) password = ""
-
-            val credentials = Base64.getEncoder().encodeToString("$username:$password".toByteArray(UTF_8))
-            header(HttpHeaders.ProxyAuthorization, "Basic $credentials")
-        }
-    }
     install(Logging) {
         logger = Logger.DEFAULT  // Default logger for JVM
         level = LogLevel.HEADERS // Log headers only

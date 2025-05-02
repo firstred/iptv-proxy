@@ -7,6 +7,7 @@ import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
+import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
 import java.net.URI
 import java.util.*
 import kotlin.text.Charsets.UTF_8
@@ -59,6 +60,7 @@ fun HeadersBuilder.addDefaultClientHeaders(serverConfig: IptvFlatServerConfig) {
     forwardProxyUser(serverConfig)
     sendUserAgent(serverConfig)
     sendBasicAuth(serverConfig.account)
+    addProxyAuthorizationHeaderIfNecessary()
 }
 
 fun HeadersBuilder.forwardProxyUser(serverConfig: IIptvServerConfigWithoutAccounts) {
@@ -84,6 +86,25 @@ fun HeadersBuilder.sendBasicAuth(accountConfig: IptvServerAccountConfig) {
 
         remove(HttpHeaders.Authorization)
         append(HttpHeaders.Authorization, "Basic ${Base64.getEncoder().encodeToString("$login:$password".toByteArray(UTF_8))}")
+    }
+}
+
+fun HeadersBuilder.addProxyAuthorizationHeaderIfNecessary() {
+    // Handle proxy authentication part of the configuration
+    config.httpProxy?.let {
+        var (_, _, _, username, password) = config.getActualHttpProxyConfiguration()!!
+
+        // No authentication required -- continue
+        if (username.isNullOrBlank() && password.isNullOrBlank()) return@let
+
+        // Ensure proper formatting of username and password
+        if (username.isNullOrBlank()) username = ""
+        if (password.isNullOrBlank()) password = ""
+
+        append(
+            HttpHeaders.ProxyAuthorization,
+            "Basic ${Base64.getEncoder().encodeToString("$username:$password".toByteArray(UTF_8))}",
+        )
     }
 }
 
