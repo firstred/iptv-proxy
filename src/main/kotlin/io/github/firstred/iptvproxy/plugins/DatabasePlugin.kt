@@ -36,6 +36,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Transaction
 import org.jetbrains.exposed.sql.statements.StatementType
@@ -114,8 +115,12 @@ private fun Transaction.enableForeignKeyChecks() {
             exec(/** language=PostgreSQL */ "SET CONSTRAINTS ALL IMMEDIATE", explicitStatementType = StatementType.OTHER)
         }
 
-        Regex("""^jdbc:(mysql|mariadb)""") matches config.database.jdbcUrl  -> {
+        config.database.jdbcUrl.startsWith("jdbc:mysql") -> {
             exec(/** language=MySQL */ "SET FOREIGN_KEY_CHECKS = 1", explicitStatementType = StatementType.OTHER)
+        }
+
+        config.database.jdbcUrl.startsWith("jdbc:mariadb") -> {
+            exec(/** language=MariaDB */ "SET FOREIGN_KEY_CHECKS = 1", explicitStatementType = StatementType.OTHER)
         }
 
         else -> {
@@ -134,8 +139,12 @@ private fun Transaction.disableForeignKeyChecks() {
             exec(/** language=PostgreSQL */ "SET CONSTRAINTS ALL DEFERRED", explicitStatementType = StatementType.OTHER)
         }
 
-        Regex("""^jdbc:(mysql|mariadb)""") matches config.database.jdbcUrl -> {
+        config.database.jdbcUrl.startsWith("jdbc:mysql") -> {
             exec(/** language=MySQL */ "SET FOREIGN_KEY_CHECKS = 0", explicitStatementType = StatementType.OTHER)
+        }
+
+        config.database.jdbcUrl.startsWith("jdbc:mariadb") -> {
+            exec(/** language=MariaDB */ "SET FOREIGN_KEY_CHECKS = 0", explicitStatementType = StatementType.OTHER)
         }
 
         else -> {
@@ -211,13 +220,20 @@ private fun checkAndRunDestructiveMigrations() {
 
 @Suppress("UnusedReceiverParameter")
 fun Application.configureDatabase() {
-    Database.connect(dataSource)
-
-    checkAndRunDestructiveMigrations()
-
-    transaction {
-        MigrationUtils.statementsRequiredForDatabaseMigration(*allDbTables).forEach { exec(it) }
+    val databaseSystem = when {
+        config.database.jdbcUrl.startsWith("jdbc:sqlite") -> "sqlite"
+        // TODO: support postgresql
+        config.database.jdbcUrl.startsWith("jdbc:mysql") -> "mysql"
+        config.database.jdbcUrl.startsWith("jdbc:mariadb") -> "mariadb"
+        else -> throw IllegalArgumentException("Unsupported database type")
     }
+
+    Flyway.configure()
+        .locations("classpath:db/migrations/$databaseSystem")
+        .dataSource(dataSource)
+        .load().migrate()
+
+    Database.connect(dataSource)
 
     transaction {
         AppDataTable.upsert {

@@ -9,10 +9,10 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object IptvChannelTable : LongIdTable("iptv_channel") {
     // id = streamId
-    val epgChannelId: Column<String> = varchar("epg_channel_id", 511)
+    val epgChannelId: Column<String> = varchar("epg_channel_id", 255)
     val url: Column<String> = text("url")
-    val externalStreamId: Column<String> = varchar("external_stream_id", 511)
-    val server: Column<String> = varchar("server", 511)
+    val externalStreamId: Column<String> = varchar("external_stream_id", 255)
+    val server: Column<String> = varchar("server", 255)
     val icon: Column<String?> = text("icon").nullable()
     val name: Column<String> = text("name")
     val mainGroup: Column<String?> = text("main_group").nullable()
@@ -23,7 +23,16 @@ object IptvChannelTable : LongIdTable("iptv_channel") {
     val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
 
     init {
-        uniqueIndex(server, url)
-        index(false, server, externalStreamId)
+        index(
+            customIndexName = "idx_kljsadfh08sdfh8sdfh8sdf",
+            isUnique = false,
+            server,
+            externalStreamId,
+        )
+        uniqueIndex(
+            customIndexName = "unq_hsdf7sadfh8sdfh8sdf",
+            server,
+            url,
+        )
     }
 }

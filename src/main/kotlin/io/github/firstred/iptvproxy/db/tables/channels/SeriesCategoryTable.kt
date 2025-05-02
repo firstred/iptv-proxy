@@ -8,14 +8,18 @@ import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object SeriesCategoryTable : LongIdTable("series_category") {
-    val server: Column<String> = varchar("server", 511)
+    val server: Column<String> = varchar("server", 255)
     val externalCategoryId: Column<Long> = long("external_category_id")
     val name: Column<String> = text("category_name")
-    val parentId: Column<String> = varchar("parent_id", 511).default("0")
+    val parentId: Column<String> = varchar("parent_id", 255).default("0")
     val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
     val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
 
     init {
-        uniqueIndex(server, externalCategoryId)
+        uniqueIndex(
+            customIndexName = "unq_oliksdjf8sdfh8sdfh8sdf",
+            server,
+            externalCategoryId,
+        )
     }
 }

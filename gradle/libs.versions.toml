@@ -20,6 +20,7 @@ database-sqlite = "3.49.1.0"
 database-mysql = "9.2.0"
 database-mariadb = "3.5.3"
 database-postgresql = "42.7.5"
+flyway = "11.8.0"
 
 slf4j = "2.0.16"
 logback = "1.5.18"
@@ -93,6 +94,7 @@ database-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "database-s
 database-mysql = { module = "com.mysql:mysql-connector-j", version.ref = "database-mysql" }
 database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "database-mariadb" }
 database-postgresql = { module = "org.postgresql:postgresql", version.ref = "database-postgresql" }
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }

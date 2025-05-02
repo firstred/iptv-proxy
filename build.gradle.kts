@@ -192,6 +192,7 @@ dependencies {
     implementation(libs.exposed.migration)
     implementation(libs.exposed.kotlin.datetime)
     implementation(libs.hikaricp)
+    implementation(libs.flyway.core)
 
     implementation(libs.database.sqlite)
     implementation(libs.database.mysql)

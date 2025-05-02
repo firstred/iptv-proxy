@@ -7,7 +7,7 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object XmltvSourceTable : Table("xmltv_source") {
-    val server: Column<String> = varchar("server", 511)
+    val server: Column<String> = varchar("server", 255)
     val generatorInfoName: Column<String?> = text("generator_info_name").nullable()
     val generatorInfoUrl: Column<String?> = text("generator_info_url").nullable()
     val sourceInfoUrl: Column<String?> = text("source_info_url").nullable()

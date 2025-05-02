@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammePreviouslyShownTable : Table("epg_programme_previously_shown") {
     val programmeId: Column<Long> = long("programme_id")
-    val server: Column<String> = varchar("server", 511)
+    val server: Column<String> = varchar("server", 255)
     val start: Column<Instant> = timestamp("start")
 
     override val primaryKey = PrimaryKey(arrayOf(programmeId, start))
@@ -17,7 +17,8 @@ object EpgProgrammePreviouslyShownTable : Table("epg_programme_previously_shown"
         foreignKey(
             programmeId to EpgProgrammeTable.id,
             onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE
+            onDelete = ReferenceOption.CASCADE,
+            name = "fk_9jdfe08sdfh8sdfh8sdf",
         )
     }
 }

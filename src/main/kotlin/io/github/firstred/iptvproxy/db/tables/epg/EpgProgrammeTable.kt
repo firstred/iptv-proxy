@@ -8,8 +8,8 @@ import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeTable : LongIdTable("epg_programme") {
-    val epgChannelId: Column<String> = varchar("epg_channel_id", 511)
-    val server: Column<String> = varchar("server", 511)
+    val epgChannelId: Column<String> = varchar("epg_channel_id", 255)
+    val server: Column<String> = varchar("server", 255)
     val title: Column<String> = text("title")
     val subtitle: Column<String> = text("subtitle")
     val description: Column<String> = text("description")
@@ -24,10 +24,12 @@ object EpgProgrammeTable : LongIdTable("epg_programme") {
             epgChannelId to EpgChannelTable.epgChannelId,
             server to EpgChannelTable.server,
             onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE
+            onDelete = ReferenceOption.CASCADE,
+            name = "fk_8jsdfh8sdf8h8sdfh8sdf",
         )
 
         uniqueIndex(
+            customIndexName = "unq_ftytsdf8sdfh8sdfh8sdf",
             epgChannelId,
             server,
             start,
