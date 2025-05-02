@@ -16,7 +16,6 @@ import io.ktor.client.plugins.cache.*
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
-import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.io.IOException
@@ -26,8 +25,6 @@ import org.koin.dsl.binds
 import org.koin.dsl.module
 import java.io.File
 import java.net.URI
-import java.util.*
-import kotlin.text.Charsets.UTF_8
 
 val httpClientModule = module {
     single { HttpCacheManager() } binds hooksOf(HttpCacheManager::class)
@@ -64,7 +61,7 @@ val httpClientModule = module {
             followRedirects = true
 
             if (config.clientHttpCache.enabled) install(HttpCache) {
-                publicStorage(ProxyFileStorage(File(config.getActualHttpCacheDirectory("images"))))
+                publicStorage(ProxyFileStorage(File(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
                 defaultRetryHandler {

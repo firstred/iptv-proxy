@@ -73,7 +73,7 @@ data class IptvProxyConfig(
         } ?: checkDir(getBaseCacheDirectory() + "/cache")
     }
 
-    fun getActualHttpCacheDirectory(subdir: String? = null): String {
+    fun getHttpCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
             checkDir(getBaseCacheDirectory() + "/http_cache")
 
@@ -81,12 +81,12 @@ data class IptvProxyConfig(
         } ?: checkDir(getBaseCacheDirectory() + "/http_cache")
     }
 
-    fun getActualDownloadDirectory(subdir: String? = null): String {
+    fun getLargeFileSinkDirectory(subdir: String? = null): String {
         return subdir?.let {
-            checkDir(getBaseCacheDirectory() + "/download")
+            checkDir(getBaseCacheDirectory() + "/http_sink")
 
-            checkDir(getBaseCacheDirectory() + "/download/$it")
-        } ?: checkDir(getBaseCacheDirectory() + "/download")
+            checkDir(getBaseCacheDirectory() + "/http_sink/$it")
+        } ?: checkDir(getBaseCacheDirectory() + "/http_sink")
     }
 
     fun getForwardedValues(forwardedHeadersContentList: List<String>?): ForwardedHeaderValues {
