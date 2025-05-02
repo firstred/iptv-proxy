@@ -2,13 +2,11 @@ package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
-import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.entities.IptvChannel
 import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
-import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -26,8 +24,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
-import kotlin.collections.associateBy
-import kotlin.text.toLong
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
