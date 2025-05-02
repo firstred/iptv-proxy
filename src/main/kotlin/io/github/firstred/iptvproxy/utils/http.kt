@@ -1,12 +1,10 @@
 package io.github.firstred.iptvproxy.utils
 
-import co.touchlab.stately.collections.ConcurrentMutableMap
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
-import kotlinx.coroutines.sync.Mutex
 import java.net.URI
 
 fun Headers.filterHttpRequestHeaders(
@@ -68,18 +66,3 @@ fun HeadersBuilder.sendUserAgent(serverConfig: IIptvServerConfigWithoutAccounts)
         append(HttpHeaders.UserAgent, userAgent)
     }
 }
-
-private val urlRequestLocks = ConcurrentMutableMap<String, Mutex>()
-
-suspend fun withRequestUrlPermit(
-    url: String,
-    action: suspend () -> Unit,
-) {
-    val lock = urlRequestLocks.getOrPut(url) { Mutex() }
-    try {
-        action()
-    } finally {
-        lock.unlock()
-    }
-}
-
