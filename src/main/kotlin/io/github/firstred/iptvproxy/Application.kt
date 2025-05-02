@@ -95,7 +95,7 @@ private fun startServer() {
     embeddedServer(
         CIO,
         serverConfig {
-            developmentMode = true
+            developmentMode = config.logLevel.uppercase() in listOf("DEBUG", "TRACE")
 
             module {
                 install(Koin) {
