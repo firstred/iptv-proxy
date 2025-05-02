@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.plugins
 
-import com.ucasoft.ktor.simpleCache.cacheOutput
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
@@ -34,7 +33,6 @@ import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
 import java.net.URI
 import java.net.URISyntaxException
-import kotlin.time.Duration.Companion.seconds
 
 private val LOG = LoggerFactory.getLogger("RoutingPlugin")
 
@@ -205,30 +203,28 @@ fun Route.proxyRemoteVod() {
 fun Route.proxyRemoteHlsStream() {
     val channelRepository: ChannelRepository by inject()
 
-    cacheOutput(invalidateAt = if (config.serverHttpCache.enabled) config.serverHttpCache.duration.videoChunk else 0.seconds) {
-        get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
-            if (isNotMainPort()) return@get
-            val user = findUserFromEncryptedAccountInRoutingContext()
-            val routingContext = this
+    get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<channelid>[^/]+)/(?<filename>[^.]+)\.(?<extension>.*)$""")) {
+        if (isNotMainPort()) return@get
+        val user = findUserFromEncryptedAccountInRoutingContext()
+        val routingContext = this
 
-            val channelId = (call.parameters["channelid"] ?: "").toLong()
-            if (channelId < 0) {
-                call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
-                return@get
-            }
-            val channel = channelRepository.getChannelById(channelId) ?: run {
-                call.respond(HttpStatusCode.NotFound, "Channel not found")
-                return@get
-            }
-
-            streamRemoteFile(
-                user,
-                channel,
-                routingContext,
-                (call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
-                    ?: throw IllegalArgumentException("Invalid remote URL"))
-            )
+        val channelId = (call.parameters["channelid"] ?: "").toLong()
+        if (channelId < 0) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
+            return@get
         }
+        val channel = channelRepository.getChannelById(channelId) ?: run {
+            call.respond(HttpStatusCode.NotFound, "Channel not found")
+            return@get
+        }
+
+        streamRemoteFile(
+            user,
+            channel,
+            routingContext,
+            (call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
+                ?: throw IllegalArgumentException("Invalid remote URL"))
+        )
     }
 }
 

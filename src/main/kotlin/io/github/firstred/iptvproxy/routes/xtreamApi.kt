@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.routes
 
-import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
@@ -8,9 +7,9 @@ import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
@@ -25,8 +24,9 @@ import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
+import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
-import io.ktor.client.call.body
+import io.ktor.client.call.*
 import io.ktor.client.request.accept
 import io.ktor.client.request.request
 import io.ktor.client.request.url
