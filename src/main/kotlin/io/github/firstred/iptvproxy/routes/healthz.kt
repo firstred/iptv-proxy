@@ -11,21 +11,21 @@ fun Route.healthcheck() {
     val health: HealthListener by inject()
 
     route("/healthz/") {
-            get("ready") {
-                if (isNotHealthcheckPort()) return@get
+        get("ready") {
+            if (isNotHealthcheckPort()) return@get
 
-                handleReady(health)
-            }
-            get("live") {
-                if (isNotHealthcheckPort()) return@get
+            handleReady(health)
+        }
+        get("live") {
+            if (isNotHealthcheckPort()) return@get
 
-                handleLive(health)
-            }
-            get {
-                if (isNotHealthcheckPort()) return@get
+            handleLive(health)
+        }
+        get {
+            if (isNotHealthcheckPort()) return@get
 
-                handleReady(health)
-            }
+            handleReady(health)
+        }
     }
 }
 
