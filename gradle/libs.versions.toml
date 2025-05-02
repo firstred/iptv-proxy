@@ -95,6 +95,8 @@ database-mysql = { module = "com.mysql:mysql-connector-j", version.ref = "databa
 database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "database-mariadb" }
 database-postgresql = { module = "org.postgresql:postgresql", version.ref = "database-postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-mysql = { module = "org.flywaydb:flyway-mysql", version.ref = "flyway" }
+flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }
