@@ -227,6 +227,9 @@ fun Route.xtreamApi() {
                         try {
                             var response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
                                 headers {
+                                    call.request.headers.filterHttpRequestHeaders(blacklistedHeaders = config.blacklistIptvClientHeaders + listOf("accept", "authorization")).entries().forEach {
+                                        (key, value) -> value.forEach { append(key, it) }
+                                    }
                                     accept(ContentType.Application.Json)
                                     forwardProxyUser(iptvServer.config)
                                     sendUserAgent(iptvServer.config)
@@ -302,10 +305,12 @@ fun Route.xtreamApi() {
                                         }
                                     }
                                 })
-                            } catch (_: IllegalArgumentException) {
+                            } catch (e: IllegalArgumentException) {
+                                Sentry.captureException(e)
                                 call.respond(responseElement)
                             }
-                        } catch (_: URISyntaxException) {
+                        } catch (e: URISyntaxException) {
+                            Sentry.captureException(e)
                         }
                     }
                 }

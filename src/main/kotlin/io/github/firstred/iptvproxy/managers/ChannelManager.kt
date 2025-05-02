@@ -35,6 +35,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
+import io.sentry.Sentry
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.koin.core.component.KoinComponent
@@ -154,7 +155,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         if (daysStr.isNotBlank()) {
                             try {
                                 days = daysStr.toInt()
-                            } catch (_: NumberFormatException) {
+                            } catch (e: NumberFormatException) {
+                                Sentry.captureException(e)
                                 LOG.warn("Error parsing catchup days: {}, channel: {}", daysStr, m3uChannel.name)
                             }
                         }

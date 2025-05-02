@@ -69,9 +69,11 @@ fun main(args: Array<String>) {
                     LOG.info("Loading config...")
                     config = loadConfig(File("config.yml"))
                 } catch (e: InvalidPropertyValueException) {
+                    Sentry.captureException(e)
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
                     exitProcess(1)
                 } catch (e: YamlException) {
+                    Sentry.captureException(e)
                     LOG.error("Error parsing config file: ${e.message}")
                     exitProcess(1)
                 }
@@ -86,6 +88,7 @@ fun main(args: Array<String>) {
         }
             .main(args)
     } catch (e: Exception) {
+        Sentry.captureException(e)
         LOG.error("fatal error", e)
         exitProcess(1)
     }
@@ -196,6 +199,7 @@ fun loadConfig(configFile: String): IptvProxyConfig {
             username?.let { System.setProperty("java.net.socks.username", it) }
             password?.let { System.setProperty("java.net.socks.password", it) }
         } catch (e: SecurityException) {
+            Sentry.captureException(e)
             LOG.warn("Error setting SOCKS proxy username and password: ${e.message}")
         }
     }

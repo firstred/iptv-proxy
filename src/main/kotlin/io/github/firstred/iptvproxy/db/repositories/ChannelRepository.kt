@@ -77,7 +77,7 @@ class ChannelRepository : KoinComponent {
                 .map {
                     IptvChannel(
                         id = it[IptvChannelTable.id].toString(),
-                        externalStreamId = it[IptvChannelTable.id].toString(),
+                        externalStreamId = it[IptvChannelTable.externalStreamId],
                         server = serversByName[it[IptvChannelTable.server]]!!,
                         name = it[IptvChannelTable.name],
                         url = URI(it[IptvChannelTable.url]),

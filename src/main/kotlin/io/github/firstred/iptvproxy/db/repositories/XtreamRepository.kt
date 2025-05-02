@@ -570,6 +570,27 @@ class XtreamRepository : KoinComponent {
             .firstOrNull()
     }
 
+    fun getCategoryIdToExternalIdMap(): Map<Long, Long> {
+        return transaction {
+            CategoryTable
+                .selectAll()
+                .associateBy(
+                    { it[CategoryTable.id].value },
+                    { it[CategoryTable.externalCategoryId] },
+                )
+        }
+    }
+    fun getExternalCategoryIdToIdMap(): Map<Long, Long> {
+        return transaction {
+            CategoryTable
+                .selectAll()
+                .associateBy(
+                    { it[CategoryTable.externalCategoryId] },
+                    { it[CategoryTable.id].value },
+                )
+        }
+    }
+
     fun cleanup() {
         transaction {
             LiveStreamTable.deleteWhere {
