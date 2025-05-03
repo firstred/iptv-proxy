@@ -5,8 +5,10 @@ import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
 import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
+import io.github.firstred.iptvproxy.dotenv
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
+import io.github.firstred.iptvproxy.dtos.xtream.EpgList
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
@@ -37,6 +39,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.sentry.Sentry
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
@@ -585,12 +588,53 @@ fun Route.xtreamApi() {
 
             // Get EPG
             call.request.queryParameters["action"] == "get_short_epg" -> {
-                call.respondText("Not implemented", ContentType.Text.Plain, HttpStatusCode.NotImplemented)
+                val channelId = call.request.queryParameters["stream_id"]?.toLongOrNull()
+                if (channelId == null || channelId <= 0L) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"A valid Channel ID is required\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+                val limit = (call.request.queryParameters["limit"]?.toIntOrNull() ?: 4).coerceIn(1, 100)
+
+                lateinit var programmes: List<XmltvProgramme>
+                try {
+                    programmes = epgRepository.getProgrammesForChannelId(channelId, limit)
+                } catch (e: Throwable) {
+                    Sentry.captureException(e)
+                    programmes = listOf()
+                }
+
+                call.respond(EpgList(programmes.map { it.toEpg().copy(streamId = channelId.toString()) }))
             }
 
             // EPG date table
-            call.request.queryParameters["action"] == "get_simple_date_table" -> {
-                call.respondText("Not implemented", ContentType.Text.Plain, HttpStatusCode.NotImplemented)
+            listOf("get_simple_date_table", "get_simple_data_table").contains(call.request.queryParameters["action"]) -> {
+                val channelId = call.request.queryParameters["stream_id"]?.toLongOrNull()
+                if (channelId == null || channelId <= 0L) {
+                    call.respondText(
+                        "{\"success\": false, \"error\": \"A valid Channel ID is required\"}",
+                        ContentType.Application.Json,
+                        HttpStatusCode.BadRequest,
+                    )
+                    return@get
+                }
+
+                lateinit var programmes: List<XmltvProgramme>
+                try {
+                    programmes = epgRepository.getProgrammesForChannelId(
+                        channelId,
+                        Int.MAX_VALUE,
+                        Instant.fromEpochMilliseconds(0)
+                    )
+                } catch (e: Throwable) {
+                    Sentry.captureException(e)
+                    programmes = listOf()
+                }
+
+                call.respond(EpgList(programmes.map { it.toEpg().copy(streamId = channelId.toString()) }))
             }
 
             call.request.queryParameters["action"].isNullOrBlank() -> {
@@ -799,7 +843,7 @@ private fun Writer.writeLiveCategories() {
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 private fun serverInfo(baseUrl: URI): XtreamServerInfo = XtreamServerInfo(
-    timezone = "UTC",
+    timezone = dotenv.get("TZ") ?: "UTC",
     timeNow = Clock.System.now().format(DateTimeComponents.Format {
         byUnicodePattern("yyyy-MM-dd HH:mm:ss")
     }),

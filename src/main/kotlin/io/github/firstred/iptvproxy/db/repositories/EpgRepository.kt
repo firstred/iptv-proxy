@@ -23,6 +23,8 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvRating
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
 import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
@@ -370,6 +372,31 @@ class EpgRepository {
         } while (programmes.isNotEmpty())
     }
 
+    fun getProgrammesForChannelId(
+        channelId: Long,
+        count: Int = 4,
+        now: Instant = Clock.System.now(),
+    ): List<XmltvProgramme> = transaction {
+        val query = EpgProgrammeTable
+            .join(
+                IptvChannelTable,
+                JoinType.INNER,
+                onColumn = EpgProgrammeTable.epgChannelId,
+                otherColumn = IptvChannelTable.epgChannelId,
+            )
+            .selectAll()
+            .andWhere { IptvChannelTable.id eq channelId }
+            .andWhere {
+                (EpgProgrammeTable.start greaterEq now) or (
+                    (EpgProgrammeTable.start lessEq now) and (EpgProgrammeTable.stop greaterEq now)
+                )
+            }
+            .orderBy(EpgProgrammeTable.start to SortOrder.ASC)
+        if (count < Int.MAX_VALUE) query.limit(count)
+
+        return@transaction query.map { it.toXmltvProgramme() }
+    }
+
     fun getEpgChannelCount(): Long = transaction {
         EpgChannelTable.selectAll().count()
     }
@@ -426,13 +453,11 @@ class EpgRepository {
             this[XmltvSourceTable.sourceInfoName],
             this[XmltvSourceTable.sourceInfoLogo],
         )
-
         private fun ResultRow.toXmltvChannel() = XmltvChannel(
             id = this[EpgChannelTable.epgChannelId],
             displayNames = listOf(),
             icon = this[EpgChannelTable.icon]?.let { src -> XmltvIcon(src = src) },
         )
-
         private fun ResultRow.toXmltvProgramme() = XmltvProgramme(
             start = this[EpgProgrammeTable.start],
             stop = this[EpgProgrammeTable.stop],
@@ -450,6 +475,7 @@ class EpgRepository {
                 text = this[EpgProgrammeTable.description],
             ),
             icon = this[EpgProgrammeTable.icon]?.let { src -> XmltvIcon(src = src) },
+            server = this[EpgProgrammeTable.server],
         )
     }
 }
