@@ -29,7 +29,6 @@ timeouts:
   icon: *icon-timeouts
 client_http_cache:
   enabled: true
-  cleanup_interval: PT1H # Interval to clean up old cache entries
   ttl:
     icon: P30D # Time to live for icons
 server_http_cache:

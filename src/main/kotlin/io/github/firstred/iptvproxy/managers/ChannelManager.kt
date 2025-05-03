@@ -34,11 +34,14 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.jvm.javaio.*
+import io.sentry.MonitorConfig
 import io.sentry.Sentry
+import io.sentry.util.CheckInUtils
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.InputStream
@@ -49,6 +52,7 @@ import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 import kotlin.text.Charsets.UTF_8
 
+@Suppress("UnstableApiUsage")
 class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicationOnDatabaseInitializedHook {
     private val serversByName: IptvServersByName by inject()
     private val scheduledExecutorService: ScheduledExecutorService by inject()
@@ -56,8 +60,11 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private val channelRepository: ChannelRepository by inject()
     private val epgRepository: EpgRepository by inject()
     private val xtreamRepository: XtreamRepository by inject()
+    private val updateMonitorConfig: MonitorConfig by inject(named("update-channels"))
+    private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-channels"))
 
-    private suspend fun updateChannels() {
+    private suspend fun updateChannels()
+    {
         LOG.info("Updating channels")
 
         val newChannels: MutableMap<String, IptvChannel> = mutableMapOf()
@@ -379,10 +386,12 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    runBlocking {
-                        channelRepository.cleanup()
-                        epgRepository.cleanup()
-                        xtreamRepository.cleanup()
+                    CheckInUtils.withCheckIn("cleanup-channels", cleanupMonitorConfig) {
+                        runBlocking {
+                            channelRepository.cleanup()
+                            epgRepository.cleanup()
+                            xtreamRepository.cleanup()
+                        }
                         scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {
@@ -403,8 +412,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    runBlocking {
-                        updateChannels()
+                    CheckInUtils.withCheckIn("update-channels", updateMonitorConfig) {
+                        runBlocking {
+                            updateChannels()
+                        }
                         scheduleChannelUpdates(config.updateInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {

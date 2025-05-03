@@ -12,5 +12,6 @@ val appModule = module {
         userModule,
         iptvServerModule,
         channelModule,
+        sentryModule,
     )
 }

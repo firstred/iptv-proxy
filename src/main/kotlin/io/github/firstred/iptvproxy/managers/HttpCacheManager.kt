@@ -2,32 +2,39 @@ package io.github.firstred.iptvproxy.managers
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
+import io.sentry.MonitorConfig
+import io.sentry.util.CheckInUtils
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import org.koin.core.qualifier.named
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
+@Suppress("UnstableApiUsage")
 class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
     private val scheduledExecutorService: ScheduledExecutorService by inject()
+    private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-http-cache"))
 
     private fun scheduleCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    runBlocking {
-                        cleanCache()
-                        scheduleCleanups(config.clientHttpCache.cleanupInterval.inWholeMinutes)
+                    CheckInUtils.withCheckIn("cleanup-http-cache", cleanupMonitorConfig) {
+                        runBlocking {
+                            cleanCache()
+                            scheduleCleanups(config.cleanupInterval.inWholeMinutes)
+                        }
                     }
                 } catch (e: InterruptedException) {
                     LOG.info("Scheduler interrupted while cleaning cache", e)
                 } catch (e: Exception) {
                     LOG.error("Error while cleaning cache", e)
                     runBlocking {
-                        scheduleCleanups(config.clientHttpCache.cleanupInterval.inWholeMinutes)
+                        scheduleCleanups(config.cleanupInterval.inWholeMinutes)
                     }
                 }
             },
