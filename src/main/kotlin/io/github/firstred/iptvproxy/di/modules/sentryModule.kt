@@ -16,7 +16,7 @@ val sentryModule = module {
     single(named("cleanup-channels")) {
         MonitorConfig(MonitorSchedule.interval(config.cleanupInterval.inWholeMinutes.toInt(), MonitorScheduleUnit.MINUTE))
     }
-    single(named("cleanup-http-cache")) {
+    single(named("cleanup-cache")) {
         MonitorConfig(MonitorSchedule.interval(config.cleanupInterval.inWholeMinutes.toInt(), MonitorScheduleUnit.MINUTE))
     }
 }

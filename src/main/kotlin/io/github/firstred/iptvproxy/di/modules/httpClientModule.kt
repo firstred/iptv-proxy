@@ -4,7 +4,7 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
-import io.github.firstred.iptvproxy.managers.HttpCacheManager
+import io.github.firstred.iptvproxy.managers.CacheManager
 import io.github.firstred.iptvproxy.plugins.ktor.client.ProxyFileStorage
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
@@ -27,7 +27,7 @@ import java.io.File
 import java.net.URI
 
 val httpClientModule = module {
-    single { HttpCacheManager() } binds hooksOf(HttpCacheManager::class)
+    single { CacheManager() } binds hooksOf(CacheManager::class)
 
     // Client used for all other requests - referred to as `channels_*` in the configuration
     single<HttpClient> {
@@ -60,7 +60,7 @@ val httpClientModule = module {
             expectSuccess = false
             followRedirects = true
 
-            if (config.clientHttpCache.enabled) install(HttpCache) {
+            if (config.cache.enabled) install(HttpCache) {
                 publicStorage(ProxyFileStorage(File(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {

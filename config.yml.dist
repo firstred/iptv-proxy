@@ -27,16 +27,13 @@ log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
 timeouts:
   playlist: *default-timeouts
   icon: *icon-timeouts
-client_http_cache:
+cache:
   enabled: true
   ttl:
-    icon: P30D # Time to live for icons
-server_http_cache:
-  enabled: true
-  duration:
     video_chunk: PT1M
     movie_info: P1D
     series_info: PT1H
+    icon: P30D # Time to live for icons
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
 update_interval_on_failure: PT10M # Interval to retry failed updates

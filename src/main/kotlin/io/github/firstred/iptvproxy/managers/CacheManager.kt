@@ -4,6 +4,8 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.sentry.MonitorConfig
 import io.sentry.util.CheckInUtils
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -15,15 +17,15 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
 @Suppress("UnstableApiUsage")
-class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
+class CacheManager : KoinComponent, HasApplicationOnStartHook {
     private val scheduledExecutorService: ScheduledExecutorService by inject()
-    private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-http-cache"))
+    private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-cache"))
 
     private fun scheduleCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
                 try {
-                    CheckInUtils.withCheckIn("cleanup-http-cache", cleanupMonitorConfig) {
+                    CheckInUtils.withCheckIn("cleanup-cache", cleanupMonitorConfig) {
                         runBlocking {
                             cleanCache()
                             scheduleCleanups(config.cleanupInterval.inWholeMinutes)
@@ -44,9 +46,15 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
     }
 
     fun cleanCache() {
-        if (!config.clientHttpCache.enabled) return
+        if (!config.cache.enabled) return
 
-        cleanIcons()
+        runBlocking {
+            awaitAll(
+                async { cleanIcons() },
+                async { cleanMovieInfo() },
+                async { cleanSeriesInfo() },
+            )
+        }
     }
 
     fun cleanIcons() {
@@ -54,7 +62,29 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
         if (!iconDir.exists() || !iconDir.isDirectory) return
 
         for (cacheFile in iconDir.listFiles()) {
-            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.clientHttpCache.ttl.icons.inWholeMilliseconds)) {
+            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.icons.inWholeMilliseconds)) {
+                cacheFile.delete()
+            }
+        }
+    }
+
+    fun cleanMovieInfo() {
+        val iconDir = File(config.getMiscCacheDirectory("movie_info"))
+        if (!iconDir.exists() || !iconDir.isDirectory) return
+
+        for (cacheFile in iconDir.listFiles()) {
+            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.movieInfo.inWholeMilliseconds)) {
+                cacheFile.delete()
+            }
+        }
+    }
+
+    fun cleanSeriesInfo() {
+        val iconDir = File(config.getMiscCacheDirectory("series_info"))
+        if (!iconDir.exists() || !iconDir.isDirectory) return
+
+        for (cacheFile in iconDir.listFiles()) {
+            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.seriesInfo.inWholeMilliseconds)) {
                 cacheFile.delete()
             }
         }
@@ -67,6 +97,6 @@ class HttpCacheManager : KoinComponent, HasApplicationOnStartHook {
     }
 
     companion object {
-        private val LOG: Logger = LoggerFactory.getLogger(HttpCacheManager::class.java)
+        private val LOG: Logger = LoggerFactory.getLogger(CacheManager::class.java)
     }
 }
