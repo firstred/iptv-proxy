@@ -217,8 +217,10 @@ fun Route.xtreamApi() {
                     return@get
                 }
 
+                val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
+
                 channel.server.let { iptvServer ->
-                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
+                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnection ->
                         val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
                         val targetUrl = account?.getXtreamMoviesInfoUrl()
                         if (null == targetUrl) return@withConnection
@@ -236,7 +238,7 @@ fun Route.xtreamApi() {
                             response = followRedirects(response, connection, iptvServer, call.request.headers)
 
                             val responseContent: String = response.body()
-                            releaseConnectionEarly()
+                            releaseConnection()
 
                             val responseElement: JsonElement = json.parseToJsonElement(responseContent)
 
@@ -291,9 +293,18 @@ fun Route.xtreamApi() {
                                                 put(key, buildJsonObject {
                                                     value.jsonObject.entries.forEach { (movieKey, movieValue) ->
                                                         put(movieKey, when (movieKey) {
-                                                            "stream_id" -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.longOrNull ?: 0L])
-                                                            "cover"     -> JsonPrimitive(movieValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(baseUrl, encryptedAccount))
-                                                            else        -> movieValue
+                                                            "stream_id"    -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.longOrNull ?: 0L])
+                                                            "cover"        -> JsonPrimitive(movieValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(baseUrl, encryptedAccount))
+                                                            "category_id"  -> JsonPrimitive(externalCategoryIdToIdMap[movieValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: "0")
+                                                            "category_ids" -> try { buildJsonArray {
+                                                                movieValue.jsonArray.forEach { categoryId ->
+                                                                    add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.longOrNull ?: 0L] ?: 0L))
+                                                                } }
+                                                            } catch (e: IllegalArgumentException) {
+                                                                Sentry.captureException(e)
+                                                                movieValue
+                                                            }
+                                                            else           -> movieValue
                                                         })
                                                     }
                                                 })
@@ -377,6 +388,8 @@ fun Route.xtreamApi() {
                     )
                     return@get
                 }
+
+                val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
 
                 serversByName[serverName]?.let { iptvServer ->
                     iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
@@ -478,6 +491,17 @@ fun Route.xtreamApi() {
                                                                     }
                                                                 })
                                                         }
+
+                                                        "category_id"  -> put(infoKey, JsonPrimitive(externalCategoryIdToIdMap[infoValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: "0"))
+
+                                                        "category_ids" -> put(infoKey, try { buildJsonArray {
+                                                            infoValue.jsonArray.forEach { categoryId ->
+                                                                add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.longOrNull ?: 0L] ?: 0L))
+                                                            } }
+                                                        } catch (e: IllegalArgumentException) {
+                                                            Sentry.captureException(e)
+                                                            infoValue
+                                                        })
 
                                                         else -> put(infoKey, infoValue)
                                                     }
