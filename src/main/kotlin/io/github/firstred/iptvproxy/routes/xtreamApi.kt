@@ -16,7 +16,6 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
-import io.github.firstred.iptvproxy.entities.IptvServer
 import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.enums.IptvChannelType
@@ -238,7 +237,7 @@ fun Route.xtreamApi() {
                                     addDefaultClientHeaders(connection.config)
                                 }
                             }
-                            response = followRedirects(response, connection, iptvServer, call.request.headers)
+                            response = followRedirects(response, connection, call.request.headers)
 
                             val responseContent: String = response.body()
                             releaseConnection()
@@ -409,7 +408,7 @@ fun Route.xtreamApi() {
                                 }
                             }
 
-                            response = followRedirects(response, connection, iptvServer, call.request.headers)
+                            response = followRedirects(response, connection, call.request.headers)
 
                             val responseContent: String = response.body()
                             releaseConnectionEarly()
@@ -755,7 +754,6 @@ fun Route.xtreamApi() {
 private suspend fun followRedirects(
     response: HttpResponse,
     connection: IptvServerConnection,
-    iptvServer: IptvServer,
     headers: Headers,
 ): HttpResponse {
     var newResponse = response
