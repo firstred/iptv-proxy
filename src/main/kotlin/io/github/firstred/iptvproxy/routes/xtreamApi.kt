@@ -27,10 +27,7 @@ import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
-import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
-import io.github.firstred.iptvproxy.utils.sendBasicAuth
-import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.call.*
 import io.ktor.client.request.*

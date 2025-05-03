@@ -9,6 +9,7 @@ import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -21,6 +22,7 @@ import kotlin.text.Charsets.UTF_8
 
 class IptvChannel(
     val id: String? = null,
+    val externalIndex: Long? = null,
     val externalStreamId: String? = null,
     val name: String,
     val logo: String?,
@@ -57,7 +59,8 @@ class IptvChannel(
         server.withConnection(server.config.timeouts.totalMilliseconds) { connection, _ ->
             LOG.info("[{}] loading channel: {}, url: {}", user.username, name, url)
 
-            var response = connection.httpClient.get(
+            lateinit var response: HttpResponse
+            response = connection.httpClient.get(
                 url.appendQueryParameters(additionalQueryParameters).toString(),
             ) {
                 headers {

@@ -60,10 +60,12 @@ class ChannelRepository : KoinComponent {
                         it[IptvChannelTable.externalStreamId] = channel.url.extractStreamId()
                         it[IptvChannelTable.icon] = channel.logo
                         it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
+                        if (null != channel.externalIndex) it[IptvChannelTable.externalIndex] = channel.externalIndex
                     }
 
                     IptvChannelTable.update({ (IptvChannelTable.server eq channel.server.name) and (IptvChannelTable.url eq channel.url.toString()) }) {
                         it[IptvChannelTable.updatedAt] = Clock.System.now()
+                        if (null != channel.externalIndex) it[IptvChannelTable.externalIndex] = channel.externalIndex
                     }
                 }
             } }
@@ -77,6 +79,7 @@ class ChannelRepository : KoinComponent {
                 .map {
                     IptvChannel(
                         id = it[IptvChannelTable.id].toString(),
+                        externalIndex = it[IptvChannelTable.externalIndex],
                         externalStreamId = it[IptvChannelTable.externalStreamId],
                         server = serversByName[it[IptvChannelTable.server]]!!,
                         name = it[IptvChannelTable.name],
@@ -105,7 +108,7 @@ class ChannelRepository : KoinComponent {
             if (sortedByName) {
                 channelQuery.orderBy(IptvChannelTable.name to SortOrder.ASC)
             } else {
-                channelQuery.orderBy(IptvChannelTable.server to SortOrder.ASC, IptvChannelTable.externalStreamId to SortOrder.ASC)
+                channelQuery.orderBy(IptvChannelTable.server to SortOrder.ASC, IptvChannelTable.externalIndex to SortOrder.ASC)
             }
             channelQuery
                 .limit(chunkSize)
@@ -166,6 +169,7 @@ class ChannelRepository : KoinComponent {
 
             return IptvChannel(
                 id = this[IptvChannelTable.id].toString(),
+                externalIndex = this[IptvChannelTable.externalIndex],
                 externalStreamId = this[IptvChannelTable.externalStreamId],
                 server = serversByName[this[IptvChannelTable.server]]!!,
                 name = this[IptvChannelTable.name],

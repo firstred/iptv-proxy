@@ -121,6 +121,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     channelsInputStream = loadChannels(serverConnection)
                     m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
                 }
+                var externalIndex = 0L
 
                 m3u.channels.forEach { m3uChannel: M3uChannel ->
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
@@ -165,6 +166,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                         IptvChannel(
                             name = m3uChannel.name,
+                            externalIndex = ++externalIndex,
                             logo = logo,
                             groups = m3uChannel.groups,
                             epgId = m3uChannel.props["tvg-id"],

@@ -364,6 +364,7 @@ class XtreamRepository : KoinComponent {
                     LiveStreamTable.directSource,
                     LiveStreamTable.tvArchiveDuration,
                     IptvChannelTable.id,
+                    IptvChannelTable.externalIndex,
                     categoryIds,
                 )
                 .groupBy(LiveStreamTable.externalStreamId, LiveStreamTable.server)
@@ -371,7 +372,7 @@ class XtreamRepository : KoinComponent {
             if (sortedByName) {
                 liveStreamQuery.orderBy(LiveStreamTable.name to SortOrder.ASC)
             } else {
-                liveStreamQuery.orderBy(LiveStreamTable.server to SortOrder.ASC, LiveStreamTable.externalStreamId to SortOrder.ASC)
+                liveStreamQuery.orderBy(LiveStreamTable.server to SortOrder.ASC, IptvChannelTable.externalIndex to SortOrder.ASC)
             }
             if (categoryId != null) liveStreamQuery.andWhere { LiveStreamToCategoryTable.categoryId eq categoryId }
             liveStreamQuery
@@ -464,6 +465,8 @@ class XtreamRepository : KoinComponent {
                     MovieTable.customSid,
                     MovieTable.directSource,
                     IptvChannelTable.id,
+                    IptvChannelTable.externalIndex,
+                    IptvChannelTable.externalStreamId,
                     categoryIds,
                 )
                 .groupBy(MovieTable.externalStreamId, MovieTable.server)
@@ -471,7 +474,7 @@ class XtreamRepository : KoinComponent {
             if (sortedByName) {
                 movieQuery.orderBy(MovieTable.name to SortOrder.ASC)
             } else {
-                movieQuery.orderBy(MovieTable.server to SortOrder.ASC, MovieTable.externalStreamId to SortOrder.ASC)
+                movieQuery.orderBy(MovieTable.server to SortOrder.ASC, IptvChannelTable.externalIndex to SortOrder.ASC)
             }
             if (categoryId != null) movieQuery.andWhere { MovieToCategoryTable.categoryId eq categoryId }
             movieQuery
