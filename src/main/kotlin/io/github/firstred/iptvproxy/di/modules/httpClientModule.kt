@@ -178,6 +178,16 @@ fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetr
                     HttpStatusCode.Gone.value,
                     HttpStatusCode.TooEarly.value,
                     HttpStatusCode.TooManyRequests.value,
+                    HttpStatusCode.UnprocessableEntity.value,
+                    HttpStatusCode.ExpectationFailed.value,
+                    HttpStatusCode.FailedDependency.value,
+                    HttpStatusCode.NotAcceptable.value,
+                    HttpStatusCode.Locked.value,
+                    HttpStatusCode.Forbidden.value,    // We'll assume that the account is correctly configured
+                    HttpStatusCode.Unauthorized.value, // We'll assume that the account is correctly configured
+                    HttpStatusCode.NotFound.value,
+                    HttpStatusCode.PaymentRequired.value,
+                    HttpStatusCode.BadRequest.value,
                     456,
                     458
                 ).contains(cause.response.status.value)
