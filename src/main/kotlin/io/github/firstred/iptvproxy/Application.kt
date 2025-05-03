@@ -57,6 +57,9 @@ fun main(args: Array<String>) {
         argv = args
         dotenv = dotenv { ignoreIfMissing = true }
         val sentryDsn = dotenv.get("SENTRY_DSN") ?: ""
+
+        TimeZone.setDefault(TimeZone.getTimeZone(dotenv.get("TZ") ?: "UTC"))
+
         if (sentryDsn.isNotEmpty()) Sentry.init { options ->
             options.dsn = sentryDsn
             options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
