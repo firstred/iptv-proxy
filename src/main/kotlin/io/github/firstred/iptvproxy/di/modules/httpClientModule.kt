@@ -39,6 +39,7 @@ val httpClientModule = module {
             followRedirects = true
 
             install(HttpRequestRetry) {
+                maxRetries = 5
                 defaultRetryHandler {
                     delayMillis { config.timeouts.playlist.retryDelayMilliseconds }
                 }
@@ -64,6 +65,7 @@ val httpClientModule = module {
                 publicStorage(ProxyFileStorage(File(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
+                maxRetries = 5
                 defaultRetryHandler {
                     delayMillis { config.timeouts.icon.retryDelayMilliseconds }
                 }
@@ -97,6 +99,7 @@ val httpClientModule = module {
             followRedirects = false
 
             install(HttpRequestRetry) {
+                maxRetries = 5
                 defaultRetryHandler {
                     delayMillis { flatServerConfig.timeouts.retryDelayMilliseconds }
                 }
