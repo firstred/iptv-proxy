@@ -18,10 +18,7 @@ import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
-import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
-import io.github.firstred.iptvproxy.utils.sendBasicAuth
-import io.github.firstred.iptvproxy.utils.sendUserAgent
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*

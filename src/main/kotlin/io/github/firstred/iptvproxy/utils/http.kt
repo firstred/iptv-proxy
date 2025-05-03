@@ -7,7 +7,6 @@ import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
 import io.ktor.server.routing.*
 import io.ktor.util.*
-import jdk.javadoc.internal.doclets.formats.html.markup.HtmlStyle
 import java.net.URI
 import java.util.*
 import kotlin.text.Charsets.UTF_8
