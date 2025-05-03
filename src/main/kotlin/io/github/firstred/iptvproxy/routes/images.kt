@@ -20,7 +20,7 @@ import java.net.URI
 const val imagesRoute = "images"
 
 fun Route.images() {
-    val httpClient : HttpClient by inject(named("icon"))
+    val httpClient : HttpClient by inject(named("images"))
 
     route("/$imagesRoute/") {
         get(Regex("""^(?<encryptedaccount>[0-9a-fA-F]+)/(?<encryptedremoteurl>[0-9a-fA-F]+)/(?<filename>((?<basename>[^.]+)\.(?<extension>.+)))$""")) {

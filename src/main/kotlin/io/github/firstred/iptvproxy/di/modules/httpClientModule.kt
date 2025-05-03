@@ -52,7 +52,7 @@ val httpClientModule = module {
     }
 
     // Client used to retrieve icons
-    single<HttpClient>(named("icon")) {
+    single<HttpClient>(named("images")) {
         HttpClient(OkHttp) {
             defaults()
             okHttpConfig(maxRequestsPerHost = 64)
