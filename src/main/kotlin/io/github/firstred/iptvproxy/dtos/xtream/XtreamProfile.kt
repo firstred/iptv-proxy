@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 import java.net.URI
 
 @Serializable
-data class XtreamInfo(
+data class XtreamProfile(
     @SerialName("user_info") val user: XtreamUserInfo,
     @SerialName("server_info") val server: XtreamServerInfo,
 ) {

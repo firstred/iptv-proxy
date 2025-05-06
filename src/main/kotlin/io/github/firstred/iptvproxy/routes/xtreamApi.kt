@@ -12,7 +12,7 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpgList
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamProfile
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
@@ -638,7 +638,7 @@ fun Route.xtreamApi() {
             }
 
             call.request.queryParameters["action"].isNullOrBlank() -> {
-                call.respond(XtreamInfo(userInfo(user), serverInfo(baseUrl)))
+                call.respond(XtreamProfile(userInfo(user), serverInfo(baseUrl)))
             }
         }
     }
