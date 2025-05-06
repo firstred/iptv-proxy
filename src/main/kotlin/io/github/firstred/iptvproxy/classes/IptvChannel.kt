@@ -96,7 +96,6 @@ class IptvChannel(
 
                 when {
                     // Only rewrite direct media URLs this time, no icons etc.
-
                     !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
                         var newInfoLine = infoLine.trim(' ')
 
