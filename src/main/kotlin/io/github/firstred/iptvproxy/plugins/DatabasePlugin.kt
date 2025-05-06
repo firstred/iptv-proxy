@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.plugins
 
-import MigrationUtils
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.firstred.iptvproxy.BuildConfig
@@ -51,6 +50,7 @@ val dataSource = HikariDataSource(HikariConfig().apply {
     maximumPoolSize = config.database.maximumPoolSize.toInt()
     isAutoCommit = false
     isReadOnly = false
+    transactionIsolation = config.database.transactionIsolation
 
     if (config.database.jdbcUrl.startsWith("jdbc:sqlite")) {
         val dataSourcePropertyKeys = config.database.dataSourceProperties.keys

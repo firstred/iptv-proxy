@@ -11,4 +11,5 @@ data class IptvProxyDatabaseConfig(
     val maximumPoolSize: @Serializable(with = UIntWithUnderscoreSerializer::class) UInt = 1u,
     val chunkSize: @Serializable(with = UIntWithUnderscoreSerializer::class) UInt = 1_000u,
     val dataSourceProperties: Map<String, String> = emptyMap(),
+    val transactionIsolation: String = "TRANSACTION_READ_COMMITTED",
 )
