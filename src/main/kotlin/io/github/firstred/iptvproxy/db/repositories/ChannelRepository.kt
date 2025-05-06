@@ -60,6 +60,7 @@ class ChannelRepository : KoinComponent {
                     this[ChannelTable.icon] = channel.logo
                     this[ChannelTable.catchupDays] = channel.catchupDays.toUInt()
                     this[ChannelTable.externalPosition] = channel.externalPosition!!
+                    this[ChannelTable.updatedAt] = Clock.System.now()
                 }
             }
         }
