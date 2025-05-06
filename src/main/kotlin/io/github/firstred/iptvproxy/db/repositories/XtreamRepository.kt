@@ -21,7 +21,6 @@ import io.github.firstred.iptvproxy.utils.toBoolean
 import io.github.firstred.iptvproxy.utils.toUInt
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.ColumnType
 import org.jetbrains.exposed.sql.CustomFunction
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
@@ -651,22 +650,22 @@ class XtreamRepository : KoinComponent {
             }
 
             LiveStreamTable.deleteWhere {
-                LiveStreamTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                LiveStreamTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             MovieTable.deleteWhere {
-                 MovieTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                 MovieTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             SeriesTable.deleteWhere {
-                 SeriesTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                 SeriesTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
         }
     }

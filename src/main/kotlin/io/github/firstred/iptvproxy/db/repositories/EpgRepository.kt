@@ -620,10 +620,10 @@ class EpgRepository {
             }
 
             EpgChannelTable.deleteWhere {
-                EpgChannelTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                EpgChannelTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
             EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                EpgProgrammeTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
         }
     }

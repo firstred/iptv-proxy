@@ -134,7 +134,7 @@ class ChannelRepository : KoinComponent {
             }
 
             ChannelTable.deleteWhere {
-                ChannelTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
+                ChannelTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
             }
         }
     }
