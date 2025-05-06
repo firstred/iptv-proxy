@@ -12,4 +12,8 @@ enum class IptvChannelType(val type: String) {
         series -> series
         else -> live
     }
+
+    companion object {
+        const val maxDbLength = 31
+    }
 }

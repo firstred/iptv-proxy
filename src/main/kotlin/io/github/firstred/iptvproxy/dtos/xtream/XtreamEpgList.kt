@@ -4,6 +4,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class EpgList(
-    @SerialName("epg_listings") val epgListings: List<Epg>,
+data class XtreamEpgList(
+    @SerialName("epg_listings") val epgListings: List<XtreamEpg>,
 )

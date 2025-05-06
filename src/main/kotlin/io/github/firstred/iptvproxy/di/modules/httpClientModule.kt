@@ -1,9 +1,9 @@
 package io.github.firstred.iptvproxy.di.modules
 
+import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
-import io.github.firstred.iptvproxy.entities.IptvServerConnection
 import io.github.firstred.iptvproxy.managers.CacheManager
 import io.github.firstred.iptvproxy.plugins.ktor.client.ProxyFileStorage
 import io.github.firstred.iptvproxy.serialization.json
@@ -41,13 +41,13 @@ val httpClientModule = module {
             install(HttpRequestRetry) {
                 maxRetries = 5
                 defaultRetryHandler {
-                    delayMillis { config.timeouts.playlist.retryDelayMilliseconds }
+                    delayMillis { config.timeouts.playlist.retryDelayMilliseconds.toLong() }
                 }
             }
             install(HttpTimeout) {
-                connectTimeoutMillis = config.timeouts.playlist.connectMilliseconds
-                socketTimeoutMillis = config.timeouts.playlist.connectMilliseconds
-                requestTimeoutMillis = config.timeouts.playlist.totalMilliseconds
+                connectTimeoutMillis = config.timeouts.playlist.connectMilliseconds.toLong()
+                socketTimeoutMillis = config.timeouts.playlist.connectMilliseconds.toLong()
+                requestTimeoutMillis = config.timeouts.playlist.totalMilliseconds.toLong()
             }
         }
     }
@@ -67,13 +67,13 @@ val httpClientModule = module {
             install(HttpRequestRetry) {
                 maxRetries = 5
                 defaultRetryHandler {
-                    delayMillis { config.timeouts.icon.retryDelayMilliseconds }
+                    delayMillis { config.timeouts.icon.retryDelayMilliseconds.toLong() }
                 }
             }
             install(HttpTimeout) {
-                connectTimeoutMillis = config.timeouts.icon.connectMilliseconds
-                socketTimeoutMillis = config.timeouts.icon.connectMilliseconds
-                requestTimeoutMillis = config.timeouts.icon.totalMilliseconds
+                connectTimeoutMillis = config.timeouts.icon.connectMilliseconds.toLong()
+                socketTimeoutMillis = config.timeouts.icon.connectMilliseconds.toLong()
+                requestTimeoutMillis = config.timeouts.icon.totalMilliseconds.toLong()
             }
         }
     }
@@ -83,7 +83,7 @@ val httpClientModule = module {
         HttpClient(OkHttp) {
             defaults()
             val okDispatcher = Dispatcher()
-            okDispatcher.maxRequestsPerHost = flatServerConfig.account.maxConcurrentRequestsPerHost
+            okDispatcher.maxRequestsPerHost = flatServerConfig.account.maxConcurrentRequestsPerHost.toInt()
 
             engine {
                 config {
@@ -101,20 +101,20 @@ val httpClientModule = module {
             install(HttpRequestRetry) {
                 maxRetries = 5
                 defaultRetryHandler {
-                    delayMillis { flatServerConfig.timeouts.retryDelayMilliseconds }
+                    delayMillis { flatServerConfig.timeouts.retryDelayMilliseconds.toLong() }
                 }
             }
             install(HttpTimeout) {
-                connectTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds
-                socketTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds
-                requestTimeoutMillis = flatServerConfig.timeouts.totalMilliseconds
+                connectTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds.toLong()
+                socketTimeoutMillis = flatServerConfig.timeouts.connectMilliseconds.toLong()
+                requestTimeoutMillis = flatServerConfig.timeouts.totalMilliseconds.toLong()
             }
         }
     }
 }
 
 // OkHttp is the engine used for HTTP Client - this is the specific OkHttp engine configuration
-fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = defaultMaxConnections) {
+fun HttpClientConfig<OkHttpConfig>.okHttpConfig(maxRequestsPerHost: Int = defaultMaxConnections.toInt()) {
     val okDispatcher = Dispatcher()
     okDispatcher.maxRequestsPerHost = maxRequestsPerHost
 
@@ -148,7 +148,7 @@ fun OkHttpConfig.configureProxyConnection() {
     }
     config.socksProxy?.let {
         val (_, host, port) = config.getActualSocksProxyConfiguration()!!
-        proxy = ProxyBuilder.socks(host, port)
+        proxy = ProxyBuilder.socks(host, port.toInt())
     }
 }
 

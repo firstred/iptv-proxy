@@ -1,24 +1,20 @@
 package io.github.firstred.iptvproxy.db.repositories
 
+import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.config
-import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
+import io.github.firstred.iptvproxy.db.tables.ChannelTable
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
-import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.plugins.withForeignKeyConstraintsDisabled
 import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insertIgnore
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -28,67 +24,64 @@ import java.net.URI
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
 
-    fun signalPlaylistStartedForServer(server: String) {
-        transaction { withForeignKeyConstraintsDisabled {
+    fun signalPlaylistImportStartedForServer(server: String) {
+        transaction {
             PlaylistSourceTable.upsert {
                 it[PlaylistSourceTable.server] = server
-                it[PlaylistSourceTable.startedAt] = Clock.System.now()
-            } }
+                it[PlaylistSourceTable.startedImportAt] = Clock.System.now()
+            }
         }
     }
-    fun signalPlaylistCompletedForServer(server: String) {
-        transaction { withForeignKeyConstraintsDisabled {
+    fun signalPlaylistImportCompletedForServer(server: String) {
+        transaction {
             PlaylistSourceTable.upsert {
                 it[PlaylistSourceTable.server] = server
-                it[PlaylistSourceTable.completedAt] = Clock.System.now()
-            } }
+                it[PlaylistSourceTable.completedImportAt] = Clock.System.now()
+            }
         }
     }
 
     fun upsertChannels(channels: List<IptvChannel>) {
-        channels.chunked(config.database.chunkSize).forEach { chunk ->
-            transaction { withForeignKeyConstraintsDisabled {
-                chunk.forEach { channel ->
-                    IptvChannelTable.insertIgnore {
-                        it[IptvChannelTable.server] = channel.server.name
-                        it[IptvChannelTable.name] = channel.name
-                        it[IptvChannelTable.url] = channel.url.toString()
-                        it[IptvChannelTable.mainGroup] = channel.groups.firstOrNull()
-                        it[IptvChannelTable.groups] = channel.groups.joinToString(",")
-                        it[IptvChannelTable.type] = channel.type
-                        it[IptvChannelTable.epgChannelId] = channel.epgId ?: ""
-                        it[IptvChannelTable.externalStreamId] = channel.url.extractStreamId()
-                        it[IptvChannelTable.icon] = channel.logo
-                        it[IptvChannelTable.catchupDays] = channel.catchupDays.toLong()
-                        if (null != channel.externalIndex) it[IptvChannelTable.externalIndex] = channel.externalIndex
-                    }
-
-                    IptvChannelTable.update({ (IptvChannelTable.server eq channel.server.name) and (IptvChannelTable.url eq channel.url.toString()) }) {
-                        it[IptvChannelTable.updatedAt] = Clock.System.now()
-                        if (null != channel.externalIndex) it[IptvChannelTable.externalIndex] = channel.externalIndex
-                    }
+        channels.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
+            transaction {
+                ChannelTable.batchUpsert(
+                    data = chunk,
+                    keys = arrayOf(ChannelTable.server, ChannelTable.externalStreamId),
+                    shouldReturnGeneratedValues = false,
+                ) { channel ->
+                    this[ChannelTable.server] = channel.server.name
+                    this[ChannelTable.name] = channel.name
+                    this[ChannelTable.url] = channel.url.toString()
+                    this[ChannelTable.mainGroup] = channel.groups.firstOrNull()
+                    this[ChannelTable.groups] = channel.groups.joinToString(",")
+                    this[ChannelTable.type] = channel.type
+                    this[ChannelTable.epgChannelId] = channel.epgId ?: ""
+                    this[ChannelTable.externalStreamId] = channel.url.extractStreamId().toUInt()
+                    this[ChannelTable.icon] = channel.logo
+                    this[ChannelTable.catchupDays] = channel.catchupDays.toUInt()
+                    this[ChannelTable.externalPosition] = channel.externalPosition!!
                 }
-            } }
+            }
         }
     }
 
-    fun getChannelById(id: Long): IptvChannel? {
+    fun getChannelById(id: UInt): IptvChannel? {
         return transaction {
-            IptvChannelTable.selectAll()
-                .where { IptvChannelTable.id eq id }
+            ChannelTable.selectAll()
+                .where { ChannelTable.id eq id }
                 .map {
                     IptvChannel(
-                        id = it[IptvChannelTable.id].toString(),
-                        externalIndex = it[IptvChannelTable.externalIndex],
-                        externalStreamId = it[IptvChannelTable.externalStreamId],
-                        server = serversByName[it[IptvChannelTable.server]]!!,
-                        name = it[IptvChannelTable.name],
-                        url = URI(it[IptvChannelTable.url]),
-                        epgId = it[IptvChannelTable.epgChannelId],
-                        logo = it[IptvChannelTable.icon],
-                        groups = it[IptvChannelTable.groups]?.split(",")?.toList() ?: emptyList(),
-                        catchupDays = it[IptvChannelTable.catchupDays]?.toInt() ?: 0,
-                        type = it[IptvChannelTable.type],
+                        id = it[ChannelTable.id].value,
+                        externalPosition = it[ChannelTable.externalPosition],
+                        externalStreamId = it[ChannelTable.externalStreamId],
+                        server = serversByName[it[ChannelTable.server]]!!,
+                        name = it[ChannelTable.name],
+                        url = URI(it[ChannelTable.url]),
+                        epgId = it[ChannelTable.epgChannelId],
+                        logo = it[ChannelTable.icon],
+                        groups = it[ChannelTable.groups]?.split(",")?.toList() ?: emptyList(),
+                        catchupDays = it[ChannelTable.catchupDays]?.toInt() ?: 0,
+                        type = it[ChannelTable.type],
                     )
                 }.firstOrNull()
         }
@@ -97,18 +90,18 @@ class ChannelRepository : KoinComponent {
     fun forEachIptvChannelChunk(
         server: String? = null,
         sortedByName: Boolean = config.sortChannelsByName,
-        chunkSize: Int = config.database.chunkSize,
+        chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<IptvChannel>) -> Unit,
     ) {
         var offset = 0L
 
         do {
-            val channelQuery = IptvChannelTable.selectAll()
-            server?.let { channelQuery.where { IptvChannelTable.server eq it } }
+            val channelQuery = ChannelTable.selectAll()
+            server?.let { channelQuery.where { ChannelTable.server eq it } }
             if (sortedByName) {
-                channelQuery.orderBy(IptvChannelTable.name to SortOrder.ASC)
+                channelQuery.orderBy(ChannelTable.name to SortOrder.ASC)
             } else {
-                channelQuery.orderBy(IptvChannelTable.server to SortOrder.ASC, IptvChannelTable.externalIndex to SortOrder.ASC)
+                channelQuery.orderBy(ChannelTable.server to SortOrder.ASC, ChannelTable.externalPosition to SortOrder.ASC)
             }
             channelQuery
                 .limit(chunkSize)
@@ -122,16 +115,16 @@ class ChannelRepository : KoinComponent {
         } while (channels.isNotEmpty())
     }
 
-    fun findInternalIdsByExternalIds(externalIds: List<Long>, server: String) = transaction {
-        IptvChannelTable
-            .select(IptvChannelTable.externalStreamId, IptvChannelTable.id)
-            .where { IptvChannelTable.externalStreamId inList externalIds.map { it.toString() } }
-            .andWhere { IptvChannelTable.server eq server }
-            .associateBy({ it[IptvChannelTable.externalStreamId].toLong() }, { it[IptvChannelTable.id].value })
+    fun findInternalIdsByExternalIds(externalIds: List<UInt>, server: String) = transaction {
+        ChannelTable
+            .select(ChannelTable.externalStreamId, ChannelTable.id)
+            .where { ChannelTable.externalStreamId inList externalIds.map { it } }
+            .andWhere { ChannelTable.server eq server }
+            .associateBy({ it[ChannelTable.externalStreamId] }, { it[ChannelTable.id].value })
     }
 
-    fun getIptvChannelCount(): Long = transaction {
-        IptvChannelTable.selectAll().count()
+    fun getIptvChannelCount(): UInt = transaction {
+        ChannelTable.selectAll().count().toUInt()
     }
 
     fun cleanup() {
@@ -140,21 +133,8 @@ class ChannelRepository : KoinComponent {
                 PlaylistSourceTable.server notInList config.servers.map { it.name }
             }
 
-            for (server in config.servers.map { it.name }) {
-                try {
-                    val (startedAt, completedAt) = PlaylistSourceTable
-                        .select(listOf(PlaylistSourceTable.startedAt, PlaylistSourceTable.completedAt))
-                        .where { PlaylistSourceTable.server eq server }
-                        .map { Pair(it[PlaylistSourceTable.startedAt], it[PlaylistSourceTable.completedAt]) }
-                        .first()
-                    if (completedAt > startedAt) continue // Continue if the run hasn't finished (yet)
-
-                    IptvChannelTable.deleteWhere {
-                        IptvChannelTable.server eq server and
-                                (IptvChannelTable.updatedAt less startedAt)
-                    }
-                } catch (_: NoSuchElementException) {
-                }
+            ChannelTable.deleteWhere {
+                ChannelTable.updatedAt less (Clock.System.now() - config.staleChannelTtl)
             }
         }
     }
@@ -168,17 +148,17 @@ class ChannelRepository : KoinComponent {
             val serversByName: IptvServersByName = getKoin().get()
 
             return IptvChannel(
-                id = this[IptvChannelTable.id].toString(),
-                externalIndex = this[IptvChannelTable.externalIndex],
-                externalStreamId = this[IptvChannelTable.externalStreamId],
-                server = serversByName[this[IptvChannelTable.server]]!!,
-                name = this[IptvChannelTable.name],
-                url = URI(this[IptvChannelTable.url]),
-                epgId = this[IptvChannelTable.epgChannelId],
-                logo = this[IptvChannelTable.icon],
-                groups = this[IptvChannelTable.groups]?.split(",")?.toList() ?: emptyList(),
-                catchupDays = this[IptvChannelTable.catchupDays]?.toInt() ?: 0,
-                type = this[IptvChannelTable.type],
+                id = this[ChannelTable.id].value,
+                externalPosition = this[ChannelTable.externalPosition],
+                externalStreamId = this[ChannelTable.externalStreamId],
+                server = serversByName[this[ChannelTable.server]]!!,
+                name = this[ChannelTable.name],
+                url = URI(this[ChannelTable.url]),
+                epgId = this[ChannelTable.epgChannelId],
+                logo = this[ChannelTable.icon],
+                groups = this[ChannelTable.groups]?.split(",")?.toList() ?: emptyList(),
+                catchupDays = this[ChannelTable.catchupDays]?.toInt() ?: 0,
+                type = this[ChannelTable.type],
             )
         }
     }

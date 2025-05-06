@@ -1,27 +1,27 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgChannelTable : Table("epg_channel") {
-    val epgChannelId: Column<String> = varchar("epg_channel_id", 255)
-    val server: Column<String> = varchar("server", 255)
-    val icon: Column<String?> = text("icon").nullable()
-    val name: Column<String> = varchar("name", 511)
-    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
+    val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
+    val server = varchar("server", maxServerNameDbLength)
+    val icon = text("icon").nullable()
+    val name = varchar("name", 511)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
     override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId))
 
     init {
         index(
-            customIndexName = "idx_hCn36jexzfx9cipkfy0l",
+            customIndexName = "idx_2bffdfa0f6c4be29485c21a215348ff5",
             isUnique = false,
             server,
-            name,
+            epgChannelId,
         )
     }
 }

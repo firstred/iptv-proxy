@@ -38,6 +38,7 @@ client_connection_max_idle_seconds: 60 # Max idle time for client connections --
 update_interval: PT6H
 update_interval_on_failure: PT10M # Interval to retry failed updates
 cleanup_interval: PT1H # Interval to clean up old data
+stale_channel_ttl: P2D # Wait time before a stale channel is removed from the database
 scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG
 sort_channels_by_name: false
 socks_proxy: null # socks5://<username>:<password>@server_host:port

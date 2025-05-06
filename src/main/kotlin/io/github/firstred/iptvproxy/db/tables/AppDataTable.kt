@@ -1,11 +1,11 @@
 package io.github.firstred.iptvproxy.db.tables
 
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
 import org.jetbrains.exposed.sql.Table
 
 object AppDataTable : Table("app_data") {
-    val name: Column<String> = varchar("name", 255)
-    val value: Column<String> = text("value")
+    val name = varchar("name", defaultVarcharLength)
+    val value = text("value")
 
     override val primaryKey = PrimaryKey(name)
 }

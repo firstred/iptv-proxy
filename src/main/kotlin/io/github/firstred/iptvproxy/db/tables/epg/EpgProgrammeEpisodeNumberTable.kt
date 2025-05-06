@@ -1,23 +1,28 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeEpisodeNumberTable : Table("epg_programme_episode_number") {
-    val programmeId: Column<Long> = long("programme_id")
-    val server: Column<String> = varchar("server", 255)
-    val system: Column<String?> = varchar("system", 255).nullable()
-    val number: Column<String> = varchar("number", 255)
+    val server = varchar("server", maxServerNameDbLength)
+    val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
+    val programmeStart = timestamp("programme_start")
+    val system = varchar("system", defaultVarcharLength).nullable()
+    val number = varchar("number", defaultVarcharLength)
 
-    override val primaryKey = PrimaryKey(arrayOf(programmeId, system))
+    override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, programmeStart, system))
 
     init {
         foreignKey(
-            programmeId to EpgProgrammeTable.id,
+            server to EpgProgrammeTable.server,
+            epgChannelId to EpgProgrammeTable.epgChannelId,
+            programmeStart to EpgProgrammeTable.start,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
-            name = "fk_pjasdfh8sdfh8sdfh8sdf",
+            name = "fk_c3ffdceccaf6c3c11ba9b56b173c3d6e",
         )
     }
 }

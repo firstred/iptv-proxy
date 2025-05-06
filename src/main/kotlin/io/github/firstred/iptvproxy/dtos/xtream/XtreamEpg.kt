@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class Epg(
+data class XtreamEpg(
     @SerialName("id") val externalId: String,
     @SerialName("epg_id") val epgId: String,
     val title: String,
@@ -16,6 +16,6 @@ data class Epg(
     @SerialName("start_timestamp") val startTimestamp: String,
     @SerialName("stop_timestamp") val stopTimestamp: String,
     @SerialName("stream_id") val streamId: String? = null,
-    @SerialName("now_playing") val nowPlaying: Int? = null,
-    @SerialName("has_archive") val hasArchive: Int? = null,
+    @SerialName("now_playing") val nowPlaying: UInt? = null,
+    @SerialName("has_archive") val hasArchive: UInt? = null,
 )

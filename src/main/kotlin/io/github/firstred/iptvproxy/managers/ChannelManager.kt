@@ -1,5 +1,8 @@
 package io.github.firstred.iptvproxy.managers
 
+import io.github.firstred.iptvproxy.classes.IptvChannel
+import io.github.firstred.iptvproxy.classes.IptvServerConnection
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
@@ -14,9 +17,6 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
-import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.entities.IptvServerConnection
-import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.events.ChannelsAreAvailableEvent
 import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
@@ -74,14 +74,14 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
 
-        serversByName.keys.forEach { channelRepository.signalPlaylistStartedForServer(it) }
+        serversByName.keys.forEach { channelRepository.signalPlaylistImportStartedForServer(it) }
 
         for (server in serversByName.values) {
             var xmltv: XmltvDoc? = null
             if (server.config.epgUrl != null) {
                 LOG.info("Waiting for xmltv data to be downloaded")
 
-                epgRepository.signalXmltvStartedForServer(server.name)
+                epgRepository.signalXmltvImportStartedForServer(server.name)
 
                 server.withConnection(
                     config.timeouts.playlist.totalMilliseconds,
@@ -106,7 +106,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     )
                 }
 
-                epgRepository.signalXmltvCompletedForServer(server.name)
+                epgRepository.signalXmltvImportCompletedForServer(server.name)
             }
 
             val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
@@ -125,7 +125,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     channelsInputStream = loadChannels(serverConnection)
                     m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
                 }
-                var externalIndex = 0L
+                var externalIndex = 0u
 
                 m3u.channels.forEach { m3uChannel: M3uChannel ->
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
@@ -170,7 +170,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                         IptvChannel(
                             name = m3uChannel.name,
-                            externalIndex = ++externalIndex,
+                            externalPosition = ++externalIndex,
                             logo = logo,
                             groups = m3uChannel.groups,
                             epgId = m3uChannel.props["tvg-id"],
@@ -183,7 +183,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 }
 
                 if (account.isXtream()) {
-                    xtreamRepository.signalXtreamStartedForServer(server.name)
+                    xtreamRepository.signalXtreamImportStartedForServer(server.name)
 
                     // Update xtream info
                     // Load live streams
@@ -269,19 +269,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     }
                     xtreamRepository.upsertSeriesAndCategories(series, seriesCategories, server.name)
 
-                    xtreamRepository.signalXtreamCompletedForServer(server.name)
+                    xtreamRepository.signalXtreamImportCompletedForServer(server.name)
                 }
             }
         }
 
         channelRepository.upsertChannels(newChannels.values.toList())
 
-        serversByName.keys.forEach { channelRepository.signalPlaylistCompletedForServer(it) }
+        serversByName.keys.forEach { channelRepository.signalPlaylistImportCompletedForServer(it) }
 
         val channelCount = channelRepository.getIptvChannelCount()
 
         // Signal channels are updated
-        if (channelCount > 0) dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
+        if (channelCount > 0u) dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
 
         LOG.info("{} channels updated", channelCount)
     }
@@ -305,7 +305,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     }
 
     suspend fun getChannelPlaylist(
-        channelId: Long,
+        channelId: UInt,
         user: IptvUser,
         baseUrl: URI,
         additionalHeaders: Headers = headersOf(),
@@ -353,7 +353,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 if (channel.groups.isNotEmpty()) {
                     outputWriter.write(" group-title=\"")
-                    outputWriter.write(channel.groups.first())
+                    channel.groups.firstOrNull()?.let { outputWriter.write(it.toString()) }
                     outputWriter.write("\"")
                 }
 
@@ -363,7 +363,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 if (channel.groups.isNotEmpty()) {
                     outputWriter.write("#EXTGRP:")
-                    outputWriter.write(java.lang.String.join(";", channel.groups))
+                    outputWriter.write(java.lang.String.join(";", channel.groups.map { it.toString() }))
                     outputWriter.write("\n")
                 }
 
@@ -440,7 +440,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         val channelCount = channelRepository.getIptvChannelCount()
         LOG.info("Channel count: $channelCount")
-        if (channelCount > 0) {
+        if (channelCount > 0u) {
             dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
         }
     }

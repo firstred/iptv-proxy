@@ -1,31 +1,37 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object LiveStreamTable : Table("live_stream") {
-    val num: Column<Long> = long("num")
-    val server: Column<String> = varchar("server", 255)
-    val name: Column<String> = text("name")
-    val externalStreamId: Column<String> = varchar("external_stream_id", 255)
-    val icon: Column<String?> = text("icon").nullable()
-    val epgChannelId: Column<String?> = varchar("epg_channel_id", 255).nullable()
-    val added: Column<String> = varchar("added", 255).default("0")
-    val isAdult: Column<Int> = integer("is_adult").default(0)
-    val mainCategoryId: Column<Long?> = long("main_category_id").nullable()
-    val customSid: Column<String?> = varchar("custom_sid", 255).nullable()
-    val tvArchive: Column<Int> = integer("tv_archive").default(0)
-    val directSource: Column<String> = varchar("direct_source", 255).default("")
-    val tvArchiveDuration: Column<Int> = integer("tv_archive_duration").default(0)
-    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
+    val num = uinteger("num").default(0u)
+    val server = varchar("server", maxServerNameDbLength)
+    val name = text("name")
+    val externalStreamId  = uinteger("external_stream_id")
+    val icon = text("icon").nullable()
+    val epgChannelId = varchar("epg_channel_id", defaultVarcharLength).nullable()
+    val added = timestamp("added").defaultExpression(CurrentTimestamp)
+    val isAdult = bool("is_adult").default(false)
+    val mainCategoryId = uinteger("main_category_id").nullable()
+    val customSid = varchar("custom_sid", defaultVarcharLength).nullable()
+    val tvArchive = bool("tv_archive").default(false)
+    val directSource = varchar("direct_source", defaultVarcharLength).default("")
+    val tvArchiveDuration = uinteger("tv_archive_duration").default(0u)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(arrayOf(server, num))
+    override val primaryKey = PrimaryKey(arrayOf(server, externalStreamId))
 
     init {
         uniqueIndex(server, externalStreamId)
+        index(
+            customIndexName = "idx_6c03df766175249bd3424a88c18fa99e",
+            isUnique = false,
+            server,
+            num,
+        )
     }
 }

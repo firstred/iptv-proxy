@@ -4,18 +4,18 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class IptvProxyConfigTimeouts(
-    val playlist: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(
-        connectMilliseconds = 5_000L,
-        socketMilliseconds = 60_000L,
-        totalMilliseconds = 300_000L,
-        retryDelayMilliseconds = 1_000L,
-        maxRetries = 3,
+    val playlist: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(
+        connectMilliseconds = 5_000UL,
+        socketMilliseconds = 60_000UL,
+        totalMilliseconds = 300_000UL,
+        retryDelayMilliseconds = 1_000UL,
+        maxRetries = 3u,
     ),
-    val icon: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(
-        connectMilliseconds = 5_000L,
-        socketMilliseconds = 60_000L,
-        totalMilliseconds = 300_000L,
-        retryDelayMilliseconds = 1_000L,
-        maxRetries = 3,
+    val icon: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(
+        connectMilliseconds = 5_000UL,
+        socketMilliseconds = 60_000UL,
+        totalMilliseconds = 300_000UL,
+        retryDelayMilliseconds = 1_000UL,
+        maxRetries = 3u,
     ),
 )

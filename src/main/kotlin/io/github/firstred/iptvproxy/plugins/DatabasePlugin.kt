@@ -1,11 +1,12 @@
 package io.github.firstred.iptvproxy.plugins
 
+import MigrationUtils
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.AppDataTable
-import io.github.firstred.iptvproxy.db.tables.IptvChannelTable
+import io.github.firstred.iptvproxy.db.tables.ChannelTable
 import io.github.firstred.iptvproxy.db.tables.channels.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamToCategoryTable
@@ -47,7 +48,7 @@ val dataSource = HikariDataSource(HikariConfig().apply {
     jdbcUrl = config.database.jdbcUrl
     if (!config.database.username.isNullOrBlank()) username = config.database.username
     if (!config.database.password.isNullOrBlank()) password = config.database.password
-    maximumPoolSize = config.database.maximumPoolSize
+    maximumPoolSize = config.database.maximumPoolSize.toInt()
     isAutoCommit = false
     isReadOnly = false
 
@@ -91,7 +92,7 @@ private val allDbTables = arrayOf(
     EpgProgrammeRatingTable,
     EpgProgrammeSubtitlesTable,
     EpgProgrammeTable,
-    IptvChannelTable,
+    ChannelTable,
     PlaylistSourceTable,
     XmltvSourceTable,
     XtreamSourceTable,
@@ -217,9 +218,9 @@ private fun checkAndRunDestructiveMigrations() {
 fun Application.configureDatabase() {
     val databaseSystem = when {
         config.database.jdbcUrl.startsWith("jdbc:sqlite") -> "sqlite"
-        // TODO: support postgresql
-        config.database.jdbcUrl.startsWith("jdbc:mysql") -> "mysql"
-        config.database.jdbcUrl.startsWith("jdbc:mariadb") -> "mariadb"
+        // TODO: support mysql + mariadb + postgresql
+//        config.database.jdbcUrl.startsWith("jdbc:mysql") -> "mysql"
+//        config.database.jdbcUrl.startsWith("jdbc:mariadb") -> "mariadb"
         else -> throw IllegalArgumentException("Unsupported database type")
     }
 

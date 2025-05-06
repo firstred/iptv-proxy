@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.dtos.config
 
 import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
-import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
 import io.ktor.client.engine.*
 import io.ktor.server.routing.*
@@ -13,9 +13,9 @@ import kotlin.time.Duration
 @Serializable
 data class IptvProxyConfig(
     val host: String = "::",
-    @Serializable(with = IntWithUnderscoreSerializer::class) val port: Int = 8000,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val healthcheckPort: Int? = null, // 9090
-    @Serializable(with = IntWithUnderscoreSerializer::class) val metricsPort: Int? = null,     // 9091
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val port: UInt = 8000u,
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val healthcheckPort: UInt? = null, // 9090
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val metricsPort: UInt? = null,     // 9091
     val baseUrl: String? = null,
     val forwardedPass: String? = null,
     val appSecret: String = "ChangeMe!",
@@ -26,12 +26,13 @@ data class IptvProxyConfig(
 
     val cache: IptvProxyCacheConfig = IptvProxyCacheConfig(),
 
-    val clientConnectionMaxIdleSeconds: Int = 60,
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val clientConnectionMaxIdleSeconds: UInt = 60u,
 
-    val updateInterval: Duration = Duration.parse("PT1H"),
+    val updateInterval: Duration = Duration.parse("PT4H"),
     val updateIntervalOnFailure: Duration = Duration.parse("PT10M"),
-    val cleanupInterval: Duration = Duration.parse("PT1H"),
-    val schedulerThreadPoolSize: Int = 2,
+    val cleanupInterval: Duration = Duration.parse("PT6H"),
+    val staleChannelTtl: Duration = Duration.parse("P7D"),
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val schedulerThreadPoolSize: UInt = 2u,
 
     val servers: List<IptvServerConfig> = emptyList(),
     val users: List<IptvProxyUserConfig> = emptyList(),
@@ -54,7 +55,7 @@ data class IptvProxyConfig(
 
     val gracefulShutdownPeriod: Duration = Duration.parse("PT30S"),
 
-    val sentry: IptvProxyConfigSentry? = null,
+    val sentry: IptvProxySentryConfig? = null,
 ) {
     private fun getBaseCacheDirectory(): String {
         return checkDir(if (cacheDirectory.isNullOrEmpty()) {
@@ -109,7 +110,7 @@ data class IptvProxyConfig(
     fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
 
     fun getActualHttpProxyURI(): URI? = httpProxy?.let { URI(it) }
-    fun getActualHttpProxyConfiguration(): ProxyConfiguration? = httpProxy?.let {
+    fun getActualHttpProxyConfiguration(): IptvConnectionProxyConfig? = httpProxy?.let {
         getActualHttpProxyURI().let { uri ->
             val host = uri?.host
             val port = uri?.port
@@ -122,22 +123,22 @@ data class IptvProxyConfig(
                 password = if (userInfo.size > 1) userInfo[1] else null
             }
 
-            ProxyConfiguration(
+            IptvConnectionProxyConfig(
                 type = ProxyType.HTTP,
                 host = host ?: "localhost",
-                port = port ?: 80,
+                port = port?.toUInt() ?: 80u,
                 username = username,
                 password = password,
             )
         }
     }
-    fun getActualSocksProxyConfiguration(): ProxyConfiguration? = socksProxy?.let {
+    fun getActualSocksProxyConfiguration(): IptvConnectionProxyConfig? = socksProxy?.let {
         val regex = Regex("""^socks(4|4a|5)?://(?:(?<usernameorpassword>[^@:/]+)(?::(?<password>[^@/]*))?@)?(?<host>[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*):(?<port>[0-9]{1,5})$""")
         val result = regex.find(it)
 
         if (result != null) {
-            val host = result.groups["host"]?.value ?: ""
-            val port = result.groups["port"]?.value?.toInt() ?: -1
+            val host = result.groups["host"]?.value ?: throw IllegalArgumentException("Invalid socks proxy host")
+            val port = result.groups["port"]?.value?.toUInt() ?: throw IllegalArgumentException("Invalid sockx proxy port")
 
             var username: String? = null
             var password: String? = null
@@ -150,7 +151,7 @@ data class IptvProxyConfig(
                     password = it.value
                 }
 
-            ProxyConfiguration(
+            IptvConnectionProxyConfig(
                 type = ProxyType.SOCKS,
                 host = host,
                 port = port,

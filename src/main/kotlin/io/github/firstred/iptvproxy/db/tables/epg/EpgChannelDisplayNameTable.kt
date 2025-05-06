@@ -1,20 +1,21 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 
 object EpgChannelDisplayNameTable : Table("epg_display_name") {
-    val epgChannelId: Column<String> = varchar("epg_channel_id", 255)
-    val server: Column<String> = varchar("server", 255)
-    val language: Column<String> = varchar("language", 255)
-    val name: Column<String> = text("name")
+    val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
+    val server = varchar("server", maxServerNameDbLength)
+    val language = varchar("language", defaultVarcharLength)
+    val name = text("name")
 
     override val primaryKey = PrimaryKey(arrayOf(epgChannelId, language, server))
 
     init {
         index(
-            customIndexName = "idx_klasjdfasdfw",
+            customIndexName = "idx_683b6e0bd327f4f67b64152de4231de1",
             columns = arrayOf(epgChannelId, server),
         )
 
@@ -23,7 +24,7 @@ object EpgChannelDisplayNameTable : Table("epg_display_name") {
             server to EpgChannelTable.server,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
-            name = "fk_yZfhh62xma8rhvfdwhph",
+            name = "fk_171b90b68e926fefee70c917964a5a24",
         )
     }
 }

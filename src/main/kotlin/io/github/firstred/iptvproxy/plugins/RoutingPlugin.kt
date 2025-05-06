@@ -1,10 +1,10 @@
 package io.github.firstred.iptvproxy.plugins
 
+import io.github.firstred.iptvproxy.classes.IptvChannel
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
-import io.github.firstred.iptvproxy.entities.IptvChannel
-import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.managers.UserManager
@@ -46,11 +46,11 @@ fun Application.configureRouting() {
     }
 }
 
-fun RoutingContext.isMainPort() = config.port == call.request.local.localPort
+fun RoutingContext.isMainPort() = config.port.toInt() == call.request.local.localPort
 fun RoutingContext.isNotMainPort() = !isMainPort()
-fun RoutingContext.isHealthcheckPort() = config.healthcheckPort == call.request.local.localPort
+fun RoutingContext.isHealthcheckPort() = config.healthcheckPort?.toInt() == call.request.local.localPort
 fun RoutingContext.isNotHealthcheckPort() = !isHealthcheckPort()
-fun RoutingContext.isMetricsPort() = config.metricsPort == call.request.local.localPort
+fun RoutingContext.isMetricsPort() = config.metricsPort?.toInt() == call.request.local.localPort
 fun RoutingContext.isNotMetricsPort() = !isMetricsPort()
 
 suspend fun RoutingContext.isReady(): Boolean {
@@ -145,7 +145,7 @@ fun Route.proxyRemotePlaylist() {
         val channelId = (call.parameters["streamid"] ?: run {
             call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
             return@get
-        }).toLong()
+        }).toUInt()
 
         withUserPermit(user) {
             call.response.headers.apply {
@@ -191,7 +191,7 @@ fun Route.proxyRemoteVod() {
             call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
             return@get
         }
-        val channel = channelRepository.getChannelById(streamId.toLong()) ?: run {
+        val channel = channelRepository.getChannelById(streamId.toUInt()) ?: run {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }
@@ -213,7 +213,7 @@ fun Route.proxyRemoteHlsStream() {
             call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
             return@get
         }
-        val channel = channelRepository.getChannelById(channelId) ?: run {
+        val channel = channelRepository.getChannelById(channelId.toUInt()) ?: run {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }

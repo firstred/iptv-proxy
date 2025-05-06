@@ -1,5 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
+import io.github.firstred.iptvproxy.classes.IptvServerConnection
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
@@ -8,16 +10,14 @@ import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dotenv
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
-import io.github.firstred.iptvproxy.dtos.xtream.EpgList
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpgList
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
-import io.github.firstred.iptvproxy.entities.IptvServerConnection
-import io.github.firstred.iptvproxy.entities.IptvUser
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
 import io.github.firstred.iptvproxy.managers.ChannelManager
@@ -48,6 +48,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -141,7 +142,7 @@ fun Route.xtreamApi() {
 
         when {
             call.request.queryParameters["action"] == "get_live_streams" -> {
-                val categoryId = call.request.queryParameters["category_id"]?.toLongOrNull()
+                val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
 
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
                     write("[")
@@ -169,7 +170,7 @@ fun Route.xtreamApi() {
             }
 
             listOf("get_vod_streams", "get_movie_streams", "get_movies_streams").contains(call.request.queryParameters["action"]) -> {
-                val categoryId = call.request.queryParameters["category_id"]?.toLongOrNull()
+                val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
 
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
                     write("[")
@@ -197,8 +198,8 @@ fun Route.xtreamApi() {
             }
 
             listOf("get_vod_info", "get_movie_info", "get_movies_info").contains(call.request.queryParameters["action"]) -> {
-                val internalVodId = call.request.queryParameters["vod_id"]?.toLongOrNull()
-                if (null == internalVodId || internalVodId <= 0L) {
+                val internalVodId = call.request.queryParameters["vod_id"]?.toUIntOrNull() ?: 0u
+                if (null == internalVodId || internalVodId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"A valid Movie ID is required\"}",
                         ContentType.Application.Json,
@@ -209,8 +210,8 @@ fun Route.xtreamApi() {
 
                 // Find server
                 val channel = channelRepository.getChannelById(internalVodId)
-                val vodId = channel?.externalStreamId?.toLongOrNull() ?: 0L
-                if (null == channel || vodId <= 0L) {
+                val vodId = channel?.externalStreamId ?: 0u
+                if (null == channel || vodId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"Series not found\"}",
                         ContentType.Application.Json,
@@ -245,12 +246,12 @@ fun Route.xtreamApi() {
                             val responseElement: JsonElement = json.parseToJsonElement(responseContent)
 
                             // First gather all external stream IDs from the response so they can be mapped in one go
-                            val foundMovieStreamIds = mutableListOf<Long>()
+                            val foundMovieStreamIds = mutableListOf<UInt>()
 
                             responseElement.jsonObject.entries.forEach {
                                 if (it.key == "movie_data") {
                                     it.value.jsonObject.entries.forEach { (key, value) ->
-                                        if (key == "stream_id") foundMovieStreamIds.add(value.jsonPrimitive.longOrNull ?: 0L)
+                                        if (key == "stream_id") foundMovieStreamIds.add(value.jsonPrimitive.intOrNull?.toUInt() ?: 0u)
                                     }
                                 }
                             }
@@ -295,12 +296,12 @@ fun Route.xtreamApi() {
                                                 put(key, buildJsonObject {
                                                     value.jsonObject.entries.forEach { (movieKey, movieValue) ->
                                                         put(movieKey, when (movieKey) {
-                                                            "stream_id"    -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.longOrNull ?: 0L])
+                                                            "stream_id"    -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u)
                                                             "cover"        -> JsonPrimitive(movieValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(baseUrl, encryptedAccount))
-                                                            "category_id"  -> JsonPrimitive(externalCategoryIdToIdMap[movieValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: "0")
+                                                            "category_id"  -> JsonPrimitive(externalCategoryIdToIdMap[movieValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u]?.toString() ?: "0")
                                                             "category_ids" -> try { buildJsonArray {
                                                                 movieValue.jsonArray.forEach { categoryId ->
-                                                                    add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.longOrNull ?: 0L] ?: 0L))
+                                                                    add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u))
                                                                 } }
                                                             } catch (e: IllegalArgumentException) {
                                                                 Sentry.captureException(e)
@@ -335,7 +336,7 @@ fun Route.xtreamApi() {
             }
 
             call.request.queryParameters["action"] == "get_series" -> {
-                val categoryId = call.request.queryParameters["category_id"]?.toLongOrNull()
+                val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
 
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
                     write("[")
@@ -369,9 +370,9 @@ fun Route.xtreamApi() {
             }
 
             call.request.queryParameters["action"] == "get_series_info" -> {
-                val seriesId = call.request.queryParameters["series"]?.toLongOrNull()
-                    ?: call.request.queryParameters["series_id"]?.toLongOrNull()
-                if (null == seriesId || seriesId <= 0L) {
+                val seriesId = call.request.queryParameters["series"]?.toUIntOrNull()
+                    ?: call.request.queryParameters["series_id"]?.toUIntOrNull()
+                if (null == seriesId || seriesId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"A valid Series ID is required\"}",
                         ContentType.Application.Json,
@@ -416,13 +417,13 @@ fun Route.xtreamApi() {
                             val responseElement: JsonElement = json.parseToJsonElement(responseContent)
 
                             // First gather all external stream IDs from the response so they can be mapped in one go
-                            val foundEpisodeStreamIds = mutableListOf<Long>()
+                            val foundEpisodeStreamIds = mutableListOf<UInt>()
 
                             responseElement.jsonObject.entries.forEach {
                                 if (it.key == "episodes") {
                                     it.value.jsonObject.entries.forEach { season ->
                                         season.value.jsonArray.forEach { episode ->
-                                            foundEpisodeStreamIds.add(episode.jsonObject["id"]?.jsonPrimitive?.longOrNull ?: 0L)
+                                            foundEpisodeStreamIds.add(episode.jsonObject["id"]?.jsonPrimitive?.intOrNull?.toUInt() ?: 0u)
                                         }
                                     }
                                 }
@@ -494,11 +495,11 @@ fun Route.xtreamApi() {
                                                                 })
                                                         }
 
-                                                        "category_id"  -> put(infoKey, JsonPrimitive(externalCategoryIdToIdMap[infoValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: "0"))
+                                                        "category_id"  -> put(infoKey, JsonPrimitive(externalCategoryIdToIdMap[infoValue.jsonPrimitive.longOrNull ?: 0u]?.toString() ?: "0"))
 
                                                         "category_ids" -> put(infoKey, try { buildJsonArray {
                                                             infoValue.jsonArray.forEach { categoryId ->
-                                                                add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.longOrNull ?: 0L] ?: 0L))
+                                                                add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u))
                                                             } }
                                                         } catch (e: IllegalArgumentException) {
                                                             Sentry.captureException(e)
@@ -522,7 +523,7 @@ fun Route.xtreamApi() {
                                                                         when (episodeKey) {
                                                                             "id" -> put(
                                                                                 episodeKey,
-                                                                                JsonPrimitive(streamIdMapping[episodeValue.jsonPrimitive.longOrNull ?: 0L]?.toString() ?: ""),
+                                                                                JsonPrimitive(streamIdMapping[episodeValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u]?.toString() ?: ""),
                                                                             )
 
                                                                             "info" -> {
@@ -587,8 +588,8 @@ fun Route.xtreamApi() {
 
             // Get EPG
             call.request.queryParameters["action"] == "get_short_epg" -> {
-                val channelId = call.request.queryParameters["stream_id"]?.toLongOrNull()
-                if (channelId == null || channelId <= 0L) {
+                val channelId = call.request.queryParameters["stream_id"]?.toUIntOrNull()
+                if (channelId == null || channelId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"A valid Channel ID is required\"}",
                         ContentType.Application.Json,
@@ -606,13 +607,13 @@ fun Route.xtreamApi() {
                     programmes = listOf()
                 }
 
-                call.respond(EpgList(programmes.map { it.toEpg().copy(streamId = channelId.toString()) }))
+                call.respond(XtreamEpgList(programmes.map { it.toXtreamEpg().copy(streamId = channelId.toString()) }))
             }
 
             // EPG date table
             listOf("get_simple_date_table", "get_simple_data_table").contains(call.request.queryParameters["action"]) -> {
-                val channelId = call.request.queryParameters["stream_id"]?.toLongOrNull()
-                if (channelId == null || channelId <= 0L) {
+                val channelId = call.request.queryParameters["stream_id"]?.toUIntOrNull()
+                if (channelId == null || channelId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"A valid Channel ID is required\"}",
                         ContentType.Application.Json,
@@ -633,7 +634,7 @@ fun Route.xtreamApi() {
                     programmes = listOf()
                 }
 
-                call.respond(EpgList(programmes.map { it.toEpg().copy(streamId = channelId.toString()) }))
+                call.respond(XtreamEpgList(programmes.map { it.toXtreamEpg().copy(streamId = channelId.toString()) }))
             }
 
             call.request.queryParameters["action"].isNullOrBlank() -> {

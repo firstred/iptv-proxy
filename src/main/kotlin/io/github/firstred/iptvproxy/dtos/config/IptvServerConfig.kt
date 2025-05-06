@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.dtos.config
 
-import io.github.firstred.iptvproxy.entities.IptvServer
-import io.github.firstred.iptvproxy.entities.IptvServerConnection
+import io.github.firstred.iptvproxy.classes.IptvServer
+import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
 import kotlinx.serialization.Serializable
 import java.net.URI
@@ -22,13 +22,13 @@ data class IptvServerConfig(
 
     val accounts: List<IptvServerAccountConfig>? = null,
 
-    override val timeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
+    override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
     override val userAgent: String? = null,
 ) : IIptvServerConfigWithoutAccounts {
-    fun toFlatIptvServerConfig(accountIndex: Int) = IptvFlatServerConfig(
+    fun toFlatIptvServerConfig(accountIndex: UInt) = IptvFlatServerConfig(
         name = name,
         epgUrl = epgUrl,
         epgBefore = epgBefore,
@@ -36,7 +36,7 @@ data class IptvServerConfig(
         proxyForwardedUser = proxyForwardedUser,
         proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
-        account = accounts?.let { it[accountIndex] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
+        account = accounts?.let { it[accountIndex.toInt()] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
         timeouts = timeouts,
         groupFilters = groupFilters,
         userAgent = userAgent,
@@ -45,7 +45,7 @@ data class IptvServerConfig(
     fun toIptvServer(): IptvServer = IptvServer(
         name = name,
         config = this,
-        connections = accounts?.mapIndexed { idx, _ -> IptvServerConnection(toFlatIptvServerConfig(idx)) }?.toMutableList() ?: mutableListOf(),
+        connections = accounts?.mapIndexed { idx, _ -> IptvServerConnection(toFlatIptvServerConfig(idx.toUInt())) }?.toMutableList() ?: mutableListOf(),
     )
 
     override fun getEpgUrl(): URI? {

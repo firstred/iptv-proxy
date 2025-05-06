@@ -19,13 +19,13 @@ data class IptvFlatServerConfig(
     override val proxyForwardedUser: String? = null,
     override val proxyForwardedPassword: String? = null,
 
-    override val timeouts: ConnectionTimeoutsConfig = ConnectionTimeoutsConfig(),
+    override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
 
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
     override val userAgent: String? = null,
 ) : IIptvServerConfigWithoutAccounts {
-    fun toIptvServerConfig(idx: Int): IptvServerConfig = IptvServerConfig(
+    fun toIptvServerConfig(idx: UInt): IptvServerConfig = IptvServerConfig(
         name = name,
         epgUrl = epgUrl,
         epgBefore = epgBefore,
@@ -33,7 +33,7 @@ data class IptvFlatServerConfig(
         proxyForwardedUser = proxyForwardedUser,
         proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
-        accounts = listOf(if (idx == 0) account else throw IllegalStateException("Only the first account is supported in flat config")),
+        accounts = listOf(if (idx == 0u) account else throw IllegalStateException("Only the first account is supported in flat config")),
         timeouts = timeouts,
         groupFilters = groupFilters,
         userAgent = userAgent,

@@ -1,21 +1,20 @@
 package io.github.firstred.iptvproxy.db.tables.sources
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object XmltvSourceTable : Table("xmltv_source") {
-    val server: Column<String> = varchar("server", 255)
-    val generatorInfoName: Column<String?> = text("generator_info_name").nullable()
-    val generatorInfoUrl: Column<String?> = text("generator_info_url").nullable()
-    val sourceInfoUrl: Column<String?> = text("source_info_url").nullable()
-    val sourceInfoName: Column<String?> = text("source_info_name").nullable()
-    val sourceInfoLogo: Column<String?> = text("source_info_logo").nullable()
-    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val startedAt: Column<Instant> = timestamp("started_at").default(Clock.System.now())
-    val completedAt: Column<Instant> = timestamp("completed_at").default(Clock.System.now())
+    val server = varchar("server", maxServerNameDbLength)
+    val generatorInfoName = text("generator_info_name").nullable()
+    val generatorInfoUrl = text("generator_info_url").nullable()
+    val sourceInfoUrl = text("source_info_url").nullable()
+    val sourceInfoName = text("source_info_name").nullable()
+    val sourceInfoLogo = text("source_info_logo").nullable()
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val startedImportAt = timestamp("started_import_at").defaultExpression(CurrentTimestamp)
+    val completedImportAt = timestamp("completed_import_at").defaultExpression(CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(arrayOf(server)) // Only one source per server
+    override val primaryKey = PrimaryKey(server) // Only one source per server
 }

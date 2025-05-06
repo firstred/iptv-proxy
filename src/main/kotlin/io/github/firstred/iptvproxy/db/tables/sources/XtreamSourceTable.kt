@@ -1,16 +1,15 @@
 package io.github.firstred.iptvproxy.db.tables.sources
 
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object XtreamSourceTable : Table("xtream_source") {
-    val server: Column<String> = varchar("server", 255)
-    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val startedAt: Column<Instant> = timestamp("started_at").default(Clock.System.now())
-    val completedAt: Column<Instant> = timestamp("completed_at").default(Clock.System.now())
+    val server = varchar("server", maxServerNameDbLength)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val startedImportAt = timestamp("started_import_at").defaultExpression(CurrentTimestamp)
+    val completedImportAt = timestamp("completed_import_at").defaultExpression(CurrentTimestamp)
 
     override val primaryKey = PrimaryKey(arrayOf(server)) // Only one source per server
 }

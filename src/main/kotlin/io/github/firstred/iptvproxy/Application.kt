@@ -142,7 +142,7 @@ private fun startServer() {
                         else      -> throw IllegalArgumentException("Invalid CORS allow method in configuration: $it")
                     }) }
                     config.cors.exposeHeaders.forEach { exposeHeader(it) }
-                    maxAgeInSeconds = config.cors.maxAgeInSeconds
+                    maxAgeInSeconds = config.cors.maxAgeInSeconds.toLong()
                     if (config.cors.allowOrigins.contains("*")) {
                         anyHost()
                     } else {
@@ -159,11 +159,11 @@ private fun startServer() {
             }
         },
         configure = {
-            connector { host = config.host; port = config.port }
-            config.healthcheckPort?.let { connector { host = config.host; port = it } }
-            config.metricsPort?.let { connector { host = config.host; port = it } }
+            connector { host = config.host; port = config.port.toInt() }
+            config.healthcheckPort?.let { connector { host = config.host; port = it.toInt() } }
+            config.metricsPort?.let { connector { host = config.host; port = it.toInt() } }
 
-            connectionIdleTimeoutSeconds = config.clientConnectionMaxIdleSeconds
+            connectionIdleTimeoutSeconds = config.clientConnectionMaxIdleSeconds.toInt()
         },
     ).start(wait = true)
 }

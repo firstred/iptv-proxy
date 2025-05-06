@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.dtos.xmltv
 
 import io.github.firstred.iptvproxy.dotenv
-import io.github.firstred.iptvproxy.dtos.xtream.Epg
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpg
 import io.github.firstred.iptvproxy.serialization.serializers.XmltvInstantSerializer
 import io.github.firstred.iptvproxy.utils.hexStringToDecimal
 import io.github.firstred.iptvproxy.utils.sha256
@@ -57,7 +57,7 @@ data class XmltvProgramme(
 
     val server: String? = null,
 ) {
-    fun toEpg() = Epg(
+    fun toXtreamEpg() = XtreamEpg(
         start = start.toLocalDateTime(TimeZone.of(dotenv.get("TZ") ?: "UTC")).format(LocalDateTime.Format {
             byUnicodePattern("yyyy-MM-dd HH:mm:ss")
         }),
@@ -72,7 +72,7 @@ data class XmltvProgramme(
         title = Base64.getEncoder().encodeToString( "${title?.text}".toByteArray(UTF_8)),
         description = Base64.getEncoder().encodeToString( "${desc?.text}".toByteArray(UTF_8)),
         lang = desc?.language ?: "",
-        nowPlaying = if (Clock.System.now() > start && Clock.System.now() < stop) 1 else 0,
-        hasArchive = 0,
+        nowPlaying = if (Clock.System.now() > start && Clock.System.now() < stop) 1u else 0u,
+        hasArchive = 0u,
     )
 }

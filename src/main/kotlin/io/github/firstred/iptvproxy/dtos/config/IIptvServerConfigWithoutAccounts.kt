@@ -6,6 +6,8 @@ import java.net.URI
 import java.util.regex.Pattern
 import kotlin.time.Duration
 
+const val maxServerNameDbLength = 127
+
 interface IIptvServerConfigWithoutAccounts {
     val name: String
 
@@ -17,7 +19,7 @@ interface IIptvServerConfigWithoutAccounts {
     val proxyForwardedUser: String?
     val proxyForwardedPassword: String?
 
-    val timeouts: ConnectionTimeoutsConfig
+    val timeouts: IptvConnectionTimeoutsConfig
 
     val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern>
 

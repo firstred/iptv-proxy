@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.entities
+package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.ktor.client.*
@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 class IptvServerConnection(
     val config: IptvFlatServerConfig,
 ) : KoinComponent {
-    private val semaphore: Semaphore = Semaphore(config.account.maxConcurrentRequests)
+    private val semaphore: Semaphore = Semaphore(config.account.maxConcurrentRequests.toInt())
 
     val httpClient: HttpClient by inject(named(IptvServerConnection::class.java.simpleName)) { parametersOf(config) }
 

@@ -8,7 +8,7 @@ import nl.adaptivity.xmlutil.serialization.XmlValue
 @Serializable
 data class XmltvSubtitleLanguage(
     @XmlElement(false)
-    @XmlSerialName("lang") val type: String? = null,
+    @XmlSerialName("lang") val language: String? = null,
 
     @XmlValue
     @XmlSerialName("value") val value: String? = null,

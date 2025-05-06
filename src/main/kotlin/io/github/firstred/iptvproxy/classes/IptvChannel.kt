@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.entities
+package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
@@ -21,9 +21,9 @@ import java.util.*
 import kotlin.text.Charsets.UTF_8
 
 class IptvChannel(
-    val id: String? = null,
-    val externalIndex: Long? = null,
-    val externalStreamId: String? = null,
+    val id: UInt? = null,
+    val externalPosition: UInt? = null,
+    val externalStreamId: UInt? = null,
     val name: String,
     val logo: String?,
     val epgId: String?,

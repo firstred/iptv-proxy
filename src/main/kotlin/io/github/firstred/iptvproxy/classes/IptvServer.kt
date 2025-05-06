@@ -1,4 +1,4 @@
-package io.github.firstred.iptvproxy.entities
+package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerConfig
@@ -12,7 +12,7 @@ class IptvServer(
     private val connections: MutableList<IptvServerConnection>,
 ) {
     suspend fun withConnection(
-        totalTimoutInMilliseconds: Long,
+        totalTimoutInMilliseconds: ULong,
         specificAccount: IptvServerAccountConfig? = null,
         action: suspend (connection: IptvServerConnection, releaseConnectionEarly: () -> Unit) -> Unit,
     ) {
@@ -29,7 +29,7 @@ class IptvServer(
         }
 
         @Suppress("AssignedValueIsNeverRead")
-        connectionTimer = timer(initialDelay = totalTimoutInMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+        connectionTimer = timer(initialDelay = totalTimoutInMilliseconds.toLong(), period = Long.MAX_VALUE, daemon = true) {
             releaseConnection()
         }
 

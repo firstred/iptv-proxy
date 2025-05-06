@@ -1,4 +1,4 @@
 package io.github.firstred.iptvproxy.utils
 
-const val defaultMaxConnections = 6
-const val defaultMaxRetries = 3
+const val defaultMaxConnections = 6u
+const val defaultMaxRetries = 3u

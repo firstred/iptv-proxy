@@ -1,24 +1,23 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import io.github.firstred.iptvproxy.enums.IptvChannelType
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.dao.id.LongIdTable
-import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.dao.id.UIntIdTable
+import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
-object CategoryTable : LongIdTable("category") {
-    val server: Column<String> = varchar("server", 255)
-    val externalCategoryId: Column<Long> = long("external_category_id")
-    val name: Column<String> = text("category_name")
-    val parentId: Column<String> = varchar("parent_id", 255).default("0")
-    val type: Column<IptvChannelType> = enumerationByName("type", 255, IptvChannelType::class)
-    val createdAt: Column<Instant> = timestamp("created_at").default(Clock.System.now())
-    val updatedAt: Column<Instant> = timestamp("updated_at").default(Clock.System.now())
+object CategoryTable : UIntIdTable("category") {
+    val server = varchar("server", maxServerNameDbLength)
+    val externalCategoryId = uinteger("external_category_id")
+    val name = text("category_name")
+    val parentId = uinteger("parent_id").default(0u)
+    val type = enumerationByName("type", IptvChannelType.maxDbLength, IptvChannelType::class)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
     init {
         uniqueIndex(
-            customIndexName = "fk_asoidfuas8df8sdfh8sdf",
+            customIndexName = "uniq_438f002bba40a04a4e02faef0137476d",
             server,
             externalCategoryId,
         )

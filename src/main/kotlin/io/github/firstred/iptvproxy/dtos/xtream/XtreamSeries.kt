@@ -9,9 +9,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 @OptIn(ExperimentalSerializationApi::class)
 data class XtreamSeries(
-    val num: Long,
+    val num: UInt,
     val name: String,
-    @SerialName("series_id") val seriesId: Long,
+    @SerialName("series_id") val seriesId: UInt,
     @SerialName("stream_type") val streamType: IptvChannelType = IptvChannelType.series,
     @SerialName("type_name") val typeName: IptvChannelType = IptvChannelType.series,
     @EncodeDefault(EncodeDefault.Mode.NEVER) val server: String? = null,
@@ -30,5 +30,5 @@ data class XtreamSeries(
     val tmdb: String,
     @SerialName("episode_run_time") val episodeRunTime: String,
     @SerialName("category_id") val categoryId: String?,
-    @SerialName("category_ids") val categoryIds: List<Long?>? = null,
+    @SerialName("category_ids") val categoryIds: List<UInt?>? = null,
 )

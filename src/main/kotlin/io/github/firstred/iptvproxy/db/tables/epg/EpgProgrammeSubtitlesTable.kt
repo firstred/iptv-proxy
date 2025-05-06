@@ -1,22 +1,28 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeSubtitlesTable : Table("epg_programme_subtitles") {
-    val programmeId: Column<Long> = long("programme_id")
-    val server: Column<String> = varchar("server", 255)
-    val type: Column<String> = varchar("type", 255)
+    val server = varchar("server", maxServerNameDbLength)
+    val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
+    val programmeStart = timestamp("programme_start")
+    val language = varchar("language", defaultVarcharLength)
+    val subtitle = text("subtitle")
 
-    override val primaryKey = PrimaryKey(arrayOf(programmeId, type))
+    override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, programmeStart, language))
 
     init {
         foreignKey(
-            programmeId to EpgProgrammeTable.id,
+            server to EpgProgrammeTable.server,
+            epgChannelId to EpgProgrammeTable.epgChannelId,
+            programmeStart to EpgProgrammeTable.start,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
-            name = "fk_lkjhs45678sdfgdf",
+            name = "fk_c46efb630ad43c18420fc4359bb1dbcd",
         )
     }
 }

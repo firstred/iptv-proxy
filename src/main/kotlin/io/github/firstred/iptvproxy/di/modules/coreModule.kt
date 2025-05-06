@@ -7,9 +7,9 @@ import java.util.concurrent.ScheduledThreadPoolExecutor
 
 val coreModule = module {
     single<ScheduledExecutorService> {
-        val s = ScheduledThreadPoolExecutor(config.schedulerThreadPoolSize) { _, _ -> }
+        val s = ScheduledThreadPoolExecutor(config.schedulerThreadPoolSize.toInt()) { _, _ -> }
         s.removeOnCancelPolicy = true
-        s.maximumPoolSize = config.schedulerThreadPoolSize
+        s.maximumPoolSize = config.schedulerThreadPoolSize.toInt()
 
         s
     }

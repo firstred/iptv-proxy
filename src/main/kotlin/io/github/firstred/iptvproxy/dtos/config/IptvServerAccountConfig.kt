@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.config
 
-import io.github.firstred.iptvproxy.serialization.serializers.IntWithUnderscoreSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import kotlinx.serialization.Serializable
 import java.net.URI
@@ -13,9 +13,9 @@ data class IptvServerAccountConfig(
     val password: String? = null,
     val xtreamUsername: String? = null,
     val xtreamPassword: String? = null,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequests: Int = defaultMaxConnections,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerHost: Int = defaultMaxConnections,
-    @Serializable(with = IntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerChannel: Int = Int.MAX_VALUE, // Unused -- reserved for future use
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequests: UInt = defaultMaxConnections,
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerHost: UInt = defaultMaxConnections,
+    @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerChannel: UInt = UInt.MAX_VALUE, // Unused -- reserved for future use
 ) : Comparable<IptvServerAccountConfig> {
     fun getPlaylistUrl(): URI? {
         if (isXtream()) {

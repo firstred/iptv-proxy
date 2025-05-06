@@ -1,30 +1,30 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
-import org.jetbrains.exposed.sql.Column
+import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 
 object SeriesToCategoryTable : Table("series_to_category") {
-    val server: Column<String> = varchar("server", 255)
-    val num: Column<Long> = long("num")
-    val categoryId: Column<Long> = long("category_id")
+    val server = varchar("server", maxServerNameDbLength)
+    val externalSeriesId = uinteger("external_series_id")
+    val categoryId = uinteger("category_id")
 
-    override val primaryKey = PrimaryKey(arrayOf(server, num, categoryId))
+    override val primaryKey = PrimaryKey(arrayOf(server, externalSeriesId, categoryId))
 
     init {
         foreignKey(
             server to SeriesTable.server,
-            num to SeriesTable.num,
+            externalSeriesId to SeriesTable.externalSeriesId,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
-            name ="fk_pohnbmdv8sdfh8sdfh8sdf",
+            name ="fk_de4eac24e8e0ac2a832af0ae75b5467c",
         )
         foreignKey(
             server to CategoryTable.server,
             categoryId to CategoryTable.externalCategoryId,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
-            name = "fk_sfdoijgj8sdfh8sdfh8sdf",
+            name = "fk_8e1ea5142dfbdedb40a061ad82154727",
         )
     }
 }
