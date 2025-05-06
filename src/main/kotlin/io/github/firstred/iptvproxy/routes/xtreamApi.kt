@@ -12,9 +12,9 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpgList
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamProfile
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamProfile
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
@@ -43,6 +43,7 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -63,7 +64,7 @@ import kotlin.time.Duration
 
 val LOG = LoggerFactory.getLogger("xtreamApi")
 
-@OptIn(FormatStringsInDatetimeFormats::class)
+@OptIn(FormatStringsInDatetimeFormats::class, ExperimentalSerializationApi::class)
 fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
     val channelRepository: ChannelRepository by inject()
@@ -199,7 +200,7 @@ fun Route.xtreamApi() {
 
             listOf("get_vod_info", "get_movie_info", "get_movies_info").contains(call.request.queryParameters["action"]) -> {
                 val internalVodId = call.request.queryParameters["vod_id"]?.toUIntOrNull() ?: 0u
-                if (null == internalVodId || internalVodId <= 0u) {
+                if (internalVodId <= 0u) {
                     call.respondText(
                         "{\"success\": false, \"error\": \"A valid Movie ID is required\"}",
                         ContentType.Application.Json,
