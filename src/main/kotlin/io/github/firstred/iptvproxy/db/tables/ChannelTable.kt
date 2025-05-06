@@ -1,8 +1,8 @@
 package io.github.firstred.iptvproxy.db.tables
 
-import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
-import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.defaultVarcharLength
+import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.dao.id.UIntIdTable
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
@@ -13,7 +13,7 @@ object ChannelTable : UIntIdTable("channel") {
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength) // Link with EPG
     val url = text("url")
     val externalStreamId = uinteger("external_stream_id")  // External stream ID, used for requests to external servers
-    val server = varchar("server", maxServerNameDbLength)
+    val server = varchar("server", maxServerNameLength)
     val icon = text("icon").nullable()
     val name = text("name")
     val mainGroup = text("main_group").nullable()

@@ -1,13 +1,13 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
-import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
-import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
+import io.github.firstred.iptvproxy.utils.defaultVarcharLength
+import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 
 object EpgChannelDisplayNameTable : Table("epg_display_name") {
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
-    val server = varchar("server", maxServerNameDbLength)
+    val server = varchar("server", maxServerNameLength)
     val language = varchar("language", defaultVarcharLength)
     val name = text("name")
 

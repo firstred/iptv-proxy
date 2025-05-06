@@ -1,12 +1,12 @@
 package io.github.firstred.iptvproxy.db.tables.sources
 
-import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
+import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object XmltvSourceTable : Table("xmltv_source") {
-    val server = varchar("server", maxServerNameDbLength)
+    val server = varchar("server", maxServerNameLength)
     val generatorInfoName = text("generator_info_name").nullable()
     val generatorInfoUrl = text("generator_info_url").nullable()
     val sourceInfoUrl = text("source_info_url").nullable()

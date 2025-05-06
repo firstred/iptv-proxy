@@ -1,13 +1,13 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
-import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.dao.id.UIntIdTable
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object CategoryTable : UIntIdTable("category") {
-    val server = varchar("server", maxServerNameDbLength)
+    val server = varchar("server", maxServerNameLength)
     val externalCategoryId = uinteger("external_category_id")
     val name = text("category_name")
     val parentId = uinteger("parent_id").default(0u)

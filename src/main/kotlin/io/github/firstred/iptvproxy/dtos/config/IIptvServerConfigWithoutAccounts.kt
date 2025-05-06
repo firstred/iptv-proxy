@@ -6,8 +6,6 @@ import java.net.URI
 import java.util.regex.Pattern
 import kotlin.time.Duration
 
-const val maxServerNameDbLength = 127
-
 interface IIptvServerConfigWithoutAccounts {
     val name: String
 

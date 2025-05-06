@@ -1,14 +1,14 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
-import io.github.firstred.iptvproxy.dtos.config.defaultVarcharLength
-import io.github.firstred.iptvproxy.dtos.config.maxServerNameDbLength
+import io.github.firstred.iptvproxy.utils.defaultVarcharLength
+import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object MovieTable : Table("movie") {
     val num = uinteger("num").default(0u)
-    val server = varchar("server", maxServerNameDbLength)
+    val server = varchar("server", maxServerNameLength)
     val name = text("name")
     val externalStreamId = uinteger("external_stream_id")
     val externalStreamIcon = text("external_stream_icon").nullable()

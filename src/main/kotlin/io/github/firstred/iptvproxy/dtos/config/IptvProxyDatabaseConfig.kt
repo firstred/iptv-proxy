@@ -3,8 +3,6 @@ package io.github.firstred.iptvproxy.dtos.config
 import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import kotlinx.serialization.Serializable
 
-const val defaultVarcharLength = 255
-
 @Serializable
 data class IptvProxyDatabaseConfig(
     val jdbcUrl: String = "jdbc:sqlite::memory:",
