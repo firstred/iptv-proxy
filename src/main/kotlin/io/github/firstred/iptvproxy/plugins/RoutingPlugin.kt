@@ -7,7 +7,6 @@ import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieInfoEndpoint
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.managers.UserManager
@@ -15,7 +14,6 @@ import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.notices
 import io.github.firstred.iptvproxy.routes.xtreamApi
-import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
@@ -31,16 +29,11 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.core.isEmpty
-import io.ktor.utils.io.core.remaining
 import io.sentry.Sentry
 import kotlinx.io.readByteArray
-import kotlinx.serialization.json.JsonNull.content
-import org.apache.commons.io.IOUtils.byteArray
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
-import sun.security.krb5.internal.rcache.MemoryCache
 import java.net.URI
 import java.net.URISyntaxException
 
