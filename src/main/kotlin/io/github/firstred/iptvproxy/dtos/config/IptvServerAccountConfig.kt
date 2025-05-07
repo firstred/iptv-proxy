@@ -94,7 +94,7 @@ data class IptvServerAccountConfig(
         }
         return null
     }
-    fun getXtreamMoviesInfoUrl(): URI? {
+    fun getXtreamMovieInfoUrl(): URI? {
         if (!isXtream() || null == url) return null
 
         try {

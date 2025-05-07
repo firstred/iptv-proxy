@@ -223,8 +223,8 @@ fun Route.xtreamApi() {
                 val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
 
                 channel.server.let { iptvServer ->
-                    val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
-                    val targetUrl = account?.getXtreamMoviesInfoUrl()
+                    val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMovieInfoUrl() }
+                    val targetUrl = account?.getXtreamMovieInfoUrl()
                     if (null == targetUrl) return@let
 
                     try {
