@@ -1,7 +1,6 @@
 package io.github.firstred.iptvproxy.plugins
 
 import com.mayakapps.kache.InMemoryKache
-import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -31,6 +30,7 @@ import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import io.sentry.Sentry
 import kotlinx.io.readByteArray
+import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
@@ -231,18 +231,13 @@ fun Route.proxyRemoteHlsStream() {
     }
 }
 
-private val videoChunkCache = InMemoryKache<String, ByteArray>(maxSize = if (config.cache.enabled) config.cache.size.videoChunks.toLong() else 1L) {
-    strategy = KacheStrategy.FIFO
-    expireAfterWriteDuration = config.cache.ttl.videoChunks
-    sizeCalculator = { _, byteArray -> byteArray.size.toLong() }
-}
-
 private suspend fun RoutingContext.streamRemoteFile(
     user: IptvUser,
     channel: IptvChannel,
     routingContext: RoutingContext,
     remoteUrl: URI = channel.url,
 ) {
+    val videoChunkCache: InMemoryKache<String, ByteArray> = getKoin().get(named("video-chunks"))
     var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
     val cachedResponse: ByteArray? = videoChunkCache.get(responseURI.toString())

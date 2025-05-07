@@ -1,7 +1,6 @@
 package io.github.firstred.iptvproxy.routes
 
 import com.mayakapps.kache.InMemoryKache
-import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -48,6 +47,7 @@ import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
 import kotlinx.serialization.ExperimentalSerializationApi
+import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
 import org.koin.mp.KoinPlatform.getKoin
 import org.slf4j.Logger
@@ -66,6 +66,8 @@ fun Route.xtreamApi() {
     val epgRepository: EpgRepository by inject()
     val xtreamRepository: XtreamRepository by inject()
     val serversByName: IptvServersByName by inject()
+    val movieInfoCache: InMemoryKache<String, XtreamMovieInfoEndpoint> by inject(named("movie-info"))
+    val seriesInfoCache: InMemoryKache<String, XtreamSeriesInfoEndpoint> by inject(named("series-info"))
 
     get("/xmltv.php") {
         if (isNotMainPort()) return@get
@@ -592,17 +594,6 @@ fun Route.xtreamApi() {
             }
         }
     }
-}
-
-private val movieInfoCache = InMemoryKache<String, XtreamMovieInfoEndpoint>(maxSize = if (config.cache.enabled) config.cache.size.movieInfo.toLong() else 1L) {
-    strategy = KacheStrategy.FIFO
-    expireAfterWriteDuration = config.cache.ttl.movieInfo
-    sizeCalculator = { _, endpoint -> json.encodeToString(XtreamMovieInfoEndpoint.serializer(), endpoint).length.toLong() }
-}
-private val seriesInfoCache = InMemoryKache<String, XtreamSeriesInfoEndpoint>(maxSize = if (config.cache.enabled) config.cache.size.seriesInfo.toLong() else 1L) {
-    strategy = KacheStrategy.FIFO
-    expireAfterWriteDuration = config.cache.ttl.seriesInfo
-    sizeCalculator = { _, endpoint -> json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), endpoint).length.toLong() }
 }
 
 private suspend fun followRedirects(

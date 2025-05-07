@@ -5,13 +5,18 @@ import org.koin.dsl.module
 val appModule = module {
     includes(
         coreModule,
+
+        cacheModule,
         databaseModule,
-        healthcheckModule,
-        metricsModule,
         httpClientModule,
+
         userModule,
         iptvServerModule,
         channelModule,
+
         sentryModule,
+
+        healthcheckModule,
+        metricsModule,
     )
 }
