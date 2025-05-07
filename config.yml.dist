@@ -41,50 +41,50 @@ cleanup_interval: PT1H # Interval to clean up old data
 channel_max_stale_period: P2D # Wait time before a stale channel is removed from the database
 scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG
 sort_channels_by_name: false
-socks_proxy: null # socks5://<username>:<password>@server_host:port
-http_proxy: null # http://<username>:<password>@server_host:port
-cors: # Configure CORS response from the server - e.g. for direct access to the API from a web browser
-  enabled: true
-  allow_origins: ["*"]
-  allow_headers:
-    - "Content-Type"
-    - "Authorization"
-    - "X-Requested-With"
-    - "Accept"
-    - "Origin"
-    - "User-Agent"
-  allow_header_prefixes:
-    - "X-Custom-"
-  allow_methods:
-    - GET
-    - OPTIONS
-  allow_credentials: true
-  max_age: 3600
-  expose_headers:
-    - "X-Total-Count"
-# whitelist_iptv_client_headers:
-#  - "User-Agent" # Allows additional headers from the IPTV client to be passed to the server - default: allow all
-blacklist_iptv_client_headers:
-  - l5d-dst-override
-  - l5d-connection-secure
-  - l5d-remote-ipv6
-  - l5d-client-id
+# socks_proxy: null # socks5://<username>:<password>@server_host:port
+# http_proxy: null # http://<username>:<password>@server_host:port
+# cors: # Configure CORS response from the server - e.g. for direct access to the API from a web browser
+#   enabled: true
+#   allow_origins: ["*"]
+#   allow_headers:
+#     - "Content-Type"
+#     - "Authorization"
+#     - "X-Requested-With"
+#     - "Accept"
+#     - "Origin"
+#     - "User-Agent"
+#   allow_header_prefixes:
+#     - "X-Custom-"
+#   allow_methods:
+#     - GET
+#     - OPTIONS
+#   allow_credentials: true
+#   max_age: 3600
+#   expose_headers:
+#     - "X-Total-Count"
+# # whitelist_iptv_client_headers:
+# #  - "User-Agent" # Allows additional headers from the IPTV client to be passed to the server - default: allow all
+# blacklist_iptv_client_headers:
+#   - l5d-dst-override
+#   - l5d-connection-secure
+#   - l5d-remote-ipv6
+#   - l5d-client-id
 # whitelist_iptv_server_headers:
 #  - "X-Subscription-Expiry" # Allows additional headers from the IPTV server to be passed to the client - default: allow all
 servers:
   - name: someiptv-1
     accounts:
-      - url: https://someiptv.com/          # Xtream API server without the `.get.php`, `api.php`, `xmltv.php`, etc.
-        xtream_username: 1234567890abcdef   # Xtream username
-        xtream_password: aslkdfadsf         # Xtream password
-        max_concurrent_requests: 3          # General max requests for this account
-        max_concurrent_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+      - url: https://someiptv.com/                # Xtream API server without the `.get.php`, `api.php`, `xmltv.php`, etc.
+        xtream_username: 1234567890abcdef         # Xtream username
+        xtream_password: aslkdfadsf               # Xtream password
+        max_concurrent_requests: 3                # General max requests for this account
+        max_concurrent_requests_per_host: 1       # Server specific max requests per hosts when requesting playback chunks
         user_agent: "TiviMate/5.1.6 (Android 14)" # Force a specific user agent for all requests with this account
-      - url: https://someiptv.com/playlist.m3u
-        login: account # HTTP Basic Auth login
-        password: password # HTTP Basic Auth password
-        max_user_connections: 3
-        max_requests_per_host: 1 # Server specific max requests per hosts when requesting playback chunks
+      - url: https://someiptv.com/playlist.m3u # Direct playlist URL
+        login: account                         # HTTP Basic Auth login
+        password: password                     # HTTP Basic Auth password
+        max_concurrent_requests: 3
+        max_requests_per_host: 1               # Server specific max requests per hosts when requesting playback chunks
     epg_url: https://epg.example.com/epg.xml.gz
     epg_before: P7D
     epg_after: P7D
