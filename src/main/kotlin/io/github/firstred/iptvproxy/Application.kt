@@ -5,6 +5,7 @@ import arrow.fx.coroutines.resourceScope
 import com.charleskorn.kaml.InvalidPropertyValueException
 import com.charleskorn.kaml.YamlException
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.parameters.options.option
 import io.github.cdimascio.dotenv.Dotenv
 import io.github.cdimascio.dotenv.dotenv
 import io.github.firstred.iptvproxy.di.modules.appModule
@@ -68,11 +69,16 @@ fun main(args: Array<String>) {
         }
 
         object : CliktCommand(printHelpOnEmptyArgs = false) {
+            private val configFile: String? by option(
+                "--config",
+                "-c",
+                help = "Location of the configuration file",
+            )
+
             override fun run() {
-                // TODO: make configuration location configurable
                 try {
                     LOG.info("Loading config...")
-                    config = loadConfig(File("config.yml"))
+                    config = loadConfig(File(configFile ?: "config.yml"))
                 } catch (e: InvalidPropertyValueException) {
                     Sentry.captureException(e)
                     LOG.error("Invalid property `${e.propertyName}` in config file: ${e.reason}")
