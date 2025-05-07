@@ -316,7 +316,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         ?: run { throw RuntimeException("Channel not found") }).getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
     }
 
-    suspend fun getLiveStreamsPlaylist(
+    suspend fun getAllChannelsPlaylist(
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
@@ -353,7 +353,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 if (channel.groups.isNotEmpty()) {
                     outputWriter.write(" group-title=\"")
-                    channel.groups.firstOrNull()?.let { outputWriter.write(it.toString()) }
+                    channel.groups.firstOrNull()?.let { outputWriter.write(it) }
                     outputWriter.write("\"")
                 }
 
@@ -363,7 +363,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 if (channel.groups.isNotEmpty()) {
                     outputWriter.write("#EXTGRP:")
-                    outputWriter.write(java.lang.String.join(";", channel.groups.map { it.toString() }))
+                    outputWriter.write(java.lang.String.join(";", channel.groups))
                     outputWriter.write("\n")
                 }
 

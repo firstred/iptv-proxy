@@ -72,7 +72,7 @@ class XtreamRepository : KoinComponent {
                     this[CategoryTable.server] = server
                     this[CategoryTable.externalCategoryId] = liveStreamCategory.id.toUInt()
                     this[CategoryTable.name] = liveStreamCategory.name
-                    this[CategoryTable.parentId] = liveStreamCategory.parentId.toUIntOrNull() ?: 0u
+                    this[CategoryTable.parentId] = liveStreamCategory.parentId ?: 0u
                     this[CategoryTable.type] = type
                     this[CategoryTable.updatedAt] = Clock.System.now()
                 }
@@ -96,6 +96,7 @@ class XtreamRepository : KoinComponent {
                     this[LiveStreamTable.epgChannelId] = liveStream.epgChannelId
                     this[LiveStreamTable.externalStreamId] = liveStream.streamId
                     this[LiveStreamTable.icon] = liveStream.streamIcon
+                    this[LiveStreamTable.thumbnail] = liveStream.thumbnail
                     this[LiveStreamTable.added] = Instant.fromEpochSeconds(liveStream.added.toLong())
                     this[LiveStreamTable.isAdult] = liveStream.isAdult.toBoolean()
                     this[LiveStreamTable.mainCategoryId] = liveStream.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it]?.id } // Translate external category ID to internal category ID
@@ -144,7 +145,7 @@ class XtreamRepository : KoinComponent {
                     this[MovieTable.directSource] = movie.directSource
                     this[MovieTable.externalStreamId] = movie.streamId
                     this[MovieTable.externalStreamIcon] = movie.streamIcon
-                    this[MovieTable.trailer] = movie.trailer
+                    this[MovieTable.youtubeTrailer] = movie.youtubeTrailer.ifBlank { movie.trailer }
                     this[MovieTable.rating] = movie.rating
                     this[MovieTable.rating5Based] = movie.rating5Based
                     this[MovieTable.tmdb] = movie.tmdb.toUIntOrNull()
@@ -203,7 +204,7 @@ class XtreamRepository : KoinComponent {
                     this[SeriesTable.rating] = serie.rating
                     this[SeriesTable.rating5Based] = serie.rating5Based.toFloat()
                     this[SeriesTable.backdropPath] = serie.backdropPath?.filterNotNull()?.joinToString(",")
-                    this[SeriesTable.youtubeTrailer] = serie.youtubeTrailer
+                    this[SeriesTable.youtubeTrailer] = serie.youtubeTrailer.ifBlank { serie.trailer }
                     this[SeriesTable.tmdb] = serie.tmdb.toUIntOrNull()
                     this[SeriesTable.episodeRunTime] = serie.episodeRunTime
                     this[SeriesTable.updatedAt] = Clock.System.now()
@@ -391,6 +392,7 @@ class XtreamRepository : KoinComponent {
                     LiveStreamTable.name,
                     LiveStreamTable.externalStreamId,
                     LiveStreamTable.icon,
+                    LiveStreamTable.thumbnail,
                     LiveStreamTable.epgChannelId,
                     LiveStreamTable.server,
                     LiveStreamTable.added,
@@ -401,6 +403,7 @@ class XtreamRepository : KoinComponent {
                     LiveStreamTable.directSource,
                     LiveStreamTable.tvArchiveDuration,
                     ChannelTable.id,
+                    ChannelTable.url,
                     ChannelTable.externalPosition,
                     categoryIds,
                 )
@@ -451,7 +454,6 @@ class XtreamRepository : KoinComponent {
             offset += chunkSize
         } while (categories.isNotEmpty())
     }
-
     fun forEachMovieChunk(
         server: String? = null,
         sortedByName: Boolean = config.sortChannelsByName,
@@ -494,7 +496,7 @@ class XtreamRepository : KoinComponent {
                     MovieTable.rating,
                     MovieTable.rating5Based,
                     MovieTable.tmdb,
-                    MovieTable.trailer,
+                    MovieTable.youtubeTrailer,
                     MovieTable.added,
                     MovieTable.isAdult,
                     MovieTable.mainCategoryId,
@@ -502,6 +504,7 @@ class XtreamRepository : KoinComponent {
                     MovieTable.customSid,
                     MovieTable.directSource,
                     ChannelTable.id,
+                    ChannelTable.url,
                     ChannelTable.externalPosition,
                     ChannelTable.externalStreamId,
                     categoryIds,
@@ -678,12 +681,14 @@ class XtreamRepository : KoinComponent {
             typeName = IptvChannelType.live,
             streamId = this[ChannelTable.id].value,
             streamIcon = this[LiveStreamTable.icon],
+            thumbnail = this[LiveStreamTable.thumbnail],
             server = this[LiveStreamTable.server],
             epgChannelId = this[LiveStreamTable.epgChannelId],
             added = this[LiveStreamTable.added].epochSeconds.toString(),
             isAdult = this[LiveStreamTable.isAdult].toUInt(),
             categoryId = this[LiveStreamTable.mainCategoryId].toString(),
             categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat]?.split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[LiveStreamTable.mainCategoryId])).distinct(),
+            url = this[ChannelTable.url],
         )
         fun ResultRow.toXtreamMovie(categoryIdsGroupConcat: CustomFunction<String>? = null) = XtreamMovie(
             num = this[MovieTable.num],
@@ -700,10 +705,12 @@ class XtreamRepository : KoinComponent {
             rating = this[MovieTable.rating] ?: "",
             rating5Based = this[MovieTable.rating5Based] ?: 0.0f,
             tmdb = this[MovieTable.tmdb]?.toString() ?: "",
-            trailer = this[MovieTable.trailer] ?: "",
+            trailer = this[MovieTable.youtubeTrailer] ?: "",
+            youtubeTrailer = this[MovieTable.youtubeTrailer] ?: "",
             customSid = this[MovieTable.customSid] ?: "",
             containerExtension = this[MovieTable.containerExtension],
             directSource = this[MovieTable.directSource] ?: "",
+            url = this[ChannelTable.url],
         )
         fun ResultRow.toXtreamSeries(categoryIdsGroupConcat: CustomFunction<String>? = null) = XtreamSeries(
             num = this[SeriesTable.num],
@@ -726,13 +733,14 @@ class XtreamRepository : KoinComponent {
             releaseDateUnderscore = this[SeriesTable.releaseDate],
             lastModified = this[SeriesTable.lastModified],
             backdropPath = this[SeriesTable.backdropPath]?.split(",")?.map { it.trim() } ?: emptyList(),
+            trailer = this[SeriesTable.youtubeTrailer] ?: "",
             youtubeTrailer = this[SeriesTable.youtubeTrailer] ?: "",
             episodeRunTime = this[SeriesTable.episodeRunTime] ?: "",
         )
         fun ResultRow.toXtreamCategory() = XtreamCategory(
             id = this[CategoryTable.id].toString(),
             name = this[CategoryTable.name],
-            parentId = this[CategoryTable.parentId].toString(),
+            parentId = this[CategoryTable.parentId],
         )
     }
 }

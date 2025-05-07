@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
+import io.github.firstred.iptvproxy.BuildConfig
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
@@ -16,6 +17,9 @@ data class XtreamServerInfo(
     @SerialName("timestamp_now") val timestampNow: String? = null,
     @SerialName("time_now") val timeNow: String? = null,
     val process: Boolean? = null,
+    val xui: Boolean = false,
+    val version: String? = BuildConfig.APP_VERSION,
+    val revision: String? = BuildConfig.APP_VERSION,
 ) {
     fun getPlaylistUrl(username: String, password: String): URI {
         try {

@@ -11,17 +11,17 @@ object EpgChannelDisplayNameTable : Table("epg_display_name") {
     val language = varchar("language", defaultVarcharLength)
     val name = text("name")
 
-    override val primaryKey = PrimaryKey(arrayOf(epgChannelId, language, server))
+    override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, language))
 
     init {
         index(
             customIndexName = "idx_683b6e0bd327f4f67b64152de4231de1",
-            columns = arrayOf(epgChannelId, server),
+            columns = arrayOf(server, epgChannelId),
         )
 
         foreignKey(
-            epgChannelId to EpgChannelTable.epgChannelId,
             server to EpgChannelTable.server,
+            epgChannelId to EpgChannelTable.epgChannelId,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_171b90b68e926fefee70c917964a5a24",

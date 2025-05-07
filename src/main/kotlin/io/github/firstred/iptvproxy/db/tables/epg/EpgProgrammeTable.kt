@@ -23,8 +23,8 @@ object EpgProgrammeTable : Table("epg_programme") {
 
     init {
         foreignKey(
-            epgChannelId to EpgChannelTable.epgChannelId,
             server to EpgChannelTable.server,
+            epgChannelId to EpgChannelTable.epgChannelId,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_89f69f1c74e354168740cbf40d6c44cf",

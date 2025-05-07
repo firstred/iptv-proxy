@@ -18,8 +18,8 @@ object EpgProgrammeRatingTable : Table("epg_programme_rating") {
     init {
         foreignKey(
             server to EpgProgrammeTable.server,
-            programmeStart to EpgProgrammeTable.start,
             epgChannelId to EpgProgrammeTable.epgChannelId,
+            programmeStart to EpgProgrammeTable.start,
             onUpdate = ReferenceOption.CASCADE,
             onDelete = ReferenceOption.CASCADE,
             name = "fk_8afc876ec06fab3a423b20b788e2a021",

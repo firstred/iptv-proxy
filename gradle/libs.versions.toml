@@ -17,9 +17,6 @@ buildconfig = "5.6.4"
 exposed = "0.61.0"
 hikaricp = "6.3.0"
 database-sqlite = "3.49.1.0"
-database-mysql = "9.2.0"
-database-mariadb = "3.5.3"
-database-postgresql = "42.7.5"
 flyway = "11.8.0"
 
 slf4j = "2.0.16"
@@ -91,12 +88,7 @@ exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", versio
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 database-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "database-sqlite" }
-database-mysql = { module = "com.mysql:mysql-connector-j", version.ref = "database-mysql" }
-database-mariadb = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "database-mariadb" }
-database-postgresql = { module = "org.postgresql:postgresql", version.ref = "database-postgresql" }
 flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
-flyway-mysql = { module = "org.flywaydb:flyway-mysql", version.ref = "flyway" }
-flyway-postgresql = { module = "org.flywaydb:flyway-database-postgresql", version.ref = "flyway" }
 
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }

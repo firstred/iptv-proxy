@@ -15,6 +15,7 @@ data class XtreamLiveStream(
     @SerialName("type_name") val typeName: IptvChannelType = IptvChannelType.live,
     @SerialName("stream_id") val streamId: UInt,
     @SerialName("stream_icon") val streamIcon: String? = null,
+    @SerialName("thumbnail") val thumbnail: String? = null,
     @SerialName("epg_channel_id") val epgChannelId: String? = null,
     @EncodeDefault(EncodeDefault.Mode.NEVER) val server: String? = null,
     val added: String = "0",
@@ -25,4 +26,5 @@ data class XtreamLiveStream(
     @SerialName("tv_archive") val tvArchive: UInt = 0u,
     @SerialName("direct_source") val directSource: String = "",
     @SerialName("tv_archive_duration") val tvArchiveDuration: UInt = 0u,
+    val url: String? = null,
 )

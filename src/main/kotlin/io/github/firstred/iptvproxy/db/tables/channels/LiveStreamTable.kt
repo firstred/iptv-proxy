@@ -12,6 +12,7 @@ object LiveStreamTable : Table("live_stream") {
     val name = text("name")
     val externalStreamId  = uinteger("external_stream_id")
     val icon = text("icon").nullable()
+    val thumbnail = text("thumbnail").nullable()
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength).nullable()
     val added = timestamp("added").defaultExpression(CurrentTimestamp)
     val isAdult = bool("is_adult").default(false)

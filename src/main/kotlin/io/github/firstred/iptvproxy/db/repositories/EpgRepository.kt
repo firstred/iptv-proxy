@@ -97,6 +97,7 @@ class EpgRepository {
 
                 EpgChannelTable.batchUpsert(
                     data = chunk,
+                    keys = arrayOf(EpgChannelTable.server, EpgChannelTable.epgChannelId),
                     shouldReturnGeneratedValues = false,
                 ) { channel ->
                     epgChannelDisplayNames[channel.id!!] = channel.displayNames ?: listOf()
@@ -113,6 +114,7 @@ class EpgRepository {
                     data = epgChannelDisplayNames.flatMap { (channelId, displayNames) ->
                         displayNames.map { displayName -> Pair(channelId, displayName) }
                     },
+                    keys = arrayOf(EpgChannelDisplayNameTable.server, EpgChannelDisplayNameTable.epgChannelId, EpgChannelDisplayNameTable.language),
                     shouldReturnGeneratedValues = false,
                 ) {(channelId, displayName) ->
                     this[EpgChannelDisplayNameTable.server] = server

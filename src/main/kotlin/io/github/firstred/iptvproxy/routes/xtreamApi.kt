@@ -14,8 +14,10 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpgList
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieInfoEndpoint
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamProfile
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesInfoEndpoint
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
 import io.github.firstred.iptvproxy.enums.IptvChannelType
@@ -44,25 +46,16 @@ import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import org.koin.ktor.ext.inject
 import org.koin.mp.KoinPlatform.getKoin
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.Writer
 import java.net.URI
 import java.net.URISyntaxException
 import kotlin.time.Duration
 
-val LOG = LoggerFactory.getLogger("xtreamApi")
+val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
 
 @OptIn(FormatStringsInDatetimeFormats::class, ExperimentalSerializationApi::class)
 fun Route.xtreamApi() {
@@ -157,6 +150,8 @@ fun Route.xtreamApi() {
                                 streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
                                 else it.streamIcon,
                                 server = null,
+                                url = if (serversByName[it.server]?.config?.proxyStream ?: false) "${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
+                                else it.url,
                             )))
                             flush()
                         }
@@ -184,7 +179,9 @@ fun Route.xtreamApi() {
                             write(json.encodeToString(XtreamMovie.serializer(), it.copy(
                                 streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
                                 else it.streamIcon,
-                                server = null
+                                server = null,
+                                url = if (serversByName[it.server]?.config?.proxyStream ?: false) "${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.')}"
+                                else it.url,
                             )))
                             flush()
                         }
@@ -241,86 +238,45 @@ fun Route.xtreamApi() {
                             }
                             response = followRedirects(response, connection, call.request.headers)
 
-                            val responseContent: String = response.body()
+                            val movieInfo: XtreamMovieInfoEndpoint = response.body()
                             releaseConnection()
-
-                            val responseElement: JsonElement = json.parseToJsonElement(responseContent)
 
                             // First gather all external stream IDs from the response so they can be mapped in one go
                             val foundMovieStreamIds = mutableListOf<UInt>()
 
-                            responseElement.jsonObject.entries.forEach {
-                                if (it.key == "movie_data") {
-                                    it.value.jsonObject.entries.forEach { (key, value) ->
-                                        if (key == "stream_id") foundMovieStreamIds.add(value.jsonPrimitive.intOrNull?.toUInt() ?: 0u)
-                                    }
-                                }
+                            movieInfo.movieData.let { movieData ->
+                                foundMovieStreamIds.add(movieData.streamId.toUInt())
                             }
 
                             val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundMovieStreamIds, iptvServer.name)
 
                             try {
-                                call.respond(buildJsonObject {
-                                    for ((key, value) in responseElement.jsonObject.entries) {
-                                        when (key) {
-                                            "info" -> {
-                                                put(key, buildJsonObject {
-                                                    value.jsonObject.entries.forEach { (infoKey, infoValue) ->
-                                                        put(infoKey, when (infoKey) {
-                                                            "kinopoisk_url", "cover", "cover_big", "movie_image" -> JsonPrimitive(
-                                                                infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                    baseUrl,
-                                                                    encryptedAccount
-                                                                )
-                                                            )
-
-                                                            "backdrop_path" -> buildJsonArray {
-                                                                infoValue.jsonArray.forEach { backdrop ->
-                                                                    add(
-                                                                        JsonPrimitive(
-                                                                            backdrop.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                                baseUrl,
-                                                                                encryptedAccount
-                                                                            )
-                                                                        )
-                                                                    )
-                                                                }
-                                                            }
-
-                                                            else -> infoValue
-                                                        })
-                                                    }
-                                                })
-                                            }
-
-                                            "movie_data" -> {
-                                                put(key, buildJsonObject {
-                                                    value.jsonObject.entries.forEach { (movieKey, movieValue) ->
-                                                        put(movieKey, when (movieKey) {
-                                                            "stream_id"    -> JsonPrimitive(streamIdMapping[movieValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u)
-                                                            "cover"        -> JsonPrimitive(movieValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(baseUrl, encryptedAccount))
-                                                            "category_id"  -> JsonPrimitive(externalCategoryIdToIdMap[movieValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u]?.toString() ?: "0")
-                                                            "category_ids" -> try { buildJsonArray {
-                                                                movieValue.jsonArray.forEach { categoryId ->
-                                                                    add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u))
-                                                                } }
-                                                            } catch (e: IllegalArgumentException) {
-                                                                Sentry.captureException(e)
-                                                                movieValue
-                                                            }
-                                                            else           -> movieValue
-                                                        })
-                                                    }
-                                                })
-                                            }
-
-                                            else -> put(key, value)
+                                call.respond(movieInfo.copy(
+                                    movieData = movieInfo.movieData.copy(
+                                        streamId = streamIdMapping[movieInfo.movieData.streamId.toUInt()]?.toInt() ?: 0,
+                                        cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                        categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId.toUInt()]?.toString() ?: "0",
+                                        categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toUInt()]?.toInt() ?: 0 } }
+                                        catch (e: IllegalArgumentException) {
+                                            Sentry.captureException(e)
+                                            movieInfo.movieData.categoryIds
                                         }
-                                    }
-                                })
+                                    ),
+                                    info = movieInfo.info.copy(
+                                        kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                        backdropPath = movieInfo.info.backdropPath.mapNotNull {
+                                            it.let {
+                                                if (it.isNotBlank()) it.toProxiedIconUrl(
+                                                    baseUrl,
+                                                    encryptedAccount
+                                                ) else null
+                                            }
+                                        },
+                                    )
+                                ))
                             } catch (e: IllegalArgumentException) {
                                 Sentry.captureException(e)
-                                call.respond(responseElement)
+                                call.respond(movieInfo)
                             }
                         } catch (e: URISyntaxException) {
                             Sentry.captureException(e)
@@ -397,8 +353,7 @@ fun Route.xtreamApi() {
 
                 serversByName[serverName]?.let { iptvServer ->
                     iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
-                        val account =
-                            iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
+                        val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
                         val targetUrl = account?.getXtreamSeriesInfoUrl()
                         if (null == targetUrl) return@withConnection
 
@@ -412,167 +367,47 @@ fun Route.xtreamApi() {
 
                             response = followRedirects(response, connection, call.request.headers)
 
-                            val responseContent: String = response.body()
+                            val seriesInfo: XtreamSeriesInfoEndpoint = response.body()
                             releaseConnectionEarly()
-
-                            val responseElement: JsonElement = json.parseToJsonElement(responseContent)
 
                             // First gather all external stream IDs from the response so they can be mapped in one go
                             val foundEpisodeStreamIds = mutableListOf<UInt>()
 
-                            responseElement.jsonObject.entries.forEach {
-                                if (it.key == "episodes") {
-                                    it.value.jsonObject.entries.forEach { season ->
-                                        season.value.jsonArray.forEach { episode ->
-                                            foundEpisodeStreamIds.add(episode.jsonObject["id"]?.jsonPrimitive?.intOrNull?.toUInt() ?: 0u)
-                                        }
-                                    }
-                                }
+                            seriesInfo.episodes.flatMap { it.value }.forEach { episode ->
+                                foundEpisodeStreamIds.add(episode.id.toUInt())
                             }
 
                             val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName)
 
-                            // Rewrite images and remap external IDs to internal IDs, keeping the old JSON structure intact
-                            call.respond(buildJsonObject {
-                                for ((key, value) in responseElement.jsonObject.entries) {
-                                    when (key) {
-                                        "seasons" -> {
-                                            put(key, buildJsonArray {
-                                                value.jsonArray.forEach { season ->
-                                                    try {
-                                                        add(buildJsonObject {
-                                                            for ((seasonsKey, seasonsValue) in season.jsonObject.entries) {
-                                                                when (seasonsKey) {
-                                                                    "overview", "cover", "cover_big", "cover_tmdb" -> put(
-                                                                        seasonsKey,
-                                                                        JsonPrimitive(
-                                                                            seasonsValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                                baseUrl,
-                                                                                encryptedAccount
-                                                                            )
-                                                                        )
-                                                                    )
-
-                                                                    else -> put(seasonsKey, seasonsValue)
-                                                                }
-                                                            }
-                                                        })
-                                                    } catch (e: IllegalArgumentException) {
-                                                        Sentry.captureException(e)
-                                                        add(season)
-                                                    }
-                                                }
-                                            })
-                                        }
-
-                                        "info" -> {
-                                            put(key, buildJsonObject {
-                                                for ((infoKey, infoValue) in value.jsonObject.entries) {
-                                                    when (infoKey) {
-                                                        "cover" -> put(
-                                                            infoKey,
-                                                            JsonPrimitive(
-                                                                infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                    baseUrl,
-                                                                    encryptedAccount
-                                                                )
-                                                            )
-                                                        )
-
-                                                        "backdrop_path" -> {
-                                                            put(
-                                                                infoKey,
-                                                                buildJsonArray {
-                                                                    infoValue.jsonArray.forEach { backdrop ->
-                                                                        add(
-                                                                            JsonPrimitive(
-                                                                                backdrop.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                                    baseUrl,
-                                                                                    encryptedAccount
-                                                                                )
-                                                                            )
-                                                                        )
-                                                                    }
-                                                                })
-                                                        }
-
-                                                        "category_id"  -> put(infoKey, JsonPrimitive(externalCategoryIdToIdMap[infoValue.jsonPrimitive.longOrNull ?: 0u]?.toString() ?: "0"))
-
-                                                        "category_ids" -> put(infoKey, try { buildJsonArray {
-                                                            infoValue.jsonArray.forEach { categoryId ->
-                                                                add(JsonPrimitive(externalCategoryIdToIdMap[categoryId.jsonPrimitive.intOrNull?.toUInt() ?: 0u] ?: 0u))
-                                                            } }
-                                                        } catch (e: IllegalArgumentException) {
-                                                            Sentry.captureException(e)
-                                                            infoValue
-                                                        })
-
-                                                        else -> put(infoKey, infoValue)
-                                                    }
-                                                }
-                                            })
-                                        }
-
-                                        "episodes" -> {
-                                            put(key, buildJsonObject {
-                                                value.jsonObject.entries.forEach { (seasonNumber, season) ->
-                                                    try {
-                                                        put(seasonNumber, buildJsonArray {
-                                                            for (episode in season.jsonArray) {
-                                                                add(buildJsonObject {
-                                                                    for ((episodeKey, episodeValue) in episode.jsonObject.entries) {
-                                                                        when (episodeKey) {
-                                                                            "id" -> put(
-                                                                                episodeKey,
-                                                                                JsonPrimitive(streamIdMapping[episodeValue.jsonPrimitive.intOrNull?.toUInt() ?: 0u]?.toString() ?: ""),
-                                                                            )
-
-                                                                            "info" -> {
-                                                                                try {
-                                                                                    put("info", buildJsonObject {
-                                                                                        for ((infoKey, infoValue) in episodeValue.jsonObject.entries) {
-                                                                                            when (infoKey) {
-                                                                                                "movie_image" -> put(
-                                                                                                    infoKey,
-                                                                                                    JsonPrimitive(
-                                                                                                        infoValue.jsonPrimitive.contentOrNull?.toProxiedIconUrl(
-                                                                                                            baseUrl,
-                                                                                                            encryptedAccount
-                                                                                                        )
-                                                                                                    )
-                                                                                                )
-
-                                                                                                else -> put(
-                                                                                                    infoKey,
-                                                                                                    infoValue
-                                                                                                )
-                                                                                            }
-                                                                                        }
-                                                                                    })
-                                                                                } catch (e: IllegalArgumentException) {
-                                                                                    Sentry.captureException(e)
-                                                                                    put("info", episode)
-                                                                                }
-                                                                            }
-
-                                                                            else -> put(episodeKey, episodeValue)
-                                                                        }
-                                                                    }
-                                                                })
-                                                            }
-                                                        })
-                                                    } catch (e: IllegalArgumentException) {
-                                                        Sentry.captureException(e)
-                                                        put(seasonNumber, season)
-                                                    }
-                                                }
-                                            })
-                                        }
-
-                                        else -> put(key, value)
+                            // Rewrite images and remap external IDs to internal IDs
+                            call.respond(seriesInfo.copy(
+                                seasons = seriesInfo.seasons.map { it.copy(
+                                    cover = it.cover.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    coverBig = it.coverBig.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    overview = it.overview.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                ) },
+                                info = seriesInfo.info.copy(
+                                    cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    backdropPath = seriesInfo.info.backdropPath.map { it.toProxiedIconUrl(baseUrl, encryptedAccount) },
+                                    categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId.toUInt()]?.toString() ?: "0",
+                                    categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it] ?: 0u } }
+                                    catch (e: IllegalArgumentException) {
+                                        Sentry.captureException(e)
+                                        seriesInfo.info.categoryIds
+                                    }
+                                ),
+                                episodes = seriesInfo.episodes.mapValues { (_, episodes) ->
+                                    episodes.map { episode ->
+                                        episode.copy(
+                                            id = streamIdMapping[episode.id.toUInt()]?.toString() ?: "0",
+                                            info = episode.info.copy(
+                                                movieImage = episode.info.movieImage.toProxiedIconUrl(baseUrl, encryptedAccount),
+                                            )
+                                        )
                                     }
                                 }
-                            })
+                            ))
                         } catch (e: URISyntaxException) {
                             Sentry.captureException(e)
                         }
@@ -742,7 +577,7 @@ fun Route.xtreamApi() {
 
         call.respondOutputStream {
             use { output ->
-                channelManager.getLiveStreamsPlaylist(
+                channelManager.getAllChannelsPlaylist(
                     output,
                     user,
                     config.getActualBaseUrl(call.request),

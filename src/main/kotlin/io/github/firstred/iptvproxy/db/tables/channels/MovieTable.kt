@@ -15,7 +15,7 @@ object MovieTable : Table("movie") {
     val rating = varchar("rating", defaultVarcharLength).nullable()
     val rating5Based = float("rating_5based").nullable()
     val tmdb = uinteger("tmdb").nullable()
-    val trailer = varchar("trailer", defaultVarcharLength).nullable()
+    val youtubeTrailer = varchar("youtube_trailer", defaultVarcharLength).nullable()
     val added = timestamp("added").defaultExpression(CurrentTimestamp)
     val isAdult = bool("is_adult").default(false)
     val mainCategoryId = uinteger("main_category_id").nullable()

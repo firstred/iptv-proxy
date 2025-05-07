@@ -7,5 +7,5 @@ import kotlinx.serialization.Serializable
 data class XtreamCategory(
     @SerialName("category_id") val id: String,
     @SerialName("category_name") val name: String,
-    @SerialName("parent_id") val parentId: String = "0",
+    @SerialName("parent_id") val parentId: UInt? = 0u,
 )
