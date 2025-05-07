@@ -1,10 +1,13 @@
 package io.github.firstred.iptvproxy.plugins
 
+import com.mayakapps.kache.InMemoryKache
+import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.di.modules.IptvUsersByName
+import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieInfoEndpoint
 import io.github.firstred.iptvproxy.listeners.HealthListener
 import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.managers.UserManager
@@ -12,6 +15,7 @@ import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.notices
 import io.github.firstred.iptvproxy.routes.xtreamApi
+import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
@@ -27,10 +31,16 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import io.ktor.utils.io.core.isEmpty
+import io.ktor.utils.io.core.remaining
 import io.sentry.Sentry
+import kotlinx.io.readByteArray
+import kotlinx.serialization.json.JsonNull.content
+import org.apache.commons.io.IOUtils.byteArray
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
+import sun.security.krb5.internal.rcache.MemoryCache
 import java.net.URI
 import java.net.URISyntaxException
 
@@ -228,15 +238,27 @@ fun Route.proxyRemoteHlsStream() {
     }
 }
 
+private val videoChunkCache = InMemoryKache<String, ByteArray>(maxSize = if (config.cache.enabled) config.cache.size.videoChunks.toLong() else 1L) {
+    strategy = KacheStrategy.FIFO
+    expireAfterWriteDuration = config.cache.ttl.videoChunks
+    sizeCalculator = { _, byteArray -> byteArray.size.toLong() }
+}
+
 private suspend fun RoutingContext.streamRemoteFile(
     user: IptvUser,
     channel: IptvChannel,
     routingContext: RoutingContext,
     remoteUrl: URI = channel.url,
 ) {
-    withUserPermit(user) {
-        var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
+    var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
+    val cachedResponse: ByteArray? = videoChunkCache.get(responseURI.toString())
+    if (null != cachedResponse) {
+        call.respondBytes(cachedResponse, contentType = ContentType("video", "mp2t"))
+        return
+    }
+
+    withUserPermit(user) {
         lateinit var preparedStatement: HttpStatement
         lateinit var newLocation: String
 
@@ -290,9 +312,26 @@ private suspend fun RoutingContext.streamRemoteFile(
                             status = response.status,
                             contentLength = response.contentLength(),
                         ) {
-                            response.bodyAsChannel().copyAndClose(this)
+                            val output = this
+
+                            var totalCache = byteArrayOf()
+                            val channel = response.bodyAsChannel()
+
+                            while (!channel.exhausted()) {
+                                val chunk = channel.readRemaining(16_384).readByteArray()
+                                totalCache += chunk
+
+                                output.writeFully(chunk)
+                            }
+
                             // Immediately release the connection after the read channel is closed
                             releaseConnectionEarly()
+
+                            output.flush()
+
+                            videoChunkCache.put(responseURI.toString(), totalCache)
+
+                            output.flushAndClose()
                         }
                     }
                 }

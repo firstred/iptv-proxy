@@ -13,6 +13,7 @@ jib = "3.4.5"
 ktor = "3.1.2"
 koin-bom = "4.1.0-Beta7"
 buildconfig = "5.6.4"
+kache = "2.1.1"
 
 exposed = "0.61.0"
 hikaricp = "6.3.0"
@@ -106,6 +107,7 @@ stately-concurrent-collections = { module = "co.touchlab:stately-concurrent-coll
 arrow = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
 arrow-suspendapp = { module = "io.arrow-kt:suspendapp-jvm", version.ref = "arrow" }
+kache = { module = "com.mayakapps.kache:kache", version.ref = "kache" }
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }

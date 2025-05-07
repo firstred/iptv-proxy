@@ -4,8 +4,6 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.sentry.MonitorConfig
 import io.sentry.util.CheckInUtils
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -49,11 +47,7 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
         if (!config.cache.enabled) return
 
         runBlocking {
-            awaitAll(
-                async { cleanIcons() },
-                async { cleanMovieInfo() },
-                async { cleanSeriesInfo() },
-            )
+            cleanIcons()
         }
     }
 
@@ -62,29 +56,7 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
         if (!iconDir.exists() || !iconDir.isDirectory) return
 
         for (cacheFile in iconDir.listFiles()) {
-            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.icons.inWholeMilliseconds)) {
-                cacheFile.delete()
-            }
-        }
-    }
-
-    fun cleanMovieInfo() {
-        val iconDir = File(config.getMiscCacheDirectory("movie_info"))
-        if (!iconDir.exists() || !iconDir.isDirectory) return
-
-        for (cacheFile in iconDir.listFiles()) {
-            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.movieInfo.inWholeMilliseconds)) {
-                cacheFile.delete()
-            }
-        }
-    }
-
-    fun cleanSeriesInfo() {
-        val iconDir = File(config.getMiscCacheDirectory("series_info"))
-        if (!iconDir.exists() || !iconDir.isDirectory) return
-
-        for (cacheFile in iconDir.listFiles()) {
-            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.seriesInfo.inWholeMilliseconds)) {
+            if (cacheFile.lastModified() < (System.currentTimeMillis() - config.cache.ttl.images.inWholeMilliseconds)) {
                 cacheFile.delete()
             }
         }

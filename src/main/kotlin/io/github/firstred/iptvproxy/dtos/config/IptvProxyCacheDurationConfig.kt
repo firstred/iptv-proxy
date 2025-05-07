@@ -8,5 +8,5 @@ data class IptvProxyCacheDurationConfig(
     val videoChunks: Duration = Duration.parse("PT2M"),
     val movieInfo: Duration = Duration.parse("P1D"),
     val seriesInfo: Duration = Duration.parse("PT1H"),
-    val icons: Duration = Duration.Companion.parse("P30D"),
+    val images: Duration = Duration.Companion.parse("P30D"),
 )

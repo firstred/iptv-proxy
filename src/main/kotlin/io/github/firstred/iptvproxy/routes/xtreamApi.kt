@@ -1,5 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
+import com.mayakapps.kache.InMemoryKache
+import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -221,66 +223,68 @@ fun Route.xtreamApi() {
                 val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
 
                 channel.server.let { iptvServer ->
-                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnection ->
-                        val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
-                        val targetUrl = account?.getXtreamMoviesInfoUrl()
-                        if (null == targetUrl) return@withConnection
+                    val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamMoviesInfoUrl() }
+                    val targetUrl = account?.getXtreamMoviesInfoUrl()
+                    if (null == targetUrl) return@let
+
+                    try {
+                        val uniqueKey = "server=${iptvServer.name}|vod_id=$vodId"
+                        val movieInfo: XtreamMovieInfoEndpoint = movieInfoCache.getOrPut(uniqueKey) {
+                            lateinit var response: HttpResponse
+                            iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnection ->
+                                response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
+                                    headers {
+                                        call.request.headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) }
+                                        }
+                                        accept(ContentType.Application.Json)
+                                        addDefaultClientHeaders(connection.config)
+                                    }
+                                }
+                                response = followRedirects(response, connection, call.request.headers).body()
+                            }
+
+                            return@getOrPut response.body<XtreamMovieInfoEndpoint>()
+                        }!!
+
+                        // First gather all external stream IDs from the response so they can be mapped in one go
+                        val foundMovieStreamIds = mutableListOf<UInt>()
+
+                        movieInfo.movieData.let { movieData ->
+                            foundMovieStreamIds.add(movieData.streamId.toUInt())
+                        }
+
+                        val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundMovieStreamIds, iptvServer.name)
 
                         try {
-                            var response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
-                                headers {
-                                    call.request.headers.filterHttpRequestHeaders().entries().forEach {
-                                        (key, value) -> value.forEach { append(key, it) }
+                            call.respond(movieInfo.copy(
+                                movieData = movieInfo.movieData.copy(
+                                    streamId = streamIdMapping[movieInfo.movieData.streamId.toUInt()]?.toInt() ?: 0,
+                                    cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId.toUInt()]?.toString() ?: "0",
+                                    categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toUInt()]?.toInt() ?: 0 } }
+                                    catch (e: IllegalArgumentException) {
+                                        Sentry.captureException(e)
+                                        movieInfo.movieData.categoryIds
                                     }
-                                    accept(ContentType.Application.Json)
-                                    addDefaultClientHeaders(connection.config)
-                                }
-                            }
-                            response = followRedirects(response, connection, call.request.headers)
-
-                            val movieInfo: XtreamMovieInfoEndpoint = response.body()
-                            releaseConnection()
-
-                            // First gather all external stream IDs from the response so they can be mapped in one go
-                            val foundMovieStreamIds = mutableListOf<UInt>()
-
-                            movieInfo.movieData.let { movieData ->
-                                foundMovieStreamIds.add(movieData.streamId.toUInt())
-                            }
-
-                            val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundMovieStreamIds, iptvServer.name)
-
-                            try {
-                                call.respond(movieInfo.copy(
-                                    movieData = movieInfo.movieData.copy(
-                                        streamId = streamIdMapping[movieInfo.movieData.streamId.toUInt()]?.toInt() ?: 0,
-                                        cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                        categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId.toUInt()]?.toString() ?: "0",
-                                        categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toUInt()]?.toInt() ?: 0 } }
-                                        catch (e: IllegalArgumentException) {
-                                            Sentry.captureException(e)
-                                            movieInfo.movieData.categoryIds
+                                ),
+                                info = movieInfo.info.copy(
+                                    kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                    backdropPath = movieInfo.info.backdropPath.mapNotNull {
+                                        it.let {
+                                            if (it.isNotBlank()) it.toProxiedIconUrl(
+                                                baseUrl,
+                                                encryptedAccount
+                                            ) else null
                                         }
-                                    ),
-                                    info = movieInfo.info.copy(
-                                        kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                        backdropPath = movieInfo.info.backdropPath.mapNotNull {
-                                            it.let {
-                                                if (it.isNotBlank()) it.toProxiedIconUrl(
-                                                    baseUrl,
-                                                    encryptedAccount
-                                                ) else null
-                                            }
-                                        },
-                                    )
-                                ))
-                            } catch (e: IllegalArgumentException) {
-                                Sentry.captureException(e)
-                                call.respond(movieInfo)
-                            }
-                        } catch (e: URISyntaxException) {
+                                    },
+                                )
+                            ))
+                        } catch (e: IllegalArgumentException) {
                             Sentry.captureException(e)
+                            call.respond(movieInfo)
                         }
+                    } catch (e: URISyntaxException) {
+                        Sentry.captureException(e)
                     }
                 }
 
@@ -352,65 +356,67 @@ fun Route.xtreamApi() {
                 val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
 
                 serversByName[serverName]?.let { iptvServer ->
-                    iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
-                        val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
-                        val targetUrl = account?.getXtreamSeriesInfoUrl()
-                        if (null == targetUrl) return@withConnection
+                    val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
+                    val targetUrl = account?.getXtreamSeriesInfoUrl()
+                    if (null == targetUrl) return@get
 
-                        try {
-                            var response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
-                                headers {
-                                    accept(ContentType.Application.Json)
-                                    addDefaultClientHeaders(connection.config)
-                                }
-                            }
-
-                            response = followRedirects(response, connection, call.request.headers)
-
-                            val seriesInfo: XtreamSeriesInfoEndpoint = response.body()
-                            releaseConnectionEarly()
-
-                            // First gather all external stream IDs from the response so they can be mapped in one go
-                            val foundEpisodeStreamIds = mutableListOf<UInt>()
-
-                            seriesInfo.episodes.flatMap { it.value }.forEach { episode ->
-                                foundEpisodeStreamIds.add(episode.id.toUInt())
-                            }
-
-                            val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName)
-
-                            // Rewrite images and remap external IDs to internal IDs
-                            call.respond(seriesInfo.copy(
-                                seasons = seriesInfo.seasons.map { it.copy(
-                                    cover = it.cover.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                    coverBig = it.coverBig.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                    overview = it.overview.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                    coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                ) },
-                                info = seriesInfo.info.copy(
-                                    cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                    backdropPath = seriesInfo.info.backdropPath.map { it.toProxiedIconUrl(baseUrl, encryptedAccount) },
-                                    categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId.toUInt()]?.toString() ?: "0",
-                                    categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it] ?: 0u } }
-                                    catch (e: IllegalArgumentException) {
-                                        Sentry.captureException(e)
-                                        seriesInfo.info.categoryIds
-                                    }
-                                ),
-                                episodes = seriesInfo.episodes.mapValues { (_, episodes) ->
-                                    episodes.map { episode ->
-                                        episode.copy(
-                                            id = streamIdMapping[episode.id.toUInt()]?.toString() ?: "0",
-                                            info = episode.info.copy(
-                                                movieImage = episode.info.movieImage.toProxiedIconUrl(baseUrl, encryptedAccount),
-                                            )
-                                        )
+                    try {
+                        val seriesInfo: XtreamSeriesInfoEndpoint = seriesInfoCache.getOrPut("server=$serverName|series_id=$seriesId") {
+                            lateinit var response: HttpResponse
+                            iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
+                                response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
+                                    headers {
+                                        accept(ContentType.Application.Json)
+                                        addDefaultClientHeaders(connection.config)
                                     }
                                 }
-                            ))
-                        } catch (e: URISyntaxException) {
-                            Sentry.captureException(e)
+
+                                response = followRedirects(response, connection, call.request.headers)
+                            }
+
+                            return@getOrPut response.body<XtreamSeriesInfoEndpoint>()
+                        }!!
+
+                        // First gather all external stream IDs from the response so they can be mapped in one go
+                        val foundEpisodeStreamIds = mutableListOf<UInt>()
+
+                        seriesInfo.episodes.flatMap { it.value }.forEach { episode ->
+                            foundEpisodeStreamIds.add(episode.id.toUInt())
                         }
+
+                        val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName)
+
+                        // Rewrite images and remap external IDs to internal IDs
+                        call.respond(seriesInfo.copy(
+                            seasons = seriesInfo.seasons.map { it.copy(
+                                cover = it.cover.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                coverBig = it.coverBig.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                overview = it.overview.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                            ) },
+                            info = seriesInfo.info.copy(
+                                cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                backdropPath = seriesInfo.info.backdropPath.map { it.toProxiedIconUrl(baseUrl, encryptedAccount) },
+                                categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId.toUInt()]?.toString() ?: "0",
+                                categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it] ?: 0u } }
+                                catch (e: IllegalArgumentException) {
+                                    Sentry.captureException(e)
+                                    seriesInfo.info.categoryIds
+                                }
+                            ),
+                            episodes = seriesInfo.episodes.mapValues { (_, episodes) ->
+                                episodes.map { episode ->
+                                    episode.copy(
+                                        id = streamIdMapping[episode.id.toUInt()]?.toString() ?: "0",
+                                        info = episode.info.copy(
+                                            movieImage = episode.info.movieImage.toProxiedIconUrl(baseUrl, encryptedAccount),
+                                        )
+                                    )
+                                }
+                            }
+                        ))
+                    } catch (e: URISyntaxException) {
+                        Sentry.captureException(e)
                     }
                 }
 
@@ -586,6 +592,17 @@ fun Route.xtreamApi() {
             }
         }
     }
+}
+
+private val movieInfoCache = InMemoryKache<String, XtreamMovieInfoEndpoint>(maxSize = if (config.cache.enabled) config.cache.size.movieInfo.toLong() else 1L) {
+    strategy = KacheStrategy.FIFO
+    expireAfterWriteDuration = config.cache.ttl.movieInfo
+    sizeCalculator = { _, endpoint -> json.encodeToString(XtreamMovieInfoEndpoint.serializer(), endpoint).length.toLong() }
+}
+private val seriesInfoCache = InMemoryKache<String, XtreamSeriesInfoEndpoint>(maxSize = if (config.cache.enabled) config.cache.size.seriesInfo.toLong() else 1L) {
+    strategy = KacheStrategy.FIFO
+    expireAfterWriteDuration = config.cache.ttl.seriesInfo
+    sizeCalculator = { _, endpoint -> json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), endpoint).length.toLong() }
 }
 
 private suspend fun followRedirects(

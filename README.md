@@ -52,7 +52,11 @@ cache:
     video_chunk: PT1M
     movie_info: P1D
     series_info: PT1H
-    icon: P30D # Time to live for icons
+    images: P30D # Time to live for icons
+  size:
+    video_chunks: 512_000_000 # 512MB - size is in bytes
+    vod_info: 50_000_000 # 50MB - size is in bytes
+    movie_info: 50_000_000 # 50MB - size is in bytes
 client_connection_max_idle_seconds: 60 # Max idle time for client connections -- important to free up user connections
 update_interval: PT6H
 update_interval_on_failure: PT10M # Interval to retry failed updates
@@ -170,11 +174,14 @@ users:
 ### Cache settings
 * `enabled` - enable cache (default is true)
 * `ttl` - time to live for cached data
-  * `video_chunk` - time to live for video chunks (default is 2 minutes)
+  * `video_chunks` - time to live for video chunks (default is 2 minutes)
   * `movie_info` - time to live for movie info (default is 1 day)
   * `series_info` - time to live for series info (default is 1 hour)
-  * `icon` - time to live for icons (default is 30 days)
-
+  * `images` - time to live for icons (default is 30 days)
+* `size` - size of the cache (cache is disabled by default)
+  * `video_chunks` - size of the cache for video chunks (default is 512MB)
+  * `movie_info` - size of the cache for movie info (default is 50MB)
+  * `series_info` - size of the cache for series info (default is 50MB)
 ### Timeout settings (`timeouts[]`)
 * `playlist` - timeouts for playlist requests
 * `icon` - timeouts for icon requests
