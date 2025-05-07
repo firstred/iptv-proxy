@@ -24,6 +24,10 @@ port: ${PORT:-8080}
 base_url: http://127.0.0.1:8888
 app_secret: "Changeme!"
 log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
+# database:
+#   jdbc_url: jdbc:sqlite:iptv.db
+#   maximum_pool_size: 6
+#  chunk_size: 1_000
 timeouts:
   playlist: *default-timeouts
   icon: *icon-timeouts

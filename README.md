@@ -1,14 +1,14 @@
 # Overview
 
-This project is a simple IPTV restreamer, rework of https://github.com/kvaster/iptv-proxy. For now it supports only HLS (m3u8) streams.
+This project is a simple IPTV restreamer, rework of https://github.com/kvaster/iptv-proxy. For now, it supports only HLS (m3u8) streams.
 Some IPTV providers allow to connect only one device per URL and this is not really
 comfortable when you have 3+ tv. Iptv-proxy allocates such 'URLs' dynamically. I.e. your
 iptv provider have two URLs (playlists) and allows only one connection per URL, but
-you have 4 tv in your house and you never watch more then 2 tv at the same time.
-In this case you can setup two playlists in iptv proxy and they will be dynamically
+you have 4 TVs in your house, and you never watch more than 2 tv at the same time.
+In this case you can set up two playlists in iptv proxy, and they will be dynamically
 allocated to active tv.
 
-Also iptv-proxy can combine different IPTV providers. It will combine both - playlist and xmltv data (if available).
+Also, iptv-proxy can combine different IPTV providers. It will combine both - playlist and xmltv data (if available).
 
 ## Configuration
 
@@ -39,6 +39,10 @@ port: ${PORT:-8080}
 base_url: http://127.0.0.1:8888
 app_secret: "Changeme!"
 log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
+# database:
+#   jdbc_url: jdbc:sqlite:iptv.db
+#   maximum_pool_size: 6
+#  chunk_size: 1_000
 timeouts:
   playlist: *default-timeouts
   icon: *icon-timeouts
@@ -156,6 +160,13 @@ users:
 * `whitelist_iptv_server_headers` - headers to whitelist from the server (default is ["*"])
 * `blacklist_iptv_server_headers` - headers to blacklist from the server (default is null)
 
+### Database settings `database`
+* `jdbc_url` - jdbc url for the database (default is `jdbc:sqlite::memory:`) - use a file path to persist the database:
+    * `jdbc:sqlite:iptv.db` - sqlite database in the current directory
+    * `jdbc:sqlite:/path/to/iptv.db` - sqlite database in the specified directory
+* `maximum_pool_size` - maximum pool size for the database (default is 6)
+* `chunk_size` - chunk size for the database (default is 1000)
+
 ### Cache settings
 * `enabled` - enable cache (default is true)
 * `ttl` - time to live for cached data
@@ -225,7 +236,6 @@ On a device you should use this URL to access the playlist:
 `<base_url>/get.php?username=<user_name>&password=<password>&type=m3u_plus&output=m3u8`
 
 For xmltv you should use `<base_url>/xmltv.php?username=<user_name>&password=<password>`
-
 
 ### 2. Xtream codes api
 
