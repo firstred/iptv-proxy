@@ -131,8 +131,8 @@ users:
 ### Top level settings
 * `host` - IPv4 or IPv6 address to bind to, use `::` (dual-stack) or `
 * `port` - port to bind to
-* `base_url` - base URL of your service, you may omit this (see forwarded_pass) - this URL will be used for every link generated in e.g. playlists
-* `forwarded_pass` - password for Forwarded header in case iptv-proxy is behind a proxy and you'd like to use a dynamic different base_url
+* `base_url` - base URL of your service, you may omit this (see `forwarded_pass`) - this URL will be used for every link generated in e.g. playlists
+* `forwarded_pass` - password for `Forwarded` header in case iptv-proxy is behind a proxy and you'd like to use a dynamic different base_url
 * `app_secret` - just random chars, they are used to create encrypted tokens
 * `log_level` - log level, possible values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `OFF`
 
@@ -142,37 +142,37 @@ users:
 * `cleanup_interval` - interval to clean up old data (default is 1 hour)
 * `channel_max_stale_period` - wait time before a stale channel is removed from the database (default is 2 days). A channel is considered stale if it (temporarily) wasn't on the remote playlist.
 
-* `scheduler_thread_pool_size` - max. concurrent updater threads for the playlist and EPG (default is 2)
+* `scheduler_thread_pool_size` - max. concurrent updater threads for the playlist and EPG (default is `2`)
 
-* `sort_channels_by_name` - sort channels by name (default is false)
+* `sort_channels_by_name` - sort channels by name (default is `false`)
 
-* `socks_proxy` - socks5 proxy for outgoing requests (default is null)
-* `http_proxy` - http proxy for outgoing requests (default is null)
+* `socks_proxy` - socks5 proxy for outgoing requests (default is `null`)
+* `http_proxy` - http proxy for outgoing requests (default is `null`)
 
-* `cors` - CORS settings for the server (default is null)
-  * `enabled` - enable CORS (default is true)
+* `cors` - CORS settings for the server (default is `null`)
+  * `enabled` - enable CORS (default is `true`)
   * `allow_origins` - allowed origins (default is ["*"])
-  * `allow_headers` - allowed headers (default is ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "User-Agent", "Referer", "Accept-Encoding", "Accept-Language", "DNT", "Cache-Control"])
+  * `allow_headers` - allowed headers (default is `["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "User-Agent", "Referer", "Accept-Encoding", "Accept-Language", "DNT", "Cache-Control"]`)
   * `allow_header_prefixes` - allowed header prefixes (default is [])
-  * `allow_methods` - allowed methods (default is ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"])
-  * `allow_credentials` - allow credentials (default is true)
-  * `max_age` - max age for preflight requests (default is 3600)
-  * `expose_headers` - exposed headers (default is ["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "User-Agent", "Referer", "Accept-Encoding", "Accept-Language", "DNT", "Cache-Control"])
+  * `allow_methods` - allowed methods (default is `["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"]`)
+  * `allow_credentials` - allow credentials (default is `true`)
+  * `max_age` - max age for preflight requests (default is `3600`)
+  * `expose_headers` - exposed headers (default is `["Content-Type", "Authorization", "Accept", "X-Requested-With", "Origin", "User-Agent", "Referer", "Accept-Encoding", "Accept-Language", "DNT", "Cache-Control"]`)
 
-* `whitelist_iptv_client_headers` - headers to whitelist from the client (default is ["*"])
-* `blacklist_iptv_client_headers` - headers to blacklist from the client (default is null)
-* `whitelist_iptv_server_headers` - headers to whitelist from the server (default is ["*"])
-* `blacklist_iptv_server_headers` - headers to blacklist from the server (default is null)
+* `whitelist_iptv_client_headers` - headers to whitelist from the client (default is `["*"]`)
+* `blacklist_iptv_client_headers` - headers to blacklist from the client (default is `null`)
+* `whitelist_iptv_server_headers` - headers to whitelist from the server (default is `["*"]`)
+* `blacklist_iptv_server_headers` - headers to blacklist from the server (default is `null`)
 
 ### Database settings `database`
 * `jdbc_url` - jdbc url for the database (default is `jdbc:sqlite::memory:`) - use a file path to persist the database:
     * `jdbc:sqlite:iptv.db` - sqlite database in the current directory
     * `jdbc:sqlite:/path/to/iptv.db` - sqlite database in the specified directory
-* `maximum_pool_size` - maximum pool size for the database (default is 6)
-* `chunk_size` - chunk size for the database (default is 1000)
+* `maximum_pool_size` - maximum pool size for the database (default is `6`)
+* `chunk_size` - chunk size for the database (default is `1000`)
 
 ### Cache settings
-* `enabled` - enable cache (default is true)
+* `enabled` - enable cache (default is `true`)
 * `ttl` - time to live for cached data
   * `video_chunks` - time to live for video chunks (default is 2 minutes)
   * `movie_info` - time to live for movie info (default is 1 day)
@@ -199,18 +199,18 @@ users:
 If 'true' then iptv-proxy will send current username in a special http header: `Forwarded`.
 We need this to identify device (endpoint) - this will help us to handle max connections and channel switching properly.
 * `proxy_forwarded_pass` - this is useful only when you're using cascade config - iptv-proxy behind iptv-proxy.
-* `proxy_stream` - true (default) means proxy all data through own server,
+* `proxy_stream` - `true` (default) means proxy all data through own server,
 false means using direct URLs for data
 * `epg_url` - URL for xmltv data, epg for different servers will be reprocessed and combined to one file for all channels
-* `epg_after` - filter programmes after specified time (to reduce xmltv size), java duration format (P1D - one day), default - unlimited
-* `epg_before` - filter programmes before specified time (to reduce xmltv size), java duration format (P5D - five days), default - unlimited
+* `epg_after` - filter programmes after specified time (to reduce xmltv size), java duration format (`P1D` - one day), default - unlimited
+* `epg_before` - filter programmes before specified time (to reduce xmltv size), java duration format (`P5D` - five days), default - unlimited
 * `timeouts` - timeouts for this server, see `timeouts[].*`
 * `group_filters` - list of regex channel filters
 
 #### Account settings (`servers[].accounts[]`)
 * `url` - url for the server, this is either the direct playlist URL or the Xtream API URL. In the latter case the `.get.php` or `.api.php` suffix should be omitted.
-* `login` - login for basic authentication (useful for tvheadend iptv playlists)
-* `password` - password for basic authentication (useful for tvheadend iptv playlists)
+* `login` - login for basic authentication (useful for tvheadend IPTV playlists)
+* `password` - password for basic authentication (useful for tvheadend IPTV playlists)
 * `xtream_username` - username for the xtream api
 * `xtream_password` - password for the xtream api
 * `max_concurrent_requests` - max concurrent requests for this account
