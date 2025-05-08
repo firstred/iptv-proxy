@@ -3,8 +3,6 @@ package io.github.firstred.iptvproxy.db.repositories
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
-import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
-import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -27,7 +25,6 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvRating
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvSubtitle
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvSubtitleLanguage
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
-import io.github.firstred.iptvproxy.utils.NTuple4
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.JoinType
@@ -59,20 +56,6 @@ class EpgRepository {
                 it[XmltvSourceTable.sourceInfoUrl] = doc.sourceInfoUrl
                 it[XmltvSourceTable.sourceInfoName] = doc.sourceInfoName
                 it[XmltvSourceTable.sourceInfoLogo] = doc.sourceInfoLogo
-            }
-
-            // Delete old and insert new channels
-            EpgChannelTable.deleteWhere {
-                EpgChannelTable.server eq server
-            }
-
-            EpgChannelDisplayNameTable.deleteWhere {
-                EpgChannelDisplayNameTable.server eq server
-            }
-
-            // Delete old and insert new programmes
-            EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.server eq server
             }
 
             var channelIds = listOf<String>()
@@ -117,7 +100,6 @@ class EpgRepository {
                 ) { channel ->
                     epgChannelDisplayNames[channel.id!!] = channel.displayNames ?: listOf()
 
-                    this[EpgChannelTable.server] = server
                     this[EpgChannelTable.epgChannelId] = channel.id
                     this[EpgChannelTable.icon] = channel.icon?.src
                     this[EpgChannelTable.name] = channel.displayNames?.firstOrNull { null == it.language }?.text
@@ -131,7 +113,6 @@ class EpgRepository {
                     },
                     shouldReturnGeneratedValues = false,
                 ) {(channelId, displayName) ->
-                    this[EpgChannelDisplayNameTable.server] = server
                     this[EpgChannelDisplayNameTable.epgChannelId] = channelId
                     this[EpgChannelDisplayNameTable.language] = displayName.language ?: ""
                     this[EpgChannelDisplayNameTable.name] = displayName.text ?: ""
@@ -161,7 +142,6 @@ class EpgRepository {
                     programmeAudio[Pair(server ,programme)] = programme.audio?.stereo ?: listOf()
                     programmeSubtitles[Pair(server ,programme)] = programme.subtitles?.flatMap { it.value ?: listOf() } ?: listOf()
 
-                    this[EpgProgrammeTable.server] = server
                     this[EpgProgrammeTable.start] = programme.start
                     this[EpgProgrammeTable.stop] = programme.stop
                     this[EpgProgrammeTable.epgChannelId] = programme.channel
@@ -177,11 +157,10 @@ class EpgRepository {
                     data = programmeCategories.flatMap { (pair, categories) ->
                         val server = pair.first
                         val programme = pair.second
-                        categories.map { category -> NTuple4(server, programme.channel, programme.start, category) }
+                        categories.map { category -> Triple(programme.channel, programme.start, category) }
                     },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, category) ->
-                    this[EpgProgrammeCategoryTable.server] = server
+                ) {(epgChannelId, start, category) ->
                     this[EpgProgrammeCategoryTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeCategoryTable.programmeStart] = start
                     this[EpgProgrammeCategoryTable.language] = category.language ?: ""
@@ -193,11 +172,10 @@ class EpgRepository {
                     data = programmeEpisodes.flatMap { (pair, episodes) ->
                         val server = pair.first
                         val programme = pair.second
-                        episodes.map { episode -> NTuple4(server, programme.channel, programme.start, episode) }
+                        episodes.map { episode -> Triple(programme.channel, programme.start, episode) }
                     },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, episode) ->
-                    this[EpgProgrammeEpisodeNumberTable.server] = server
+                ) {(epgChannelId, start, episode) ->
                     this[EpgProgrammeEpisodeNumberTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeEpisodeNumberTable.programmeStart] = start
                     this[EpgProgrammeEpisodeNumberTable.system] = episode.system ?: ""
@@ -209,11 +187,10 @@ class EpgRepository {
                     data = programmeRatings.flatMap { (pair, ratings) ->
                         val server = pair.first
                         val programme = pair.second
-                        ratings.map { rating -> NTuple4(server, programme.channel, programme.start, rating) }
+                        ratings.map { rating -> Triple(programme.channel, programme.start, rating) }
                     },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, rating) ->
-                    this[EpgProgrammeRatingTable.server] = server
+                ) {(epgChannelId, start, rating) ->
                     this[EpgProgrammeRatingTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeRatingTable.programmeStart] = start
                     this[EpgProgrammeRatingTable.system] = rating.system
@@ -225,11 +202,10 @@ class EpgRepository {
                     data = programmePreviouslyShown.flatMap { (pair, previouslyShown) ->
                         val server = pair.first
                         val programme = pair.second
-                        previouslyShown.map { shown -> NTuple4(server, programme.channel, programme.start, shown) }
-                    }.filter { null != it.fourth.start },
+                        previouslyShown.map { shown -> Triple(programme.channel, programme.start, shown) }
+                    }.filter { null != it.third.start },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, shown) ->
-                    this[EpgProgrammePreviouslyShownTable.server] = server
+                ) {(epgChannelId, start, shown) ->
                     this[EpgProgrammePreviouslyShownTable.epgChannelId] = epgChannelId
                     this[EpgProgrammePreviouslyShownTable.programmeStart] = start
                     this[EpgProgrammePreviouslyShownTable.previousStart] = shown.start!!
@@ -240,11 +216,10 @@ class EpgRepository {
                     data = programmeAudio.flatMap { (pair, audio) ->
                         val server = pair.first
                         val programme = pair.second
-                        audio.map { audio -> NTuple4(server, programme.channel, programme.start, audio) }
+                        audio.map { audio -> Triple(programme.channel, programme.start, audio) }
                     },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, audio) ->
-                    this[EpgProgrammeAudioTable.server] = server
+                ) {(epgChannelId, start, audio) ->
                     this[EpgProgrammeAudioTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeAudioTable.programmeStart] = start
                     this[EpgProgrammeAudioTable.value] = audio.value
@@ -254,11 +229,10 @@ class EpgRepository {
                     data = programmeSubtitles.flatMap { (pair, subtitles) ->
                         val server = pair.first
                         val programme = pair.second
-                        subtitles.map { subtitle -> NTuple4(server, programme.channel, programme.start, subtitle) }
+                        subtitles.map { subtitle -> Triple(programme.channel, programme.start, subtitle) }
                     },
                     shouldReturnGeneratedValues = false,
-                ) {(server, epgChannelId, start, subtitle) ->
-                    this[EpgProgrammeSubtitlesTable.server] = server
+                ) {(epgChannelId, start, subtitle) ->
                     this[EpgProgrammeSubtitlesTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeSubtitlesTable.programmeStart] = start
                     this[EpgProgrammeSubtitlesTable.language] = subtitle.language ?: ""
@@ -283,12 +257,11 @@ class EpgRepository {
             val epgChannelQuery = EpgChannelTable
                 .selectAll()
                 .groupBy(EpgChannelTable.epgChannelId)
-                .andWhere { EpgChannelTable.epgChannelId inList usedIds }
-            server?.let { epgChannelQuery.andWhere { EpgChannelTable.server eq it } }
+            if (trimEpg) epgChannelQuery.andWhere { EpgChannelTable.epgChannelId inList usedIds }
             if (sortedByName) {
                 epgChannelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
             } else {
-                epgChannelQuery.orderBy(EpgChannelTable.server to SortOrder.ASC, EpgChannelTable.epgChannelId to SortOrder.ASC)
+                epgChannelQuery.orderBy(EpgChannelTable.epgChannelId to SortOrder.ASC)
             }
             epgChannelQuery
                 .limit(chunkSize)
@@ -303,7 +276,6 @@ class EpgRepository {
                 val channelDisplayNameQuery = EpgChannelDisplayNameTable
                     .selectAll()
                     .where { EpgChannelDisplayNameTable.epgChannelId inList channels.filter { null != it.id}.map { it.id!! } }
-                server?.let { channelDisplayNameQuery.andWhere { EpgChannelDisplayNameTable.server eq it } }
                 channelDisplayNameQuery.forEach { row ->
                     channels.indexOfFirst { it.id == row[EpgChannelDisplayNameTable.epgChannelId] }.let { idx ->
                         val it = channels[idx]
@@ -335,7 +307,6 @@ class EpgRepository {
             val programmeQuery = EpgProgrammeTable
                 .selectAll()
                 .andWhere { EpgProgrammeTable.epgChannelId inList usedIds }
-            server?.let { programmeQuery.andWhere { EpgProgrammeTable.server eq it } }
             programmeQuery
                 .groupBy(EpgProgrammeTable.epgChannelId, EpgProgrammeTable.start)
                 .orderBy(EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
@@ -345,13 +316,15 @@ class EpgRepository {
             val programmes = transaction {
                 programmeQuery
                     .associateBy(
-                        { Triple(it[EpgProgrammeTable.server], it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) },
+                        { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) },
                         { it.toXmltvProgramme() },
                     )
                     .toMutableMap()
             }
 
             if (programmes.isEmpty()) break
+
+            val epgChannelIds = programmes.keys.map { it.first }
 
             // Programme category
             transaction {
@@ -361,19 +334,16 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammeCategoryTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammeCategoryTable.server eq EpgProgrammeTable.server) and (EpgProgrammeCategoryTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammeCategoryTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammeCategoryTable.server,
                         EpgProgrammeCategoryTable.epgChannelId,
                         EpgProgrammeCategoryTable.programmeStart,
                         EpgProgrammeCategoryTable.language,
                         EpgProgrammeCategoryTable.category,
                     )
-                server?.let { programmeCategoryQuery.where { EpgProgrammeTable.server eq it } }
-                programmeCategoryQuery
+                    .where { EpgProgrammeCategoryTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -381,8 +351,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeCategoryQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammeCategoryTable.server], row[EpgProgrammeCategoryTable.epgChannelId], row[EpgProgrammeCategoryTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammeCategoryTable.server], row[EpgProgrammeCategoryTable.epgChannelId], row[EpgProgrammeCategoryTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammeCategoryTable.epgChannelId], row[EpgProgrammeCategoryTable.programmeStart])]?.let { programme ->
+                        programmes[Pair(row[EpgProgrammeCategoryTable.epgChannelId], row[EpgProgrammeCategoryTable.programmeStart])] = programme.copy(
                             category = (programme.category ?: listOf()) + XmltvText(
                                 language = row[EpgProgrammeCategoryTable.language].ifBlank { null },
                                 text = row[EpgProgrammeCategoryTable.category],
@@ -400,19 +370,16 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammeAudioTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammeAudioTable.server eq EpgProgrammeTable.server) and (EpgProgrammeAudioTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammeAudioTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammeAudioTable.server,
                         EpgProgrammeAudioTable.epgChannelId,
                         EpgProgrammeAudioTable.programmeStart,
                         EpgProgrammeAudioTable.type,
                         EpgProgrammeAudioTable.value,
                     )
-                server?.let { programmeAudioTableQuery.where { EpgProgrammeTable.server eq it } }
-                programmeAudioTableQuery
+                    .where { EpgProgrammeAudioTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -420,8 +387,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeAudioTableQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammeAudioTable.server], row[EpgProgrammeAudioTable.epgChannelId], row[EpgProgrammeAudioTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammeAudioTable.server], row[EpgProgrammeAudioTable.epgChannelId], row[EpgProgrammeAudioTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammeAudioTable.epgChannelId], row[EpgProgrammeAudioTable.programmeStart])]?.let { programme ->
+                        programmes[Pair(row[EpgProgrammeAudioTable.epgChannelId], row[EpgProgrammeAudioTable.programmeStart])] = programme.copy(
                             audio = (programme.audio ?: XmltvAudio()).copy(
                                 stereo = (programme.audio?.stereo ?: listOf()) + XmltvAudioStereo(
                                     value = row[EpgProgrammeAudioTable.value],
@@ -440,19 +407,16 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammeEpisodeNumberTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammeEpisodeNumberTable.server eq EpgProgrammeTable.server) and (EpgProgrammeEpisodeNumberTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammeEpisodeNumberTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammeEpisodeNumberTable.server,
                         EpgProgrammeEpisodeNumberTable.epgChannelId,
                         EpgProgrammeEpisodeNumberTable.programmeStart,
                         EpgProgrammeEpisodeNumberTable.system,
                         EpgProgrammeEpisodeNumberTable.number,
                     )
-                server?.let { programmeEpisodeNumberTableQuery.where { EpgProgrammeTable.server eq it } }
-                programmeEpisodeNumberTableQuery
+                    .where { EpgProgrammeEpisodeNumberTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -460,8 +424,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeEpisodeNumberTableQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammeEpisodeNumberTable.server], row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammeEpisodeNumberTable.server], row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])]?.let { programme ->
+                        programmes[Pair(row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])] = programme.copy(
                             episodeNumbers = (programme.episodeNumbers ?: listOf()) + XmltvEpisodeNum(
                                 system = row[EpgProgrammeEpisodeNumberTable.system]?.ifBlank { null },
                                 value = row[EpgProgrammeEpisodeNumberTable.number],
@@ -479,18 +443,15 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammePreviouslyShownTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammePreviouslyShownTable.server eq EpgProgrammeTable.server) and (EpgProgrammePreviouslyShownTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammePreviouslyShownTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammePreviouslyShownTable.server,
                         EpgProgrammePreviouslyShownTable.epgChannelId,
                         EpgProgrammePreviouslyShownTable.programmeStart,
                         EpgProgrammePreviouslyShownTable.previousStart,
                     )
-                server?.let { programmePreviouslyShownTableQuery.where { EpgProgrammeTable.server eq it } }
-                programmePreviouslyShownTableQuery
+                    .where { EpgProgrammePreviouslyShownTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -498,8 +459,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmePreviouslyShownTableQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammePreviouslyShownTable.server], row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammePreviouslyShownTable.server], row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])]?.let { programme ->
+                        programmes[Pair(row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])] = programme.copy(
                             previouslyShown = (programme.previouslyShown ?: listOf()) + XmltvProgrammePreviouslyShown(
                                 start = row[EpgProgrammePreviouslyShownTable.previousStart],
                             )
@@ -516,19 +477,16 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammeRatingTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammeRatingTable.server eq EpgProgrammeTable.server) and (EpgProgrammeRatingTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammeRatingTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammeRatingTable.server,
                         EpgProgrammeRatingTable.epgChannelId,
                         EpgProgrammeRatingTable.programmeStart,
                         EpgProgrammeRatingTable.system,
                         EpgProgrammeRatingTable.rating,
                     )
-                server?.let { programmeRatingTableQuery.where { EpgProgrammeTable.server eq it } }
-                programmeRatingTableQuery
+                    .where { EpgProgrammeRatingTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -536,8 +494,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeRatingTableQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammeRatingTable.server], row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammeRatingTable.server], row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])]?.let { programme ->
+                        programmes[Pair(row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])] = programme.copy(
                             rating = (programme.rating ?: listOf()) + XmltvRating(
                                 system = row[EpgProgrammeRatingTable.system],
                                 value = row[EpgProgrammeRatingTable.rating],
@@ -555,19 +513,16 @@ class EpgRepository {
                         JoinType.LEFT,
                         onColumn = EpgProgrammeTable.epgChannelId,
                         otherColumn = EpgProgrammeSubtitlesTable.epgChannelId,
-                        additionalConstraint = { (EpgProgrammeSubtitlesTable.server eq EpgProgrammeTable.server) and (EpgProgrammeSubtitlesTable.programmeStart eq EpgProgrammeTable.start) }
+                        additionalConstraint = { EpgProgrammeSubtitlesTable.programmeStart eq EpgProgrammeTable.start }
                     )
                     .select(
-                        EpgProgrammeSubtitlesTable.server,
                         EpgProgrammeSubtitlesTable.epgChannelId,
                         EpgProgrammeSubtitlesTable.programmeStart,
                         EpgProgrammeSubtitlesTable.language,
                         EpgProgrammeSubtitlesTable.subtitle,
                     )
-                server?.let { programmeSubtitleTableQuery.where { EpgProgrammeTable.server eq it } }
-                programmeSubtitleTableQuery
+                    .where { EpgProgrammeSubtitlesTable.epgChannelId inList epgChannelIds }
                     .orderBy(
-                        EpgProgrammeTable.server to SortOrder.ASC,
                         EpgProgrammeTable.epgChannelId to SortOrder.ASC,
                         EpgProgrammeTable.start to SortOrder.ASC
                     )
@@ -575,8 +530,8 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeSubtitleTableQuery.forEach { row ->
-                    programmes[Triple(row[EpgProgrammeSubtitlesTable.server], row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])]?.let { programme ->
-                        programmes[Triple(row[EpgProgrammeSubtitlesTable.server], row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])] = programme.copy(
+                    programmes[Pair(row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])]?.let { programme ->
+                        programmes[Pair( row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])] = programme.copy(
                             subtitles = (programme.subtitles ?: listOf()) + XmltvSubtitle(
                                 type = "",
                                 value = listOf(
@@ -596,7 +551,7 @@ class EpgRepository {
         } while (programmes.isNotEmpty())
     }
 
-    fun getEpgIdForChannel(channelId: UInt): String? = transaction {
+    fun getEpgIdForChannelId(channelId: UInt): String? = transaction {
         ChannelTable
             .select(ChannelTable.epgChannelId)
             .where { ChannelTable.id eq channelId }
@@ -604,52 +559,33 @@ class EpgRepository {
             .map { it[ChannelTable.epgChannelId] }
             .firstOrNull()
     }
-    fun getEpgIdAndServerForChannel(channelId: UInt): Pair<String, String>? = transaction {
-        @Suppress("UNCHECKED_CAST")
-        ChannelTable
-            .select(ChannelTable.epgChannelId)
-            .where { ChannelTable.id eq channelId }
-            .filter { null != it[ChannelTable.epgChannelId] }
-            .map { Pair(it[ChannelTable.epgChannelId], it[ChannelTable.server]) }
-            .firstOrNull() as Pair<String, String>?
-    }
-    fun getAlternativeServersForEpgId(epgId: String): List<String> = transaction {
-        EpgChannelTable
-            .select(EpgChannelTable.server)
-            .where { ChannelTable.epgChannelId eq epgId }
-            .map { it[ChannelTable.server] }
-    }
 
     fun getProgrammesForChannelId(
         channelId: UInt,
         count: Int = 4,
         now: Instant = Clock.System.now(),
     ): List<XmltvProgramme> = transaction {
-        val (epgId, server) = getEpgIdAndServerForChannel(channelId) ?: return@transaction emptyList()
-        val servers = listOf(server) + (getAlternativeServersForEpgId(epgId) - listOf(server))
-        for (server in servers) {
-            // Try the preferred server first
-            val query = EpgProgrammeTable
-                .join(
-                    ChannelTable,
-                    JoinType.INNER,
-                    onColumn = EpgProgrammeTable.epgChannelId,
-                    otherColumn = ChannelTable.epgChannelId,
+        val epgId = getEpgIdForChannelId(channelId) ?: return@transaction emptyList()
+        // Try the preferred server first
+        val query = EpgProgrammeTable
+            .join(
+                ChannelTable,
+                JoinType.INNER,
+                onColumn = EpgProgrammeTable.epgChannelId,
+                otherColumn = ChannelTable.epgChannelId,
+            )
+            .selectAll()
+            .andWhere {
+                EpgProgrammeTable.epgChannelId eq epgId and
+                    (EpgProgrammeTable.start greaterEq now) or (
+                    (EpgProgrammeTable.start lessEq now) and (EpgProgrammeTable.stop greaterEq now)
                 )
-                .selectAll()
-                .where { EpgProgrammeTable.server eq server }
-                .andWhere {
-                    EpgProgrammeTable.epgChannelId eq epgId and
-                        (EpgProgrammeTable.start greaterEq now) or (
-                        (EpgProgrammeTable.start lessEq now) and (EpgProgrammeTable.stop greaterEq now)
-                    )
-                }
-                .orderBy(EpgProgrammeTable.start to SortOrder.ASC)
-            if (count < Int.MAX_VALUE) query.limit(count)
-            val results = query.map { it.toXmltvProgramme() }
+            }
+            .orderBy(EpgProgrammeTable.start to SortOrder.ASC)
+        if (count < Int.MAX_VALUE) query.limit(count)
+        val results = query.map { it.toXmltvProgramme() }
 
-            if (results.isNotEmpty()) return@transaction results
-        }
+        if (results.isNotEmpty()) return@transaction results
 
         emptyList()
     }
@@ -661,28 +597,9 @@ class EpgRepository {
             .distinct()
     }
 
-    fun getEpgChannelCount(): Long = transaction {
-        EpgChannelTable.select(EpgChannelTable.epgChannelId.countDistinct()).count()
-    }
-    fun getEpgProgrammeCount(): Long = transaction {
-        EpgProgrammeTable.selectAll().count()
-    }
-
     fun cleanup() {
         val now = Clock.System.now()
         transaction {
-            EpgChannelTable.deleteWhere {
-                EpgChannelTable.server notInList config.servers.map { it.name }
-            }
-            EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.server notInList config.servers.map { it.name }
-            }
-            for (server in config.servers) {
-                EpgProgrammeTable.deleteWhere {
-                    (EpgProgrammeTable.stop less ((now - server.epgBefore).coerceAtLeast(Instant.DISTANT_PAST)))
-                        .or(EpgProgrammeTable.start greater ((now + server.epgAfter).coerceAtMost(Instant.DISTANT_FUTURE)))
-                }
-            }
             XmltvSourceTable.deleteWhere {
                 XmltvSourceTable.server notInList config.servers.map { it.name }
             }
@@ -708,7 +625,6 @@ class EpgRepository {
             id = this[EpgChannelTable.epgChannelId],
             displayNames = listOf(),
             icon = this[EpgChannelTable.icon]?.let { src -> XmltvIcon(src = src) },
-            server = this[EpgChannelTable.server],
         )
         private fun ResultRow.toXmltvProgramme() = XmltvProgramme(
             start = this[EpgProgrammeTable.start],
@@ -727,7 +643,6 @@ class EpgRepository {
                 text = this[EpgProgrammeTable.description],
             ),
             icon = this[EpgProgrammeTable.icon]?.let { src -> XmltvIcon(src = src) },
-            server = this[EpgProgrammeTable.server],
         )
     }
 }

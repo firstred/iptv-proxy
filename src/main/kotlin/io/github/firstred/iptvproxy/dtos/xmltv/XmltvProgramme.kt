@@ -54,8 +54,6 @@ data class XmltvProgramme(
     @XmlSerialName("previously-shown") val previouslyShown: List<XmltvProgrammePreviouslyShown>? = null,
 
     @XmlSerialName("audio") val audio: XmltvAudio? = null,
-
-    val server: String? = null,
 ) {
     fun toXtreamEpg() = XtreamEpg(
         start = start.toLocalDateTime(TimeZone.of(dotenv.get("TZ") ?: "UTC")).format(LocalDateTime.Format {
@@ -65,8 +63,8 @@ data class XmltvProgramme(
             byUnicodePattern("yyyy-MM-dd HH:mm:ss")
         }),
         channelId = channel,
-        externalId = "$channel-$server".sha256().hexStringToDecimal().toString(),
-        epgId = "$channel-$server".sha256().hexStringToDecimal().toString(),
+        externalId = channel,
+        epgId = channel,
         startTimestamp = (start.toEpochMilliseconds() / 1000).toString(),
         stopTimestamp = (stop.toEpochMilliseconds() / 1000).toString(),
         title = Base64.getEncoder().encodeToString( "${title?.text}".toByteArray(UTF_8)),

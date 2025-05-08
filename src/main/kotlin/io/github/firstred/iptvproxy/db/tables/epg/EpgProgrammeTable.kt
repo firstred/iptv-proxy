@@ -7,7 +7,6 @@ import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeTable : Table("epg_programme") {
-    val server = varchar("server", maxServerNameLength)
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
     val start = timestamp("start")
     val stop = timestamp("stop")
@@ -18,5 +17,5 @@ object EpgProgrammeTable : Table("epg_programme") {
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
 
-    override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, start))
+    override val primaryKey = PrimaryKey(arrayOf(epgChannelId, start))
 }

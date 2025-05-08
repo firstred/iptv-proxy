@@ -6,11 +6,10 @@ import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeSubtitlesTable : Table("epg_programme_subtitles") {
-    val server = varchar("server", maxServerNameLength)
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
     val programmeStart = timestamp("programme_start")
     val language = varchar("language", defaultVarcharLength)
     val subtitle = text("subtitle")
 
-    override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, programmeStart, language))
+    override val primaryKey = PrimaryKey(arrayOf(epgChannelId, programmeStart, language))
 }

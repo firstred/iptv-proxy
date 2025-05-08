@@ -97,7 +97,7 @@ fun Route.xtreamApi() {
                             XmltvChannel.serializer(), row.copy(
                                 icon = row.icon?.copy(
                                     src = row.icon.src?.let {
-                                        if (serversByName[row.server]?.config?.proxyStream ?: false) it.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        if (serversByName.values.any { true == it.config?.proxyStream }) it.toProxiedIconUrl(baseUrl, encryptedAccount)
                                         else it
                                     },
                                 ),

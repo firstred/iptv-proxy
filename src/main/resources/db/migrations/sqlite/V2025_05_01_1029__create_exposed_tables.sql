@@ -66,34 +66,25 @@ create index idx_82c78113ffde7ad2c641b8b94b4afa95
 create table epg_channel
 (
     epg_channel_id varchar(255)                   not null,
-    server         varchar(127)                   not null,
     icon           text,
     name           varchar(511)                   not null,
     created_at     text default CURRENT_TIMESTAMP not null,
     updated_at     text default CURRENT_TIMESTAMP not null,
     constraint pk_epg_channel
-        primary key (server, epg_channel_id)
+        primary key (epg_channel_id)
 );
-
-create index idx_2bffdfa0f6c4be29485c21a215348ff5
-    on epg_channel (server, epg_channel_id);
 
 create table epg_display_name
 (
     epg_channel_id varchar(255) not null,
-    server         varchar(127) not null,
     language       varchar(255) not null,
     name           text         not null,
     constraint pk_epg_display_name
-        primary key (server, epg_channel_id, language)
+        primary key (epg_channel_id, language)
 );
-
-create index idx_683b6e0bd327f4f67b64152de4231de1
-    on epg_display_name (server, epg_channel_id);
 
 create table epg_programme
 (
-    server         varchar(127)                   not null,
     epg_channel_id varchar(255)                   not null,
     start          text                           not null,
     stop           text                           not null,
@@ -104,72 +95,66 @@ create table epg_programme
     created_at     text default CURRENT_TIMESTAMP not null,
     updated_at     text default CURRENT_TIMESTAMP not null,
     constraint pk_epg_programme
-        primary key (server, epg_channel_id, start)
+        primary key (epg_channel_id, start)
 );
 
 create table epg_programme_audio
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     type            varchar(255) not null,
     value           varchar(255) not null,
     constraint pk_epg_programme_audio
-        primary key (server, epg_channel_id, programme_start, type)
+        primary key (epg_channel_id, programme_start, type)
 );
 
 create table epg_programme_category
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     language        varchar(255) not null,
     category        text         not null,
     constraint pk_epg_programme_category
-        primary key (server, epg_channel_id, programme_start, language)
+        primary key (epg_channel_id, programme_start, language)
 );
 
 create table epg_programme_episode_number
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     system          varchar(255),
     number          varchar(255) not null,
     constraint pk_epg_programme_episode_number
-        primary key (server, epg_channel_id, programme_start, system)
+        primary key (epg_channel_id, programme_start, system)
 );
 
 create table epg_programme_previously_shown
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     previous_start  text         not null,
     constraint pk_epg_programme_previously_shown
-        primary key (server, epg_channel_id, programme_start)
+        primary key (epg_channel_id, programme_start)
 );
 
 create table epg_programme_rating
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     system          varchar(255) not null,
     rating          varchar(255) not null,
     constraint pk_epg_programme_rating
-        primary key (server, epg_channel_id, programme_start, system)
+        primary key (epg_channel_id, programme_start, system)
 );
 
 create table epg_programme_subtitles
 (
-    server          varchar(127) not null,
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     language        varchar(255) not null,
     subtitle        text         not null,
     constraint pk_epg_programme_subtitles
-        primary key (server, epg_channel_id, programme_start, language)
+        primary key (epg_channel_id, programme_start, language)
 );
 
 create table live_stream

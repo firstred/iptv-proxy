@@ -207,14 +207,6 @@ class ChannelRepository : KoinComponent {
                 { Pair(it[ChannelTable.server], it[ChannelTable.mainGroup]!!) }
             )
     }
-    fun findMissingChannelGroupCounter(): UInt = transaction {
-        val maxId =  CategoryTable.id.max().alias("maxId")
-        CategoryTable
-            .select(maxId)
-            .where { CategoryTable.id greater 1_000_000_000u }
-            .map { it[maxId]?.value }
-            .firstOrNull() ?: 1_000_000_000u
-    }
 
     fun getIptvChannelCount(): UInt = transaction {
         ChannelTable.selectAll().count().toUInt()
