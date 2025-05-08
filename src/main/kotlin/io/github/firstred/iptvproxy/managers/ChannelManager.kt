@@ -155,8 +155,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         var xmltvCh: XmltvChannel? = null
                         if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
                         if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
-                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh =
-                            xmltvByName[tvgName.replace(' ', '_')]
+                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
                         if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
                         if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
 
