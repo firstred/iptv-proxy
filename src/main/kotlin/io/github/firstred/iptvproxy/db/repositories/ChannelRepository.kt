@@ -197,7 +197,7 @@ class ChannelRepository : KoinComponent {
                 otherColumn = CategoryTable.name,
             )
             .select(ChannelTable.id, ChannelTable.server, ChannelTable.mainGroup)
-            .filter { null != it[ChannelTable.mainGroup] }
+            .where { CategoryTable.name.isNull() }
             .associateBy(
                 { it[ChannelTable.id].value },
                 { Pair(it[ChannelTable.server], it[ChannelTable.mainGroup]!!) }
