@@ -11,7 +11,6 @@ import io.github.firstred.iptvproxy.managers.ChannelManager
 import io.github.firstred.iptvproxy.managers.UserManager
 import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.images
-import io.github.firstred.iptvproxy.routes.notices
 import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
@@ -44,8 +43,6 @@ fun Application.configureRouting() {
         images()
         xtreamApi()
         hls()
-
-        notices()
     }
 }
 
