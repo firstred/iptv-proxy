@@ -421,11 +421,10 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                             // Immediately release the connection after the read channel is closed
                             releaseConnectionEarly()
 
-                            output.flush()
-
-                            videoChunkCache.put(responseURI.toString(), totalCache)
-
-                            output.flushAndClose()
+                            if ("video/mp2t" == response.headers["Content-Type"]?.lowercase()) {
+                                // Cache the video chunk
+                                videoChunkCache.put(responseURI.toString(), totalCache)
+                            }
                         }
                     }
                 }
