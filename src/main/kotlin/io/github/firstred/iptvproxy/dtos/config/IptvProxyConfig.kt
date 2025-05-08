@@ -38,6 +38,7 @@ data class IptvProxyConfig(
     val users: List<IptvProxyUserConfig> = emptyList(),
 
     val sortChannelsByName: Boolean = true,
+    val trimEpg: Boolean = true,
 
     val socksProxy: String? = null, // socks5://<username>:<password>@server_host:port
     val httpProxy: String? = null, // http://<username>:<password>@server_host:port

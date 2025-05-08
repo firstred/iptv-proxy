@@ -64,6 +64,7 @@ cleanup_interval: PT1H # Interval to clean up old data
 channel_max_stale_period: P2D # Wait time before a stale channel is removed from the database
 scheduler_thread_pool_size: 2 # Max. concurrent updater threads for the playlist and EPG
 sort_channels_by_name: false
+trim_epg: true  # Removes unavailable channels from the EPG
 # socks_proxy: null # socks5://<username>:<password>@server_host:port
 # http_proxy: null # http://<username>:<password>@server_host:port
 # cors: # Configure CORS response from the server - e.g. for direct access to the API from a web browser
@@ -145,6 +146,7 @@ users:
 * `scheduler_thread_pool_size` - max. concurrent updater threads for the playlist and EPG (default is `2`)
 
 * `sort_channels_by_name` - sort channels by name (default is `false`)
+* `trim_epg` - removes unavailable channels from the EPG (default is `true`)
 
 * `socks_proxy` - socks5 proxy for outgoing requests (default is `null`)
 * `http_proxy` - http proxy for outgoing requests (default is `null`)

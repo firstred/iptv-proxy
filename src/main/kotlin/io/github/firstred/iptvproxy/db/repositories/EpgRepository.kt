@@ -2,6 +2,9 @@ package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
+import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
+import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
+import io.github.firstred.iptvproxy.db.tables.channels.SeriesTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -42,6 +45,7 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import org.jetbrains.exposed.sql.unionAll
 import org.jetbrains.exposed.sql.upsert
 
 class EpgRepository {
@@ -268,15 +272,19 @@ class EpgRepository {
         server: String? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         sortedByName: Boolean = config.sortChannelsByName,
+        trimEpg: Boolean = config.trimEpg,
         action: (List<XmltvChannel>) -> Unit,
     ) {
         var offset = 0L
 
+        val usedIds = findAllUsedEpgChannelIds()
+
         do {
             val epgChannelQuery = EpgChannelTable
                 .selectAll()
-                .withDistinctOn(EpgChannelTable.epgChannelId)
-            server?.let { epgChannelQuery.where { EpgChannelTable.server eq it } }
+                .groupBy(EpgChannelTable.epgChannelId)
+                .andWhere { EpgChannelTable.epgChannelId inList usedIds }
+            server?.let { epgChannelQuery.andWhere { EpgChannelTable.server eq it } }
             if (sortedByName) {
                 epgChannelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
             } else {
@@ -321,9 +329,13 @@ class EpgRepository {
     ) {
         var offset = 0L
 
+        val usedIds = findAllUsedEpgChannelIds()
+
         do {
-            val programmeQuery = EpgProgrammeTable.selectAll()
-            server?.let { programmeQuery.where { EpgProgrammeTable.server eq it } }
+            val programmeQuery = EpgProgrammeTable
+                .selectAll()
+                .andWhere { EpgProgrammeTable.epgChannelId inList usedIds }
+            server?.let { programmeQuery.andWhere { EpgProgrammeTable.server eq it } }
             programmeQuery
                 .groupBy(EpgProgrammeTable.epgChannelId, EpgProgrammeTable.start)
                 .orderBy(EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
@@ -642,6 +654,13 @@ class EpgRepository {
         emptyList()
     }
 
+    fun findAllUsedEpgChannelIds(): List<String> = transaction {
+        ChannelTable.select(ChannelTable.epgChannelId)
+            .unionAll(LiveStreamTable.select(LiveStreamTable.epgChannelId))
+            .withDistinct(true).mapNotNull { it[ChannelTable.epgChannelId]?.ifBlank { null } }
+            .distinct()
+    }
+
     fun getEpgChannelCount(): Long = transaction {
         EpgChannelTable.select(EpgChannelTable.epgChannelId.countDistinct()).count()
     }
@@ -689,6 +708,7 @@ class EpgRepository {
             id = this[EpgChannelTable.epgChannelId],
             displayNames = listOf(),
             icon = this[EpgChannelTable.icon]?.let { src -> XmltvIcon(src = src) },
+            server = this[EpgChannelTable.server],
         )
         private fun ResultRow.toXmltvProgramme() = XmltvProgramme(
             start = this[EpgProgrammeTable.start],

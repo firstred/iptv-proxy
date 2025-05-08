@@ -90,31 +90,27 @@ fun Route.xtreamApi() {
         val encryptedAccount = user.toEncryptedAccountHexString()
         call.respondTextWriter {
             write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
-            for (server in config.servers) {
-                epgRepository.forEachEpgChannelChunk(server.name) {
-                    it.forEach { row ->
-                        write(
-                            xml.encodeToString(
-                                XmltvChannel.serializer(), row.copy(
-                                    icon = row.icon?.copy(
-                                        src = row.icon.src?.let {
-                                            if (server.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                            else it
-                                        },
-                                    ),
-                                )
+            epgRepository.forEachEpgChannelChunk {
+                it.forEach { row ->
+                    write(
+                        xml.encodeToString(
+                            XmltvChannel.serializer(), row.copy(
+                                icon = row.icon?.copy(
+                                    src = row.icon.src?.let {
+                                        if (serversByName[row.server]?.config?.proxyStream ?: false) it.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        else it
+                                    },
+                                ),
                             )
                         )
-                        flush()
-                    }
+                    )
+                    flush()
                 }
             }
-            for (server in config.servers.map { it.name }) {
-                epgRepository.forEachEpgProgrammeChunk(server) {
-                    it.forEach { row ->
-                        write(xml.encodeToString(XmltvProgramme.serializer(), row))
-                        flush()
-                    }
+            epgRepository.forEachEpgProgrammeChunk {
+                it.forEach { row ->
+                    write(xml.encodeToString(XmltvProgramme.serializer(), row))
+                    flush()
                 }
             }
 
