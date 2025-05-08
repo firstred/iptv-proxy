@@ -7,6 +7,5 @@ import kotlinx.serialization.Serializable
 enum class XtreamOutputFormat(val type: String) {
     m3u8("m3u8"),
     hls("hls"),
-    ts("ts"),
-    rtmp("rtmp");
+    ts("ts");
 }

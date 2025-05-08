@@ -58,7 +58,7 @@ private fun StringValues.toHeaders() = headers {
 fun HeadersBuilder.addDefaultClientHeaders(serverConfig: IptvFlatServerConfig) {
     forwardProxyUser(serverConfig)
     sendUserAgent(serverConfig)
-    sendBasicAuth(serverConfig.account)
+    if (null != serverConfig.account) sendBasicAuth(serverConfig.account)
     addProxyAuthorizationHeaderIfNecessary()
 }
 

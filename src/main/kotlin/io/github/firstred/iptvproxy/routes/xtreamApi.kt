@@ -144,6 +144,7 @@ fun Route.xtreamApi() {
 
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
                     write("[")
+
                     var first = true
                     xtreamRepository.forEachLiveStreamChunk(categoryId = categoryId) { list ->
                         list.forEachIndexed { idx, it ->
@@ -157,6 +158,30 @@ fun Route.xtreamApi() {
                                 url = if (serversByName[it.server]?.config?.proxyStream ?: false) "${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
                                 else it.url,
                             )))
+                            flush()
+                        }
+                    }
+
+                    channelRepository.forEachMissingIptvChannelAsLiveStreamChunk { list ->
+                        list.forEachIndexed { idx, it ->
+                            if (!first) write(",")
+                            else first = false
+
+                            write(
+                                json.encodeToString(
+                                    XtreamLiveStream.serializer(), it.copy(
+                                        streamIcon = if (serversByName[it.server]?.config?.proxyStream
+                                                ?: false
+                                        ) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                        else it.streamIcon,
+                                        server = null,
+                                        url = if (serversByName[it.server]?.config?.proxyStream
+                                                ?: false
+                                        ) "${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
+                                        else it.url,
+                                    )
+                                )
+                            )
                             flush()
                         }
                     }

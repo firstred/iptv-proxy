@@ -85,6 +85,7 @@ micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus
 
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
+exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed" }
 exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", version.ref = "exposed" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }

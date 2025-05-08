@@ -28,7 +28,7 @@ data class IptvServerConfig(
 
     override val userAgent: String? = null,
 ) : IIptvServerConfigWithoutAccounts {
-    fun toFlatIptvServerConfig(accountIndex: UInt) = IptvFlatServerConfig(
+    fun toFlatIptvServerConfig(accountIndex: UInt = 0u) = IptvFlatServerConfig(
         name = name,
         epgUrl = epgUrl,
         epgBefore = epgBefore,
@@ -36,7 +36,7 @@ data class IptvServerConfig(
         proxyForwardedUser = proxyForwardedUser,
         proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
-        account = accounts?.let { it[accountIndex.toInt()] } ?: throw IllegalStateException("No account configured for this server at index $accountIndex"),
+        account = accounts?.let { it[accountIndex.toInt()] },
         timeouts = timeouts,
         groupFilters = groupFilters,
         userAgent = userAgent,

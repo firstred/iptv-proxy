@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory
 class IptvServerConnection(
     val config: IptvFlatServerConfig,
 ) : KoinComponent {
-    private val semaphore: Semaphore = Semaphore(config.account.maxConcurrentRequests.toInt())
+    private val semaphore: Semaphore = Semaphore(config.account?.maxConcurrentRequests?.toInt() ?: 1)
 
     val httpClient: HttpClient by inject(named(IptvServerConnection::class.java.simpleName)) { parametersOf(config) }
 

@@ -14,11 +14,17 @@ import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
+import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
+import io.github.firstred.iptvproxy.utils.forwardProxyUser
+import io.github.firstred.iptvproxy.utils.isHlsPlaylist
 import io.github.firstred.iptvproxy.utils.maxRedirects
+import io.github.firstred.iptvproxy.utils.sendBasicAuth
+import io.github.firstred.iptvproxy.utils.sendUserAgent
+import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -33,8 +39,10 @@ import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
+import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
+import kotlin.text.Charsets.UTF_8
 
 private val LOG = LoggerFactory.getLogger("RoutingPlugin")
 
@@ -166,12 +174,96 @@ fun Route.proxyRemotePlaylist() {
                 ) { headers ->
                     headers.filterHttpResponseHeaders().entries()
                         .forEach { (key, value) -> value.forEach { call.response.headers.append(key, it) } }
-                })
+                }
+            )
         }
     }
 }
 
-fun Route.proxyRemoteVod() {
+suspend fun Route.rewriteRemotePlaylist(
+    outputStream: OutputStream,
+    user: IptvUser,
+    channel: IptvChannel,
+    baseUrl: URI,
+    remoteUrl: URI,
+    additionalHeaders: Headers = headersOf(),
+    additionalQueryParameters: Parameters = parametersOf(),
+    headersCallback: ((Headers) -> Unit)? = null,
+) {
+    val outputWriter = outputStream.bufferedWriter(UTF_8)
+    val server = channel.server
+
+    server.withConnection(server.config.timeouts.totalMilliseconds) { connection, _ ->
+        lateinit var response: HttpResponse
+        val url = remoteUrl
+        response = connection.httpClient.get(
+            url.appendQueryParameters(additionalQueryParameters).toString(),
+        ) {
+            headers {
+                additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
+                forwardProxyUser(connection.config)
+                sendUserAgent(connection.config)
+                if (null != connection.config.account) sendBasicAuth(connection.config.account)
+            }
+        }
+        headersCallback?.invoke(response.headers)
+
+        var responseURI = url
+
+        var redirects = 0
+
+        // Check if response is a redirect
+        while (null != response.headers["Location"] && redirects < maxRedirects) {
+            val location = response.headers["Location"] ?: break
+
+            // Follow redirects
+            response = connection.httpClient.get(location)
+            response.body<String>()
+            try {
+                responseURI = responseURI.resolve(URI(location))
+            } catch (_: URISyntaxException) {
+            }
+
+            redirects++
+        }
+
+        for (infoLine in response.body<String>().lines()) {
+            var infoLine = infoLine
+
+            when {
+                // Only rewrite direct media URLs this time, no icons etc.
+                !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
+                    var newInfoLine = infoLine.trim(' ')
+
+                    // This is a stream URL
+                    if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
+                        newInfoLine = responseURI.resolve(newInfoLine.replace(" ", "%20")).toString()
+                    }
+
+                    try {
+                        val remoteUrl = URI(newInfoLine.replace(" ", "%20"))
+                        val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
+                        val extension = remoteUrl.path.substringAfterLast('.', "")
+
+                        infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/${channel.id}/$fileName.$extension"
+                    } catch (e: URISyntaxException) {
+                        LOG.warn(
+                            "[{}] Error while parsing stream URL: {}, error: {}",
+                            user.username,
+                            infoLine,
+                            e.message,
+                        )
+                    }
+                }
+            }
+
+            outputWriter.write("$infoLine\n")
+            outputWriter.flush()
+        }
+    }
+}
+
+fun Route.proxyRemoteVideo() {
     val channelRepository: ChannelRepository by inject()
 
     get(Regex("""^(?<username>[^/]+)/(?<password>[^/]+)/(?<channelid>[^.]+?)(?:\.(?<extension>.*))?$""")) {
@@ -196,7 +288,7 @@ fun Route.proxyRemoteVod() {
             return@get
         }
 
-        streamRemoteFile(user, channel, routingContext)
+        streamRemoteVideoChunk(user, channel, routingContext)
     }
 }
 
@@ -217,18 +309,31 @@ fun Route.proxyRemoteHlsStream() {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }
+        val remoteUrl = call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
+            ?: run {
+                call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+                return@get
+            }
 
-        streamRemoteFile(
+        if (remoteUrl.isHlsPlaylist()) {
+            call.respondOutputStream(
+                contentType = ContentType("application", "x-mpegurl"),
+                status = HttpStatusCode.OK,
+            ) {
+                rewriteRemotePlaylist(this, user, channel, config.getActualBaseUrl(call.request), remoteUrl)
+            }
+        }
+
+        streamRemoteVideoChunk(
             user,
             channel,
             routingContext,
-            (call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
-                ?: throw IllegalArgumentException("Invalid remote URL"))
+            remoteUrl,
         )
     }
 }
 
-private suspend fun RoutingContext.streamRemoteFile(
+private suspend fun RoutingContext.streamRemoteVideoChunk(
     user: IptvUser,
     channel: IptvChannel,
     routingContext: RoutingContext,

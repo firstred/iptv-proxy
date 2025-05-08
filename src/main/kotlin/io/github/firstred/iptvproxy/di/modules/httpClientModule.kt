@@ -83,7 +83,7 @@ val httpClientModule = module {
         HttpClient(OkHttp) {
             defaults()
             val okDispatcher = Dispatcher()
-            okDispatcher.maxRequestsPerHost = flatServerConfig.account.maxConcurrentRequestsPerHost.toInt()
+            okDispatcher.maxRequestsPerHost = flatServerConfig.account!!.maxConcurrentRequestsPerHost.toInt()
 
             engine {
                 config {

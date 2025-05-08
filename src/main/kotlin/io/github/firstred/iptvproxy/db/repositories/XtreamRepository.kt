@@ -1,8 +1,8 @@
 package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.db.tables.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
-import io.github.firstred.iptvproxy.db.tables.channels.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
 import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamToCategoryTable
 import io.github.firstred.iptvproxy.db.tables.channels.MovieTable
@@ -61,24 +61,44 @@ class XtreamRepository : KoinComponent {
         }
     }
 
-    private fun upsertCategories(liveStreamCategories: List<XtreamCategory>, server: String, type: IptvChannelType) {
+    private fun upsertCategories(categories: List<XtreamCategory>, server: String, type: IptvChannelType) {
         transaction {
-            liveStreamCategories.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
+            categories.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
                 CategoryTable.batchUpsert(
                     data = chunk,
                     keys = arrayOf(CategoryTable.server, CategoryTable.externalCategoryId),
                     shouldReturnGeneratedValues = false,
-                ) { liveStreamCategory ->
+                ) { category ->
                     this[CategoryTable.server] = server
-                    this[CategoryTable.externalCategoryId] = liveStreamCategory.id.toUInt()
-                    this[CategoryTable.name] = liveStreamCategory.name
-                    this[CategoryTable.parentId] = liveStreamCategory.parentId ?: 0u
+                    this[CategoryTable.externalCategoryId] = category.id.toUInt()
+                    this[CategoryTable.name] = category.name
+                    this[CategoryTable.parentId] = category.parentId ?: 0u
                     this[CategoryTable.type] = type
                     this[CategoryTable.updatedAt] = Clock.System.now()
                 }
             }
         }
     }
+    fun upsertMissingChannelCategories(list: List<Pair<XtreamCategory, String>>, type: IptvChannelType) {
+        transaction {
+            list.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
+                CategoryTable.batchUpsert(
+                    data = chunk,
+                    keys = arrayOf(CategoryTable.server, CategoryTable.externalCategoryId),
+                    shouldReturnGeneratedValues = false,
+                ) { (category, server) ->
+                    this[CategoryTable.id] = category.id.toUInt()
+                    this[CategoryTable.server] = server
+                    this[CategoryTable.externalCategoryId] = category.id.toUInt()
+                    this[CategoryTable.name] = category.name
+                    this[CategoryTable.parentId] = category.parentId ?: 0u
+                    this[CategoryTable.type] = type
+                    this[CategoryTable.updatedAt] = Clock.System.now()
+                }
+            }
+        }
+    }
+
     private fun upsertLiveStreams(liveStreams: List<XtreamLiveStream>, server: String) {
         transaction {
             val internalCategoryIds = getAllLiveStreamCategoryIds(server).values.associateBy { it.externalId }
@@ -277,7 +297,7 @@ class XtreamRepository : KoinComponent {
                 .associateBy(
                     { it[CategoryTable.id].value },
                     { XtreamCategoryIdServer(
-                        id = it[CategoryTable.externalCategoryId],
+                        id = it[CategoryTable.externalCategoryId] ?: 0u,
                         externalId = it[CategoryTable.id].value,
                         server = it[CategoryTable.server],
                         type = IptvChannelType.valueOf(it[channelTypeLiteral])
@@ -301,7 +321,7 @@ class XtreamRepository : KoinComponent {
                 { it[CategoryTable.id].value },
                 { XtreamCategoryIdServer(
                     id = it[CategoryTable.id].value,
-                    externalId = it[CategoryTable.externalCategoryId],
+                    externalId = it[CategoryTable.externalCategoryId] ?: 0u,
                     server = it[CategoryTable.server],
                     type = IptvChannelType.live,
                 ) })
@@ -323,7 +343,7 @@ class XtreamRepository : KoinComponent {
                 { it[CategoryTable.id].value },
                 { XtreamCategoryIdServer(
                     id = it[CategoryTable.id].value,
-                    externalId = it[CategoryTable.externalCategoryId],
+                    externalId = it[CategoryTable.externalCategoryId] ?: 0u,
                     server = it[CategoryTable.server],
                     type = IptvChannelType.movie,
                 ) })
@@ -346,7 +366,7 @@ class XtreamRepository : KoinComponent {
                 {
                     XtreamCategoryIdServer(
                         id = it[CategoryTable.id].value,
-                        externalId = it[CategoryTable.externalCategoryId],
+                        externalId = it[CategoryTable.externalCategoryId] ?: 0u,
                         server = it[CategoryTable.server],
                         type = IptvChannelType.series,
                     )
@@ -628,6 +648,7 @@ class XtreamRepository : KoinComponent {
     }
     fun getExternalCategoryIdToIdMap(): Map<UInt, UInt> {
         return transaction {
+            @Suppress("UNCHECKED_CAST")
             CategoryTable
                 .selectAll()
                 .associateBy(
@@ -638,6 +659,8 @@ class XtreamRepository : KoinComponent {
     }
 
     fun cleanup() {
+        val now = Clock.System.now()
+
         transaction {
             LiveStreamTable.deleteWhere {
                 LiveStreamTable.server notInList config.servers.map { it.name }
@@ -653,22 +676,22 @@ class XtreamRepository : KoinComponent {
             }
 
             LiveStreamTable.deleteWhere {
-                LiveStreamTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                LiveStreamTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             MovieTable.deleteWhere {
-                 MovieTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                 MovieTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             SeriesTable.deleteWhere {
-                 SeriesTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                 SeriesTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
         }
     }
@@ -700,7 +723,7 @@ class XtreamRepository : KoinComponent {
             added = this[MovieTable.added].epochSeconds.toString(),
             isAdult = this[MovieTable.isAdult].toUInt(),
             categoryId = this[MovieTable.mainCategoryId].toString(),
-            categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat]?.split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[MovieTable.mainCategoryId])).distinct(),
+            categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat].split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[MovieTable.mainCategoryId])).distinct(),
             streamIcon = this[MovieTable.externalStreamIcon] ?: "",
             rating = this[MovieTable.rating] ?: "",
             rating5Based = this[MovieTable.rating5Based] ?: 0.0f,
@@ -719,7 +742,7 @@ class XtreamRepository : KoinComponent {
             typeName = IptvChannelType.series,
             server = this[SeriesTable.server],
             categoryId = this[SeriesTable.mainCategoryId].toString(),
-            categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat]?.split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[SeriesTable.mainCategoryId])).distinct(),
+            categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat].split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[SeriesTable.mainCategoryId])).distinct(),
             rating = this[SeriesTable.rating],
             rating5Based = this[SeriesTable.rating5Based].toString(),
             tmdb = this[SeriesTable.tmdb]?.toString() ?: "",

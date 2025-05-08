@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.db.tables.epg
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import org.jetbrains.exposed.sql.ReferenceOption
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
@@ -14,15 +13,4 @@ object EpgProgrammeRatingTable : Table("epg_programme_rating") {
     val rating = varchar("rating", defaultVarcharLength)
 
     override val primaryKey = PrimaryKey(arrayOf(server, epgChannelId, programmeStart, system))
-
-    init {
-        foreignKey(
-            server to EpgProgrammeTable.server,
-            epgChannelId to EpgProgrammeTable.epgChannelId,
-            programmeStart to EpgProgrammeTable.start,
-            onUpdate = ReferenceOption.CASCADE,
-            onDelete = ReferenceOption.CASCADE,
-            name = "fk_8afc876ec06fab3a423b20b788e2a021",
-        )
-    }
 }

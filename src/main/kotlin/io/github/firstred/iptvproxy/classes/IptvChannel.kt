@@ -32,6 +32,8 @@ class IptvChannel(
     val server: IptvServer,
     val groups: List<String>,
     val type: IptvChannelType,
+    val m3uProps: Map<String, String>,
+    val vlcOpts: Map<String, String>,
 ) {
     suspend fun getPlaylist(
         user: IptvUser,
@@ -67,7 +69,7 @@ class IptvChannel(
                     additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
                     forwardProxyUser(connection.config)
                     sendUserAgent(connection.config)
-                    sendBasicAuth(connection.config.account)
+                    if (null != connection.config.account) sendBasicAuth(connection.config.account)
                 }
             }
             headersCallback?.invoke(response.headers)

@@ -15,7 +15,7 @@ fun URI.ensureTrailingSlash(): URI = let {
     }
 }
 
-fun URI.isHlsPlaylist(): Boolean = path.endsWith(".m3u") || path.endsWith(".m3u8")
+fun URI.isHlsPlaylist(): Boolean = path.lowercase().let { it.endsWith(".m3u") || it.endsWith(".m3u8") }
 
 fun String.toProxiedIconUrl(baseUrl: URI, encryptedAccount: String) = toProxiedIconUrl(
     baseUrl.toString(),

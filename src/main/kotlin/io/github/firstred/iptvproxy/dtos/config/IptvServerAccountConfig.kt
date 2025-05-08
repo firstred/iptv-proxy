@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.config
 
+import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
 import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import kotlinx.serialization.Serializable
@@ -13,6 +14,7 @@ data class IptvServerAccountConfig(
     val password: String? = null,
     val xtreamUsername: String? = null,
     val xtreamPassword: String? = null,
+    val xtreamOutput: XtreamOutputFormat? = null,
     @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequests: UInt = defaultMaxConnections,
     @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerHost: UInt = defaultMaxConnections,
     @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConcurrentRequestsPerChannel: UInt = UInt.MAX_VALUE, // Unused -- reserved for future use
@@ -21,7 +23,7 @@ data class IptvServerAccountConfig(
         if (isXtream()) {
             try {
                 val uri = URI(url)
-                return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/get.php?username=$xtreamUsername&password=$xtreamPassword&type=m3u_plus&output=m3u8")
+                return URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/get.php?username=$xtreamUsername&password=$xtreamPassword&type=m3u_plus&output=${xtreamOutput ?: XtreamOutputFormat.m3u8}")
             } catch (_: URISyntaxException) {
             }
         }

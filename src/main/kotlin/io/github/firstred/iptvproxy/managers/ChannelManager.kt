@@ -24,9 +24,9 @@ import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDa
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
-import io.github.firstred.iptvproxy.utils.channelType
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
+import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -39,17 +39,21 @@ import io.sentry.Sentry
 import io.sentry.util.CheckInUtils
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
+import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.core.qualifier.named
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.BufferedInputStream
+import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
+import java.util.zip.GZIPInputStream
 import kotlin.text.Charsets.UTF_8
 
 @Suppress("UnstableApiUsage")
@@ -177,14 +181,15 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             catchupDays = days,
                             url = URI(m3uChannel.url),
                             server = server,
-                            type = m3uChannel.url.channelType(),
+                            type = m3uChannel.url.toChannelType(),
+                            m3uProps = m3uChannel.props,
+                            vlcOpts = m3uChannel.vlcOpts,
                         )
                     })
                 }
 
                 if (account.isXtream()) {
                     xtreamRepository.signalXtreamImportStartedForServer(server.name)
-
                     // Update xtream info
                     // Load live streams
                     lateinit var liveStreamCategories: List<XtreamCategory>
@@ -194,7 +199,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         account,
                     ) { serverConnection, _ ->
                         liveStreamCategories = httpClient.get(
-                            serverConnection.config.account.getXtreamLiveStreamCategoriesUrl().toString()
+                            serverConnection.config.account!!.getXtreamLiveStreamCategoriesUrl().toString()
                         ) {
                             headers {
                                 accept(ContentType.Application.Json)
@@ -206,7 +211,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        liveStreams = httpClient.get(serverConnection.config.account.getXtreamLiveStreamsUrl().toString()) {
+                        liveStreams = httpClient.get(serverConnection.config.account!!.getXtreamLiveStreamsUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
@@ -222,7 +227,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        movieCategories = httpClient.get(serverConnection.config.account.getXtreamMovieCategoriesUrl().toString()) {
+                        movieCategories = httpClient.get(serverConnection.config.account!!.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
@@ -233,7 +238,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        movies = httpClient.get(serverConnection.config.account.getXtreamMoviesUrl().toString()) {
+                        movies = httpClient.get(serverConnection.config.account!!.getXtreamMoviesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
@@ -249,7 +254,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        seriesCategories = httpClient.get(serverConnection.config.account.getXtreamSeriesCategoriesUrl().toString()) {
+                        seriesCategories = httpClient.get(serverConnection.config.account!!.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
@@ -260,7 +265,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        series = httpClient.get(serverConnection.config.account.getXtreamSeriesUrl().toString()) {
+                        series = httpClient.get(serverConnection.config.account!!.getXtreamSeriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
@@ -276,6 +281,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         channelRepository.upsertChannels(newChannels.values.toList())
 
+        val missingChannelGroups = channelRepository.findChannelsWithMissingGroups()
+        if (missingChannelGroups.isNotEmpty()) {
+            var missingChannelGroupCounter = channelRepository.findMissingChannelGroupCounter()
+            val missingChannelGroups = missingChannelGroups.values.distinctBy { it.second }. map { group ->
+                Pair(XtreamCategory(
+                    id = (missingChannelGroupCounter++).toString(),
+                    name = group.second
+                ), group.first)
+            }
+
+            xtreamRepository.upsertMissingChannelCategories(missingChannelGroups, type = IptvChannelType.live)
+        }
+
         serversByName.keys.forEach { channelRepository.signalPlaylistImportCompletedForServer(it) }
 
         val channelCount = channelRepository.getIptvChannelCount()
@@ -283,7 +301,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         // Signal channels are updated
         if (channelCount > 0u) dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
 
-        LOG.info("{} channels updated", channelCount)
+        LOG.info("{} channels available", channelCount)
     }
 
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
@@ -292,11 +310,20 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 addDefaultClientHeaders(serverConnection.config)
             }
         }
-        return response.bodyAsChannel().toInputStream()
+        val inputStream = BufferedInputStream(response.bodyAsChannel().toInputStream())
+        inputStream.mark(2)
+        val peekInputStream = PeekableInputStream(inputStream)
+        val data = peekInputStream.readNBytes(2)
+        inputStream.reset()
+        val isGzip = data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()
+
+        return if (isGzip) GZIPInputStream(inputStream) else inputStream
     }
 
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
-        val response = httpClient.get(serverConnection.config.account.getPlaylistUrl().toString()) {
+        if (null == serverConnection.config.account) throw IllegalArgumentException("Cannot load channels without an account")
+
+        val response = httpClient.get(serverConnection.config.account!!.getPlaylistUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
@@ -382,7 +409,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         }
     }
 
-    private fun scheduleChannelCleanups(delay: Long =0, unit: TimeUnit = TimeUnit.MINUTES) {
+    private fun scheduleChannelCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
                 try {
@@ -435,7 +462,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
         scheduleChannelUpdates()
-        scheduleChannelCleanups()
+        scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
         LOG.info("Channel manager started")
 
         val channelCount = channelRepository.getIptvChannelCount()

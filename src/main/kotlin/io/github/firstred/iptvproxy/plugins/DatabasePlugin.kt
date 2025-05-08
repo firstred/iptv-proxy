@@ -45,7 +45,6 @@ val dataSource = HikariDataSource(HikariConfig().apply {
         if (!dataSourcePropertyKeys.contains("shared_cache")) {
             addDataSourceProperty("shared_cache", "true")
         }
-        addDataSourceProperty("foreign_keys", "ON")
     }
 
     config.database.dataSourceProperties.forEach { (key, value) ->

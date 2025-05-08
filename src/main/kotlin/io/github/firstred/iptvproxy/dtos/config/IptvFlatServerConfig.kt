@@ -9,7 +9,7 @@ import kotlin.time.Duration
 @Serializable
 data class IptvFlatServerConfig(
     override val name: String,
-    val account: IptvServerAccountConfig,
+    val account: IptvServerAccountConfig? = null,
 
     override val epgUrl: String? = null,
     override val epgBefore: Duration = Duration.INFINITE,
@@ -33,17 +33,17 @@ data class IptvFlatServerConfig(
         proxyForwardedUser = proxyForwardedUser,
         proxyForwardedPassword = proxyForwardedPassword,
         proxyStream = proxyStream,
-        accounts = listOf(if (idx == 0u) account else throw IllegalStateException("Only the first account is supported in flat config")),
+        accounts = account?.let { listOf(if (idx == 0u) it else throw IllegalStateException("Only the first account is supported in flat config")) } ?: emptyList(),
         timeouts = timeouts,
         groupFilters = groupFilters,
         userAgent = userAgent,
     )
 
     override fun getEpgUrl(): URI? {
-        return epgUrl?.let { URI(epgUrl) } ?: account.getEpgUrl()
+        return epgUrl?.let { URI(epgUrl) } ?: account?.getEpgUrl()
     }
 
     override fun getPlaylistUrl(): URI? {
-        return account.getPlaylistUrl()
+        return account?.getPlaylistUrl()
     }
 }

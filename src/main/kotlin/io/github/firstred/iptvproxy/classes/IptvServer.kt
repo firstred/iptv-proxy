@@ -16,6 +16,11 @@ class IptvServer(
         specificAccount: IptvServerAccountConfig? = null,
         action: suspend (connection: IptvServerConnection, releaseConnectionEarly: () -> Unit) -> Unit,
     ) {
+        if (connections.isEmpty()) {
+            action(IptvServerConnection(config = config.toFlatIptvServerConfig())) { }
+            return
+        }
+
         var released = false
         val connection = acquire(specificAccount)
         var connectionTimer: Timer? = null

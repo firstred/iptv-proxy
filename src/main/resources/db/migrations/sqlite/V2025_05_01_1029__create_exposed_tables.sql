@@ -26,21 +26,25 @@ create table category
 
 create unique index uniq_438f002bba40a04a4e02faef0137476d
     on category (server, external_category_id);
+create index idx_892d7f30bf0f5e3b716cc5ed3ebdd10e
+    on category (server, category_name);
 
 create table channel
 (
     id                 integer
         primary key autoincrement,
     external_position  bigint                         not null,
-    epg_channel_id     varchar(255)                   not null,
+    epg_channel_id     varchar(255)                   null,
     url                text                           not null,
     xtream_stream_id   bigint                         null,
     server             varchar(127)                   not null,
     icon               text,
     name               text                           not null,
     main_group         text,
-    groups             text,
+    groups             json                           not null,
     catchup_days       bigint,
+    m3u_props          json                           not null,
+    vlc_opts           json                           not null,
     type               varchar(31)                    not null,
     created_at         text default CURRENT_TIMESTAMP not null,
     updated_at         text default CURRENT_TIMESTAMP not null,
@@ -54,11 +58,12 @@ create table channel
         check (id between 0 and 4294967295)
 );
 
+create unique index uniq_037df95408f7de3c48f8ff391f86c3df
+    on channel (server, xtream_stream_id, url);
 create index idx_81e0d67366a2ec3bed4ad79abd8f8940
     on channel (server, external_position);
-
-create unique index uniq_037df95408f7de3c48f8ff391f86c3df
-    on channel (server, xtream_stream_id);
+create index idx_82c78113ffde7ad2c641b8b94b4afa95
+    on channel (server, main_group);
 
 create table epg_channel
 (
@@ -82,10 +87,7 @@ create table epg_display_name
     language       varchar(255) not null,
     name           text         not null,
     constraint pk_epg_display_name
-        primary key (server, epg_channel_id, language),
-    constraint fk_171b90b68e926fefee70c917964a5a24
-        foreign key (server, epg_channel_id) references epg_channel (server, epg_channel_id)
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, language)
 );
 
 create index idx_683b6e0bd327f4f67b64152de4231de1
@@ -104,10 +106,7 @@ create table epg_programme
     created_at     text default CURRENT_TIMESTAMP not null,
     updated_at     text default CURRENT_TIMESTAMP not null,
     constraint pk_epg_programme
-        primary key (server, epg_channel_id, start),
-    constraint fk_89f69f1c74e354168740cbf40d6c44cf
-        foreign key (server, epg_channel_id) references epg_channel (server, epg_channel_id)
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, start)
 );
 
 create table epg_programme_audio
@@ -118,10 +117,7 @@ create table epg_programme_audio
     type            varchar(255) not null,
     value           varchar(255) not null,
     constraint pk_epg_programme_audio
-        primary key (server, epg_channel_id, programme_start, type),
-    constraint fk_7ee6751eace2c92dd41471ef75762c3b
-        foreign key (server, epg_channel_id, programme_start) references epg_programme
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start, type)
 );
 
 create table epg_programme_category
@@ -130,12 +126,9 @@ create table epg_programme_category
     epg_channel_id  varchar(255) not null,
     programme_start text         not null,
     language        varchar(255) not null,
-    category        varchar(255) not null,
+    category        text         not null,
     constraint pk_epg_programme_category
-        primary key (server, epg_channel_id, programme_start, language),
-    constraint fk_90938e49cb36faa81068c23c77ce0397
-        foreign key (server, epg_channel_id, programme_start) references epg_programme
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start, language)
 );
 
 create table epg_programme_episode_number
@@ -146,10 +139,7 @@ create table epg_programme_episode_number
     system          varchar(255),
     number          varchar(255) not null,
     constraint pk_epg_programme_episode_number
-        primary key (server, epg_channel_id, programme_start, system),
-    constraint fk_c3ffdceccaf6c3c11ba9b56b173c3d6e
-        foreign key (server, epg_channel_id, programme_start) references epg_programme
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start, system)
 );
 
 create table epg_programme_previously_shown
@@ -159,10 +149,7 @@ create table epg_programme_previously_shown
     programme_start text         not null,
     previous_start  text         not null,
     constraint pk_epg_programme_previously_shown
-        primary key (server, epg_channel_id, programme_start),
-    constraint fk_0752370f810c318fea40c956f446d991
-        foreign key (server, epg_channel_id, programme_start) references epg_programme
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start)
 );
 
 create table epg_programme_rating
@@ -173,10 +160,7 @@ create table epg_programme_rating
     system          varchar(255) not null,
     rating          varchar(255) not null,
     constraint pk_epg_programme_rating
-        primary key (server, epg_channel_id, programme_start, system),
-    constraint fk_8afc876ec06fab3a423b20b788e2a021
-        foreign key (server, epg_channel_id, programme_start) references epg_programme (server, epg_channel_id, start)
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start, system)
 );
 
 create table epg_programme_subtitles
@@ -187,10 +171,7 @@ create table epg_programme_subtitles
     language        varchar(255) not null,
     subtitle        text         not null,
     constraint pk_epg_programme_subtitles
-        primary key (server, epg_channel_id, programme_start, language),
-    constraint fk_c46efb630ad43c18420fc4359bb1dbcd
-        foreign key (server, epg_channel_id, programme_start) references epg_programme
-            on update cascade on delete cascade
+        primary key (server, epg_channel_id, programme_start, language)
 );
 
 create table live_stream
@@ -239,9 +220,6 @@ create table live_stream_to_category
             on update cascade on delete cascade,
     constraint pk_live_stream_to_category
         primary key (server, external_stream_id, category_id),
-    constraint fk_58fef7282f0ac2d4a48ccd925004370f
-        foreign key (server, external_stream_id) references live_stream
-            on update cascade on delete cascade,
     constraint chk_live_stream_to_category_unsigned_integer_category_id
         check (category_id between 0 and 4294967295),
     constraint chk_live_stream_to_category_unsigned_integer_external_stream_id
@@ -292,9 +270,6 @@ create table movie_to_category
             on update cascade on delete cascade,
     constraint pk_movie_to_category
         primary key (server, external_stream_id, category_id),
-    constraint fk_2b008c191bfbbd2aa631b3139f3979cc
-        foreign key (server, external_stream_id) references movie
-            on update cascade on delete cascade,
     constraint chk_movie_to_category_unsigned_integer_category_id
         check (category_id between 0 and 4294967295),
     constraint chk_movie_to_category_unsigned_integer_external_stream_id
@@ -354,12 +329,6 @@ create table series_to_category
     category_id        bigint       not null,
     constraint pk_series_to_category
         primary key (server, external_series_id, category_id),
-    constraint fk_8e1ea5142dfbdedb40a061ad82154727
-        foreign key (server, category_id) references category (server, external_category_id)
-            on update cascade on delete cascade,
-    constraint fk_de4eac24e8e0ac2a832af0ae75b5467c
-        foreign key (server, external_series_id) references series
-            on update cascade on delete cascade,
     constraint chk_series_to_category_unsigned_integer_category_id
         check (category_id between 0 and 4294967295),
     constraint chk_series_to_category_unsigned_integer_external_series_id

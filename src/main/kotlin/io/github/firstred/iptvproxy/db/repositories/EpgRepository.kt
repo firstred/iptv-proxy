@@ -31,8 +31,8 @@ import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
@@ -584,19 +584,22 @@ class EpgRepository {
         } while (programmes.isNotEmpty())
     }
 
-    fun getEpgIdForChannel(channelId: UInt): UInt? = transaction {
+    fun getEpgIdForChannel(channelId: UInt): String? = transaction {
         ChannelTable
             .select(ChannelTable.epgChannelId)
             .where { ChannelTable.id eq channelId }
-            .map { it[ChannelTable.epgChannelId].toUIntOrNull() }
+            .filter { null != it[ChannelTable.epgChannelId] }
+            .map { it[ChannelTable.epgChannelId] }
             .firstOrNull()
     }
     fun getEpgIdAndServerForChannel(channelId: UInt): Pair<String, String>? = transaction {
+        @Suppress("UNCHECKED_CAST")
         ChannelTable
             .select(ChannelTable.epgChannelId)
             .where { ChannelTable.id eq channelId }
+            .filter { null != it[ChannelTable.epgChannelId] }
             .map { Pair(it[ChannelTable.epgChannelId], it[ChannelTable.server]) }
-            .firstOrNull()
+            .firstOrNull() as Pair<String, String>?
     }
     fun getAlternativeServersForEpgId(epgId: String): List<String> = transaction {
         EpgChannelTable
@@ -647,6 +650,7 @@ class EpgRepository {
     }
 
     fun cleanup() {
+        val now = Clock.System.now()
         transaction {
             EpgChannelTable.deleteWhere {
                 EpgChannelTable.server notInList config.servers.map { it.name }
@@ -656,8 +660,8 @@ class EpgRepository {
             }
             for (server in config.servers) {
                 EpgProgrammeTable.deleteWhere {
-                    (EpgProgrammeTable.stop less Clock.System.now().minus(server.epgBefore))
-                        .or(EpgProgrammeTable.stop lessEq Clock.System.now().minus(server.epgAfter))
+                    (EpgProgrammeTable.stop less ((now - server.epgBefore).coerceAtLeast(Instant.DISTANT_PAST)))
+                        .or(EpgProgrammeTable.start greater ((now + server.epgAfter).coerceAtMost(Instant.DISTANT_FUTURE)))
                 }
             }
             XmltvSourceTable.deleteWhere {
@@ -665,10 +669,10 @@ class EpgRepository {
             }
 
             EpgChannelTable.deleteWhere {
-                EpgChannelTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                EpgChannelTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.updatedAt less (Clock.System.now() - config.channelMaxStalePeriod)
+                EpgProgrammeTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_FUTURE))
             }
         }
     }
