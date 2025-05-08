@@ -35,7 +35,13 @@ fun Route.images() {
 
             val remoteUrl = call.parameters["encryptedremoteurl"]?.aesDecryptFromHexString()
                 ?: throw IllegalArgumentException("Invalid remote url")
-            if (!remoteUrl.hasSupportedScheme()) throw IllegalArgumentException("Remote url must start with http(s):// - actual: $remoteUrl")
+
+            if (!remoteUrl.hasSupportedScheme()) {
+                LOG.warn("Remote url must start with http(s):// - actual: {}", remoteUrl)
+
+                call.respond(HttpStatusCode.NotFound)
+                return@get
+            }
 
             val uri = Url(remoteUrl).toEncodedJavaURI()
 
