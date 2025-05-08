@@ -2,10 +2,11 @@ package io.github.firstred.iptvproxy.parsers
 
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.ktor.http.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.InputStream
-import java.net.URI
 import java.net.URISyntaxException
 import java.util.regex.Matcher
 import java.util.regex.Pattern
@@ -80,7 +81,7 @@ class M3uParser {
                     props.remove("group-title")?.let { group -> groups.addAll(group.trim().split(";")) }
 
                     try {
-                        URI(line)
+                        Url(line).toEncodedJavaURI()
                         channels.add(M3uChannel(line, name, groups, props.toMap(), vlcOpts.toMap()))
                     } catch (_: URISyntaxException) {
                         LOG.warn("malformed channel uri: {}", line)

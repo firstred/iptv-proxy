@@ -1,7 +1,6 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
-import io.github.firstred.iptvproxy.utils.maxServerNameLength
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp

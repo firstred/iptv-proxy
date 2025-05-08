@@ -21,10 +21,12 @@ import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
+import io.github.firstred.iptvproxy.utils.hasSupportedScheme
 import io.github.firstred.iptvproxy.utils.isHlsPlaylist
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -222,7 +224,7 @@ suspend fun Route.rewriteRemotePlaylist(
             response = connection.httpClient.get(location)
             response.body<String>()
             try {
-                responseURI = responseURI.resolve(URI(location))
+                responseURI = responseURI.resolve(location)
             } catch (_: URISyntaxException) {
             }
 
@@ -239,11 +241,11 @@ suspend fun Route.rewriteRemotePlaylist(
 
                     // This is a stream URL
                     if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
-                        newInfoLine = responseURI.resolve(newInfoLine.replace(" ", "%20")).toString()
+                        newInfoLine = responseURI.resolve(newInfoLine).toString()
                     }
 
                     try {
-                        val remoteUrl = URI(newInfoLine.replace(" ", "%20"))
+                        val remoteUrl = Url(newInfoLine).toEncodedJavaURI()
                         val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
                         val extension = remoteUrl.path.substringAfterLast('.', "")
 
@@ -311,18 +313,30 @@ fun Route.proxyRemoteHlsStream() {
             call.respond(HttpStatusCode.NotFound, "Channel not found")
             return@get
         }
-        val remoteUrl = call.parameters["encryptedremoteurl"]?.let { URI(it.aesDecryptFromHexString()) }
-            ?: run {
-                call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
-                return@get
-            }
+
+        val remoteUrl = call.parameters["encryptedremoteurl"]?.aesDecryptFromHexString() ?: run {
+            call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            return@get
+        }
+        if (!remoteUrl.hasSupportedScheme()) {
+            call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            return@get
+        }
+
+        val remoteURI = Url(remoteUrl).toEncodedJavaURI()
 
         if (remoteUrl.isHlsPlaylist()) {
             call.respondOutputStream(
                 contentType = ContentType("application", "x-mpegurl"),
                 status = HttpStatusCode.OK,
             ) {
-                rewriteRemotePlaylist(this, user, channel, config.getActualBaseUrl(call.request), remoteUrl)
+                rewriteRemotePlaylist(
+                    this,
+                    user,
+                    channel,
+                    config.getActualBaseUrl(call.request),
+                    remoteURI,
+                )
             }
         }
 
@@ -330,7 +344,7 @@ fun Route.proxyRemoteHlsStream() {
             user,
             channel,
             routingContext,
-            remoteUrl,
+            remoteURI,
         )
     }
 }
@@ -385,7 +399,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                         }
 
                         try {
-                            responseURI = responseURI.resolve(URI(newLocation))
+                            responseURI = responseURI.resolve(newLocation)
                         } catch (_: URISyntaxException) {
                             LOG.warn("Invalid redirect URI found: $newLocation")
                             if (!config.sentry?.dsn.isNullOrBlank()) {

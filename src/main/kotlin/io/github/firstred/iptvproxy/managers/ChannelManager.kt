@@ -27,6 +27,7 @@ import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.toChannelType
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -46,7 +47,6 @@ import org.koin.core.qualifier.named
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.BufferedInputStream
-import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
 import java.net.URI
@@ -179,7 +179,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             groups = m3uChannel.groups,
                             epgId = m3uChannel.props["tvg-id"],
                             catchupDays = days,
-                            url = URI(m3uChannel.url),
+                            url = Url(m3uChannel.url).toEncodedJavaURI(),
                             server = server,
                             type = m3uChannel.url.toChannelType(),
                             m3uProps = m3uChannel.props,

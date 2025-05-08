@@ -3,7 +3,9 @@ package io.github.firstred.iptvproxy.dtos.config
 import io.github.firstred.iptvproxy.dtos.ForwardedHeaderValues
 import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.ensureTrailingSlash
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.client.engine.*
+import io.ktor.http.*
 import io.ktor.server.routing.*
 import kotlinx.serialization.Serializable
 import java.io.File
@@ -107,10 +109,10 @@ data class IptvProxyConfig(
     }
 
     fun getActualForwardedBaseUrl(request: RoutingRequest): String? = getForwardedValues(request.headers.getAll("Forwarded")).baseUrl
-    fun getConfiguredBaseUrl() = URI(baseUrl ?: "http://$host:$port").ensureTrailingSlash()
-    fun getActualBaseUrl(request: RoutingRequest) = URI(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").ensureTrailingSlash()
+    fun getConfiguredBaseUrl() = Url(baseUrl ?: "http://$host:$port").toEncodedJavaURI().ensureTrailingSlash()
+    fun getActualBaseUrl(request: RoutingRequest) = Url(getActualForwardedBaseUrl(request) ?: baseUrl ?: "http://$host:$port").toEncodedJavaURI().ensureTrailingSlash()
 
-    fun getActualHttpProxyURI(): URI? = httpProxy?.let { URI(it) }
+    fun getActualHttpProxyURI(): URI? = httpProxy?.let { Url(it).toEncodedJavaURI() }
     fun getActualHttpProxyConfiguration(): IptvConnectionProxyConfig? = httpProxy?.let {
         getActualHttpProxyURI().let { uri ->
             val host = uri?.host

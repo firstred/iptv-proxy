@@ -6,6 +6,8 @@ import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
+import io.github.firstred.iptvproxy.utils.hasSupportedScheme
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -15,7 +17,6 @@ import io.ktor.server.routing.*
 import io.ktor.utils.io.*
 import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
-import java.net.URI
 
 const val imagesRoute = "images"
 
@@ -32,9 +33,11 @@ fun Route.images() {
                 return@get
             }
 
-            val encryptedRemoteUrl = call.parameters["encryptedremoteurl"]
+            val remoteUrl = call.parameters["encryptedremoteurl"]?.aesDecryptFromHexString()
+                ?: throw IllegalArgumentException("Invalid remote url")
+            if (!remoteUrl.hasSupportedScheme()) throw IllegalArgumentException("Remote url must start with http(s):// - actual: $remoteUrl")
 
-            val uri = URI((encryptedRemoteUrl?.aesDecryptFromHexString() ?: throw IllegalArgumentException("Invalid remote url")))
+            val uri = Url(remoteUrl).toEncodedJavaURI()
 
             httpClient.prepareRequest {
                 url(uri.appendQueryParameters(call.request.queryParameters).toString())

@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.dtos.config
 
 import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import java.net.URI
 import java.util.regex.Pattern
@@ -40,7 +42,7 @@ data class IptvFlatServerConfig(
     )
 
     override fun getEpgUrl(): URI? {
-        return epgUrl?.let { URI(epgUrl) } ?: account?.getEpgUrl()
+        return epgUrl?.let { Url(epgUrl).toEncodedJavaURI() } ?: account?.getEpgUrl()
     }
 
     override fun getPlaylistUrl(): URI? {

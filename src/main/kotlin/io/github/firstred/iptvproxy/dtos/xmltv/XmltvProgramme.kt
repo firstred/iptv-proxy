@@ -3,8 +3,6 @@ package io.github.firstred.iptvproxy.dtos.xmltv
 import io.github.firstred.iptvproxy.dotenv
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpg
 import io.github.firstred.iptvproxy.serialization.serializers.XmltvInstantSerializer
-import io.github.firstred.iptvproxy.utils.hexStringToDecimal
-import io.github.firstred.iptvproxy.utils.sha256
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.LocalDateTime

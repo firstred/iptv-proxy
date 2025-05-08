@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
 import io.github.firstred.iptvproxy.BuildConfig
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.net.URI
@@ -23,7 +25,7 @@ data class XtreamServerInfo(
 ) {
     fun getPlaylistUrl(username: String, password: String): URI {
         try {
-            val uri = URI(url)
+            val uri = Url(url).toEncodedJavaURI()
             return URI("${uri.scheme}://${uri.host}:$port/get.php?username=$username&password=$password&type=m3u_plus&output=m3u8")
         } catch(_: URISyntaxException) {
             return URI("$protocol://$url:$port/get.php?username=$username&password=$password&type=m3u_plus&output=m3u8")
@@ -32,7 +34,7 @@ data class XtreamServerInfo(
 
     fun getEpgUrl(username: String, password: String): URI {
         try {
-            val uri = URI(url)
+            val uri = Url(url).toEncodedJavaURI()
             return URI("${uri.scheme}://${uri.host}:$port/xmltv.php?username=$username&password=$password")
         } catch(_: URISyntaxException) {
             return URI("$protocol://$url:$port/xmltv.php?username=$username&password=$password")

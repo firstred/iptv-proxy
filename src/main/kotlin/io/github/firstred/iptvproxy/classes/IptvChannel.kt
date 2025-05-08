@@ -8,6 +8,7 @@ import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
@@ -88,7 +89,7 @@ class IptvChannel(
                 response = connection.httpClient.get(location)
                 response.body<String>()
                 try {
-                    responseURI = responseURI.resolve(URI(location))
+                    responseURI = responseURI.resolve(location)
                 } catch (_: URISyntaxException) {
                 }
 
@@ -103,13 +104,13 @@ class IptvChannel(
                     !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
                         var newInfoLine = infoLine.trim(' ')
 
-                        // This is a stream URL
-                        if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
-                            newInfoLine = responseURI.resolve(newInfoLine.replace(" ", "%20")).toString()
-                        }
-
                         try {
-                            val remoteUrl = URI(newInfoLine.replace(" ", "%20"))
+                            // This is a stream URL
+                            if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
+                                newInfoLine = responseURI.resolve(Url(newInfoLine).fullPath).toString()
+                            }
+
+                            val remoteUrl = Url(newInfoLine).toEncodedJavaURI()
                             val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
                             val extension = remoteUrl.path.substringAfterLast('.', "")
 

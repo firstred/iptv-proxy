@@ -5,7 +5,6 @@ import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
-import io.ktor.server.application.serverConfig
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import java.net.URI

@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.dtos.xmltv
 
-import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import nl.adaptivity.xmlutil.serialization.XmlElement

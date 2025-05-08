@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.routes.imagesRoute
+import io.ktor.http.*
+import sun.net.www.ParseUtil.toURI
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
@@ -15,6 +17,7 @@ fun URI.ensureTrailingSlash(): URI = let {
     }
 }
 
+fun String.isHlsPlaylist(): Boolean = Url(this).toEncodedJavaURI().isHlsPlaylist()
 fun URI.isHlsPlaylist(): Boolean = path.lowercase().let { it.endsWith(".m3u") || it.endsWith(".m3u8") }
 
 fun String.toProxiedIconUrl(baseUrl: URI, encryptedAccount: String) = toProxiedIconUrl(
@@ -36,4 +39,20 @@ fun String.toProxiedIconUrl(baseUrl: String, encryptedAccount: String): String {
     )
 
     return "${baseUrl}$imagesRoute/$encryptedAccount/${aesEncryptToHexString()}/${basename}.${extension}".replace(" ", "%20")
+}
+
+fun Url.toEncodedJavaURI() = URI(
+    protocol.name,
+    encodedUser,
+    host,
+    port,
+    encodedPath,
+    encodedQuery.ifBlank { null },
+    encodedFragment.ifBlank { null },
+)
+
+@Suppress("HttpUrlsUsage")
+fun String.hasSupportedScheme(): Boolean {
+    val supportedSchemes = listOf("http://", "https://")
+    return supportedSchemes.any { this.startsWith(it) }
 }

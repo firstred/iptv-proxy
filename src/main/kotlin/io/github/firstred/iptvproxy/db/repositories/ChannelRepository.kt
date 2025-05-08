@@ -4,28 +4,25 @@ import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
-import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable.thumbnail
 import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.toChannelTypeOrNull
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.ktor.http.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
-import kotlinx.serialization.EncodeDefault
-import kotlinx.serialization.SerialName
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
-import org.jetbrains.exposed.sql.alias
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.max
 import org.jetbrains.exposed.sql.min
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -34,7 +31,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
-import kotlin.UInt
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
@@ -94,7 +90,7 @@ class ChannelRepository : KoinComponent {
                         externalStreamId = it[ChannelTable.xtreamStreamId],
                         server = serversByName[it[ChannelTable.server]]!!,
                         name = it[ChannelTable.name],
-                        url = URI(it[ChannelTable.url]),
+                        url = Url(it[ChannelTable.url]).toEncodedJavaURI(),
                         epgId = it[ChannelTable.epgChannelId],
                         logo = it[ChannelTable.icon],
                         groups = it[ChannelTable.groups].toList(),
@@ -254,7 +250,7 @@ class ChannelRepository : KoinComponent {
                 externalStreamId = this[ChannelTable.xtreamStreamId],
                 server = serversByName[this[ChannelTable.server]]!!,
                 name = this[ChannelTable.name],
-                url = URI(this[ChannelTable.url]),
+                url = Url(this[ChannelTable.url]).toEncodedJavaURI(),
                 epgId = this[ChannelTable.epgChannelId],
                 logo = this[ChannelTable.icon],
                 groups = this[ChannelTable.groups].toList(),
