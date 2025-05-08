@@ -32,6 +32,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.TextColumnType
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
@@ -40,7 +41,10 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.unionAll
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
+@OptIn(ExperimentalUuidApi::class)
 class XtreamRepository : KoinComponent {
     fun signalXtreamImportStartedForServer(server: String) {
         transaction {
@@ -70,7 +74,7 @@ class XtreamRepository : KoinComponent {
                     shouldReturnGeneratedValues = false,
                 ) { category ->
                     this[CategoryTable.server] = server
-                    this[CategoryTable.externalCategoryId] = category.id.toUInt()
+                    this[CategoryTable.externalCategoryId] = category.id
                     this[CategoryTable.name] = category.name
                     this[CategoryTable.parentId] = category.parentId ?: 0u
                     this[CategoryTable.type] = type
@@ -82,14 +86,12 @@ class XtreamRepository : KoinComponent {
     fun upsertMissingChannelCategories(list: List<Pair<XtreamCategory, String>>, type: IptvChannelType) {
         transaction {
             list.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
-                CategoryTable.batchUpsert(
+                CategoryTable.batchInsert(
                     data = chunk,
-                    keys = arrayOf(CategoryTable.server, CategoryTable.externalCategoryId),
                     shouldReturnGeneratedValues = false,
                 ) { (category, server) ->
-                    this[CategoryTable.id] = category.id.toUInt()
                     this[CategoryTable.server] = server
-                    this[CategoryTable.externalCategoryId] = category.id.toUInt()
+                    this[CategoryTable.externalCategoryId] = Uuid.random().toHexDashString()
                     this[CategoryTable.name] = category.name
                     this[CategoryTable.parentId] = category.parentId ?: 0u
                     this[CategoryTable.type] = type
@@ -119,7 +121,7 @@ class XtreamRepository : KoinComponent {
                     this[LiveStreamTable.thumbnail] = liveStream.thumbnail
                     this[LiveStreamTable.added] = Instant.fromEpochSeconds(liveStream.added.toLong())
                     this[LiveStreamTable.isAdult] = liveStream.isAdult.toBoolean()
-                    this[LiveStreamTable.mainCategoryId] = liveStream.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it]?.id } // Translate external category ID to internal category ID
+                    this[LiveStreamTable.mainCategoryId] = liveStream.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it.toString()]?.id } // Translate external category ID to internal category ID
                     this[LiveStreamTable.customSid] = liveStream.customSid
                     this[LiveStreamTable.tvArchive] = liveStream.tvArchive.toBoolean()
                     this[LiveStreamTable.tvArchiveDuration] = liveStream.tvArchiveDuration
@@ -128,7 +130,7 @@ class XtreamRepository : KoinComponent {
 
                 @Suppress("UNCHECKED_CAST")
                 val liveStreamsAndCategoryIds = chunk
-                    .flatMap { liveStream -> listOf(Triple(internalCategoryIds[liveStream.categoryId?.toUIntOrNull()]?.id, server, liveStream.streamId)) + (liveStream.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it]?.id, server, liveStream.streamId) } ?: emptyList()) }
+                    .flatMap { liveStream -> listOf(Triple(internalCategoryIds[liveStream.categoryId]?.id, server, liveStream.streamId)) + (liveStream.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, liveStream.streamId) } ?: emptyList()) }
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
                 LiveStreamToCategoryTable.deleteWhere {
@@ -171,14 +173,14 @@ class XtreamRepository : KoinComponent {
                     this[MovieTable.tmdb] = movie.tmdb.toUIntOrNull()
                     this[MovieTable.added] = Instant.fromEpochSeconds(movie.added.toLongOrNull() ?: 0L)
                     this[MovieTable.isAdult] = movie.isAdult.toBoolean()
-                    this[MovieTable.mainCategoryId] = movie.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it]?.id } // Translate external category ID to internal category ID
+                    this[MovieTable.mainCategoryId] = movie.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it.toString()]?.id } // Translate external category ID to internal category ID
                     this[MovieTable.containerExtension] = movie.containerExtension
                     this[MovieTable.customSid] = movie.customSid
                     this[MovieTable.updatedAt] = Clock.System.now()
                 }
 
                 @Suppress("UNCHECKED_CAST") val moviesAndCategoryIds = movies
-                    .flatMap { movie -> listOf(Triple(internalCategoryIds[movie.categoryId?.toUIntOrNull()]?.id, server, movie.streamId)) + (movie.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it]?.id, server, movie.streamId) } ?: emptyList()) }
+                    .flatMap { movie -> listOf(Triple(internalCategoryIds[movie.categoryId]?.id, server, movie.streamId)) + (movie.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, movie.streamId) } ?: emptyList()) }
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
                 MovieToCategoryTable.deleteWhere {
@@ -212,7 +214,7 @@ class XtreamRepository : KoinComponent {
                     this[SeriesTable.server] = server
                     this[SeriesTable.name] = serie.name
                     this[SeriesTable.num] = serie.num
-                    this[SeriesTable.mainCategoryId] = serie.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it]?.id } // Translate external category ID to internal category ID
+                    this[SeriesTable.mainCategoryId] = serie.categoryId?.toUIntOrNull()?.let { internalCategoryIds[it.toString()]?.id } // Translate external category ID to internal category ID
                     this[SeriesTable.externalSeriesId] = serie.seriesId
                     this[SeriesTable.cover] = serie.cover
                     this[SeriesTable.plot] = serie.plot
@@ -232,7 +234,7 @@ class XtreamRepository : KoinComponent {
 
                 @Suppress("UNCHECKED_CAST")
                 val seriesAndCategoryIds = series
-                    .flatMap { series -> listOf(Triple(internalCategoryIds[series.categoryId?.toUIntOrNull()]?.id, server, series.seriesId)) + (series.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it]?.id, server, series.seriesId) } ?: emptyList()) }
+                    .flatMap { series -> listOf(Triple(internalCategoryIds[series.categoryId]?.id, server, series.seriesId)) + (series.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, series.seriesId) } ?: emptyList()) }
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
                 SeriesToCategoryTable.deleteWhere {
@@ -297,8 +299,8 @@ class XtreamRepository : KoinComponent {
                 .associateBy(
                     { it[CategoryTable.id].value },
                     { XtreamCategoryIdServer(
-                        id = it[CategoryTable.externalCategoryId] ?: 0u,
-                        externalId = it[CategoryTable.id].value,
+                        id =  it[CategoryTable.id].value,
+                        externalId = it[CategoryTable.externalCategoryId],
                         server = it[CategoryTable.server],
                         type = IptvChannelType.valueOf(it[channelTypeLiteral])
                     ) }
@@ -321,7 +323,7 @@ class XtreamRepository : KoinComponent {
                 { it[CategoryTable.id].value },
                 { XtreamCategoryIdServer(
                     id = it[CategoryTable.id].value,
-                    externalId = it[CategoryTable.externalCategoryId] ?: 0u,
+                    externalId = it[CategoryTable.externalCategoryId],
                     server = it[CategoryTable.server],
                     type = IptvChannelType.live,
                 ) })
@@ -343,7 +345,7 @@ class XtreamRepository : KoinComponent {
                 { it[CategoryTable.id].value },
                 { XtreamCategoryIdServer(
                     id = it[CategoryTable.id].value,
-                    externalId = it[CategoryTable.externalCategoryId] ?: 0u,
+                    externalId = it[CategoryTable.externalCategoryId],
                     server = it[CategoryTable.server],
                     type = IptvChannelType.movie,
                 ) })
@@ -366,7 +368,7 @@ class XtreamRepository : KoinComponent {
                 {
                     XtreamCategoryIdServer(
                         id = it[CategoryTable.id].value,
-                        externalId = it[CategoryTable.externalCategoryId] ?: 0u,
+                        externalId = it[CategoryTable.externalCategoryId],
                         server = it[CategoryTable.server],
                         type = IptvChannelType.series,
                     )
@@ -636,7 +638,7 @@ class XtreamRepository : KoinComponent {
             .firstOrNull()
     }
 
-    fun getCategoryIdToExternalIdMap(): Map<UInt, UInt> {
+    fun getCategoryIdToExternalIdMap(): Map<UInt, String> {
         return transaction {
             CategoryTable
                 .selectAll()
@@ -646,7 +648,7 @@ class XtreamRepository : KoinComponent {
                 )
         }
     }
-    fun getExternalCategoryIdToIdMap(): Map<UInt, UInt> {
+    fun getExternalCategoryIdToIdMap(): Map<String, UInt> {
         return transaction {
             @Suppress("UNCHECKED_CAST")
             CategoryTable

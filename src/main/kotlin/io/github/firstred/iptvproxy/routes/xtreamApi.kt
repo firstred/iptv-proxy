@@ -283,8 +283,8 @@ fun Route.xtreamApi() {
                                 movieData = movieInfo.movieData.copy(
                                     streamId = streamIdMapping[movieInfo.movieData.streamId.toUInt()]?.toInt() ?: 0,
                                     cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                    categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId.toUInt()]?.toString() ?: "0",
-                                    categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toUInt()]?.toInt() ?: 0 } }
+                                    categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId]?.toString() ?: "0",
+                                    categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toString()]?.toInt() ?: 0 } }
                                     catch (e: IllegalArgumentException) {
                                         Sentry.captureException(e)
                                         movieInfo.movieData.categoryIds
@@ -420,9 +420,8 @@ fun Route.xtreamApi() {
                             info = seriesInfo.info.copy(
                                 cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
                                 backdropPath = seriesInfo.info.backdropPath.map { it.toProxiedIconUrl(baseUrl, encryptedAccount) },
-                                categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId.toUInt()]?.toString() ?: "0",
-                                categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it] ?: 0u } }
-                                catch (e: IllegalArgumentException) {
+                                categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId]?.toString() ?: "0",
+                                categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it.toString()] ?: 0u } } catch (e: IllegalArgumentException) {
                                     Sentry.captureException(e)
                                     seriesInfo.info.categoryIds
                                 }

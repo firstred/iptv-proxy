@@ -283,10 +283,9 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         val missingChannelGroups = channelRepository.findChannelsWithMissingGroups()
         if (missingChannelGroups.isNotEmpty()) {
-            var missingChannelGroupCounter = channelRepository.findMissingChannelGroupCounter()
             val missingChannelGroups = missingChannelGroups.values.distinctBy { it.second }. map { group ->
                 Pair(XtreamCategory(
-                    id = (missingChannelGroupCounter++).toString(),
+                    id = "0",
                     name = group.second
                 ), group.first)
             }

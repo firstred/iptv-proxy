@@ -10,14 +10,12 @@ create table category
     id                   integer
         primary key autoincrement,
     server               varchar(127)                     not null,
-    external_category_id bigint                           not null,
+    external_category_id varchar(255)                     not null,
     category_name        text                             not null,
     parent_id            bigint default 0                 not null,
     type                 varchar(31)                      not null,
     created_at           text   default CURRENT_TIMESTAMP not null,
     updated_at           text   default CURRENT_TIMESTAMP not null,
-    constraint chk_category_unsigned_integer_external_category_id
-        check (external_category_id between 0 and 4294967295),
     constraint chk_category_unsigned_integer_id
         check (id between 0 and 4294967295),
     constraint chk_category_unsigned_integer_parent_id
