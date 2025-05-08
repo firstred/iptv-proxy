@@ -71,16 +71,16 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     {
         LOG.info("Updating channels")
 
-        val newChannels: MutableMap<String, IptvChannel> = mutableMapOf()
-        fun addNewChannel(reference: String, channel: IptvChannel) {
-            newChannels[reference] = channel
-        }
-
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
 
         serversByName.keys.forEach { channelRepository.signalPlaylistImportStartedForServer(it) }
 
         for (server in serversByName.values) {
+            val newChannels: MutableMap<String, IptvChannel> = mutableMapOf()
+            fun addNewChannel(reference: String, channel: IptvChannel) {
+                newChannels[reference] = channel
+            }
+
             var xmltv: XmltvDoc? = null
             if (server.config.epgUrl != null) {
                 LOG.info("Waiting for xmltv data to be downloaded")
@@ -277,9 +277,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     xtreamRepository.signalXtreamImportCompletedForServer(server.name)
                 }
             }
-        }
 
-        channelRepository.upsertChannels(newChannels.values.toList())
+            channelRepository.upsertChannels(newChannels.values.toList())
+            channelRepository.signalPlaylistImportCompletedForServer(server.name)
+        }
 
         val missingChannelGroups = channelRepository.findChannelsWithMissingGroups()
         if (missingChannelGroups.isNotEmpty()) {
@@ -292,8 +293,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
             xtreamRepository.upsertMissingChannelCategories(missingChannelGroups, type = IptvChannelType.live)
         }
-
-        serversByName.keys.forEach { channelRepository.signalPlaylistImportCompletedForServer(it) }
 
         val channelCount = channelRepository.getIptvChannelCount()
 
