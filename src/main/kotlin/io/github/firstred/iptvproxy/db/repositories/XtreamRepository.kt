@@ -34,6 +34,7 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.batchUpsert
+import org.jetbrains.exposed.sql.delete
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.stringLiteral
@@ -688,22 +689,66 @@ class XtreamRepository : KoinComponent {
             CategoryTable.deleteWhere {
                  CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
+            LiveStreamToCategoryTable
+                .join(
+                    CategoryTable,
+                    JoinType.LEFT,
+                    onColumn = LiveStreamToCategoryTable.categoryId,
+                    otherColumn = CategoryTable.id,
+                )
+                .delete(LiveStreamToCategoryTable) { CategoryTable.id.isNull() }
+            LiveStreamToCategoryTable
+                .join(
+                    CategoryTable,
+                    JoinType.LEFT,
+                    onColumn = LiveStreamToCategoryTable.categoryId,
+                    otherColumn = CategoryTable.id,
+                )
+                .delete(LiveStreamToCategoryTable) { CategoryTable.id.isNull() }
+
             MovieTable.deleteWhere {
                  MovieTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             CategoryTable.deleteWhere {
                  CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
+            MovieToCategoryTable
+                .join(
+                    CategoryTable,
+                    JoinType.LEFT,
+                    onColumn = MovieToCategoryTable.categoryId,
+                    otherColumn = CategoryTable.id,
+                )
+                .delete(MovieToCategoryTable) { CategoryTable.id.isNull() }
+
             SeriesTable.deleteWhere {
                  SeriesTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
             CategoryTable.deleteWhere {
                  CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
+            SeriesToCategoryTable
+                .join(
+                    CategoryTable,
+                    JoinType.LEFT,
+                    onColumn = SeriesToCategoryTable.categoryId,
+                    otherColumn = CategoryTable.id,
+                )
+                .delete(SeriesToCategoryTable) { CategoryTable.id.isNull() }
+            @Suppress("SENSELESS_COMPARISON")
+            SeriesToCategoryTable
+                .join(
+                    SeriesTable,
+                    JoinType.LEFT,
+                    onColumn = SeriesToCategoryTable.externalSeriesId,
+                    otherColumn = SeriesTable.externalSeriesId,
+                )
+                .delete(SeriesToCategoryTable) { SeriesTable.externalSeriesId.isNull() }
         }
     }
 
     companion object {
+        @Suppress("UNNECESSARY_SAFE_CALL")
         fun ResultRow.toXtreamLiveStream(categoryIdsGroupConcat: CustomFunction<String>? = null) = XtreamLiveStream(
             num = this[LiveStreamTable.num],
             name = this[LiveStreamTable.name],
@@ -720,6 +765,7 @@ class XtreamRepository : KoinComponent {
             categoryIds = ((categoryIdsGroupConcat?.let { this[categoryIdsGroupConcat]?.split(",")?.toList()?.map { it.toUInt() } } ?: emptyList()) + listOf(this[LiveStreamTable.mainCategoryId])).distinct(),
             url = this[ChannelTable.url],
         )
+        @Suppress("UNNECESSARY_SAFE_CALL")
         fun ResultRow.toXtreamMovie(categoryIdsGroupConcat: CustomFunction<String>? = null) = XtreamMovie(
             num = this[MovieTable.num],
             name = this[MovieTable.name],
@@ -742,6 +788,7 @@ class XtreamRepository : KoinComponent {
             directSource = this[MovieTable.directSource] ?: "",
             url = this[ChannelTable.url],
         )
+        @Suppress("UNNECESSARY_SAFE_CALL")
         fun ResultRow.toXtreamSeries(categoryIdsGroupConcat: CustomFunction<String>? = null) = XtreamSeries(
             num = this[SeriesTable.num],
             name = this[SeriesTable.name],
