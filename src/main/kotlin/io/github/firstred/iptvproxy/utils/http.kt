@@ -5,6 +5,7 @@ import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvServerAccountConfig
 import io.ktor.http.*
+import io.ktor.server.application.serverConfig
 import io.ktor.server.routing.*
 import io.ktor.util.*
 import java.net.URI
@@ -76,6 +77,22 @@ fun HeadersBuilder.sendUserAgent(serverConfig: IIptvServerConfigWithoutAccounts)
         remove(HttpHeaders.UserAgent)
         append(HttpHeaders.UserAgent, userAgent)
     }
+}
+
+fun HeadersBuilder.addHeadersFromPlaylistProps(m3uProps: Map<String, String>, vlcOpts: Map<String, String>) {
+    // Default props are tvg-id, tvg-name, tvg-logo, group-title, skip these
+    (m3uProps["http-user-agent"] ?: m3uProps["--http-user-agent"] ?: vlcOpts["http-user-agent"] ?: vlcOpts["--http-user-agent"])?.let { userAgent ->
+            if (userAgent.isBlank()) return
+
+            remove(HttpHeaders.UserAgent)
+            append(HttpHeaders.UserAgent, userAgent)
+        }
+    (m3uProps["http-referer"] ?: m3uProps["http-referrer"] ?: m3uProps["--http-referer"] ?: m3uProps["--http-referrer"] ?: vlcOpts["http-referer"] ?: vlcOpts["http-referrer"] ?: vlcOpts["--http-referer"] ?: vlcOpts["--http-referrer"])?.let { referer ->
+            if (referer.isBlank()) return
+
+            remove(HttpHeaders.Referrer)
+            append(HttpHeaders.Referrer, referer)
+        }
 }
 
 fun HeadersBuilder.sendBasicAuth(accountConfig: IptvServerAccountConfig) {

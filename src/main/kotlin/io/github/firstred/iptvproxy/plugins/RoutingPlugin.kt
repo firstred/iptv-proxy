@@ -13,6 +13,7 @@ import io.github.firstred.iptvproxy.routes.hls
 import io.github.firstred.iptvproxy.routes.images
 import io.github.firstred.iptvproxy.routes.xtreamApi
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
+import io.github.firstred.iptvproxy.utils.addHeadersFromPlaylistProps
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
@@ -204,6 +205,7 @@ suspend fun Route.rewriteRemotePlaylist(
                 forwardProxyUser(connection.config)
                 sendUserAgent(connection.config)
                 if (null != connection.config.account) sendBasicAuth(connection.config.account)
+                addHeadersFromPlaylistProps(channel.m3uProps, channel.vlcOpts)
             }
         }
         headersCallback?.invoke(response.headers)
@@ -361,6 +363,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                 headers {
                     filterAndAppendHttpRequestHeaders(this@headers, routingContext)
                     addDefaultClientHeaders(connection.config)
+                    addHeadersFromPlaylistProps(channel.m3uProps, channel.vlcOpts)
                 }
             }
 
@@ -377,6 +380,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                             headers {
                                 filterAndAppendHttpRequestHeaders(this@headers, routingContext)
                                 addDefaultClientHeaders(connection.config)
+                                addHeadersFromPlaylistProps(channel.m3uProps, channel.vlcOpts)
                             }
                         }
 

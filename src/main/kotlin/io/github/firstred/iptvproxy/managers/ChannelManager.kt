@@ -359,6 +359,12 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 outputWriter.write(channel.epgId ?: "")
                 outputWriter.write("\"")
 
+                if (!channel.server.config.proxyStream) channel.m3uProps.forEach { (key, value) ->
+                    if (arrayOf("tvg-id", "tvg-name", "tvg-logo", "group-title", "catchup", "catchup-days").none { it == key }) {
+                        outputWriter.write(" $key=\"$value\"")
+                    }
+                }
+
                 outputWriter.write(" tvg-logo=\"")
                 channel.logo?.let {
                     if ("null" != channel.logo) {
@@ -391,6 +397,14 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     outputWriter.write("#EXTGRP:")
                     outputWriter.write(java.lang.String.join(";", channel.groups))
                     outputWriter.write("\n")
+                }
+
+                if (!channel.server.config.proxyStream && channel.vlcOpts.isNotEmpty()) {
+                    channel.vlcOpts.forEach { (key, value) ->
+                        outputWriter.write("#EXTVLCOPT:")
+                        outputWriter.write("$key=$value")
+                        outputWriter.write("\n")
+                    }
                 }
 
                 if (channel.server.config.proxyStream) {

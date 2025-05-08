@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.addHeadersFromPlaylistProps
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
@@ -70,6 +71,7 @@ class IptvChannel(
                     forwardProxyUser(connection.config)
                     sendUserAgent(connection.config)
                     if (null != connection.config.account) sendBasicAuth(connection.config.account)
+                    addHeadersFromPlaylistProps(m3uProps, vlcOpts)
                 }
             }
             headersCallback?.invoke(response.headers)
