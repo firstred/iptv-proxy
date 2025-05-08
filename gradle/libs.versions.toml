@@ -103,8 +103,6 @@ ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddre
 cryptography = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
 semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }
-stately-concurrency = { module = "co.touchlab:stately-concurrency", version.ref = "stately-concurrency" }
-stately-concurrent-collections = { module = "co.touchlab:stately-concurrent-collections", version.ref = "stately-concurrency" }
 arrow = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
 arrow-suspendapp = { module = "io.arrow-kt:suspendapp-jvm", version.ref = "arrow" }

@@ -203,8 +203,6 @@ dependencies {
     implementation(libs.cryptography)
     implementation(libs.cryptography.provider.jvm)
     implementation(libs.semver)
-    implementation(libs.stately.concurrency)
-    implementation(libs.stately.concurrent.collections)
     implementation(libs.arrow)
     implementation(libs.arrow.fx.coroutines)
     implementation(libs.arrow.suspendapp)
