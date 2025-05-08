@@ -452,6 +452,7 @@ class XtreamRepository : KoinComponent {
     }
     fun forEachCategoryChunk(
         type: IptvChannelType,
+        sortedByName: Boolean = config.sortChannelsByName,
         server: String? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamCategory>) -> Unit,
@@ -462,7 +463,11 @@ class XtreamRepository : KoinComponent {
             val liveStreamCategoryQuery = CategoryTable.selectAll()
                 .where { CategoryTable.type eq type }
             server?.let { liveStreamCategoryQuery.where { CategoryTable.server eq it } }
-            liveStreamCategoryQuery.orderBy(CategoryTable.id)
+            if (sortedByName) {
+                liveStreamCategoryQuery.orderBy(CategoryTable.name to SortOrder.ASC)
+            } else {
+                liveStreamCategoryQuery.orderBy(CategoryTable.id)
+            }
             liveStreamCategoryQuery
                 .limit(chunkSize)
                 .offset(offset)
