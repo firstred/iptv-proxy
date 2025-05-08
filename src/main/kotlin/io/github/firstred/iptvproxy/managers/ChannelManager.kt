@@ -39,6 +39,8 @@ import io.sentry.MonitorConfig
 import io.sentry.Sentry
 import io.sentry.util.CheckInUtils
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
@@ -66,6 +68,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private val xtreamRepository: XtreamRepository by inject()
     private val updateMonitorConfig: MonitorConfig by inject(named("update-channels"))
     private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-channels"))
+    private val databaseMutex: Mutex by inject(named("large-database-transactions"))
 
     private suspend fun updateChannels()
     {
@@ -321,6 +324,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         if (null == serverConnection.config.account) throw IllegalArgumentException("Cannot load channels without an account")
 
+        @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
         val response = httpClient.get(serverConnection.config.account!!.getPlaylistUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
@@ -341,7 +345,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         ?: run { throw RuntimeException("Channel not found") }).getPlaylist(user, baseUrl, additionalHeaders, additionalQueryParameters, headersCallback)
     }
 
-    suspend fun getAllChannelsPlaylist(
+    fun getAllChannelsPlaylist(
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
@@ -427,9 +431,11 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 try {
                     CheckInUtils.withCheckIn("cleanup-channels", cleanupMonitorConfig) {
                         runBlocking {
-                            channelRepository.cleanup()
-                            epgRepository.cleanup()
-                            xtreamRepository.cleanup()
+                            databaseMutex.withLock {
+                                channelRepository.cleanup()
+                                epgRepository.cleanup()
+                                xtreamRepository.cleanup()
+                            }
                         }
                         scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
                     }
@@ -453,7 +459,9 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 try {
                     CheckInUtils.withCheckIn("update-channels", updateMonitorConfig) {
                         runBlocking {
-                            updateChannels()
+                            databaseMutex.withLock {
+                                updateChannels()
+                            }
                         }
                         scheduleChannelUpdates(config.updateInterval.inWholeMinutes)
                     }
