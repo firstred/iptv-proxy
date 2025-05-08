@@ -23,7 +23,7 @@ val yaml = Yaml(
         encodeDefaults = true,
         strictMode = false,
         yamlNamingStrategy = YamlNamingStrategy.SnakeCase,
-        anchorsAndAliases = AnchorsAndAliases.Permitted(),
+        anchorsAndAliases = AnchorsAndAliases.Permitted(8_192u),
         extensionDefinitionPrefix = "x-",
     ),
 )
