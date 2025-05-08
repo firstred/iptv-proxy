@@ -46,7 +46,7 @@ class ChannelRepository : KoinComponent {
             transaction {
                 ChannelTable.batchUpsert(
                     data = chunk,
-                    keys = arrayOf(ChannelTable.server, ChannelTable.externalStreamId),
+                    keys = arrayOf(ChannelTable.server, ChannelTable.xtreamStreamId),
                     shouldReturnGeneratedValues = false,
                 ) { channel ->
                     this[ChannelTable.server] = channel.server.name
@@ -56,7 +56,7 @@ class ChannelRepository : KoinComponent {
                     this[ChannelTable.groups] = channel.groups.joinToString(",")
                     this[ChannelTable.type] = channel.type
                     this[ChannelTable.epgChannelId] = channel.epgId ?: ""
-                    this[ChannelTable.externalStreamId] = channel.url.extractStreamId().toUInt()
+                    this[ChannelTable.xtreamStreamId] = channel.url.extractStreamId().toUInt()
                     this[ChannelTable.icon] = channel.logo
                     this[ChannelTable.catchupDays] = channel.catchupDays.toUInt()
                     this[ChannelTable.externalPosition] = channel.externalPosition!!
@@ -74,7 +74,7 @@ class ChannelRepository : KoinComponent {
                     IptvChannel(
                         id = it[ChannelTable.id].value,
                         externalPosition = it[ChannelTable.externalPosition],
-                        externalStreamId = it[ChannelTable.externalStreamId],
+                        externalStreamId = it[ChannelTable.xtreamStreamId],
                         server = serversByName[it[ChannelTable.server]]!!,
                         name = it[ChannelTable.name],
                         url = URI(it[ChannelTable.url]),
@@ -118,10 +118,10 @@ class ChannelRepository : KoinComponent {
 
     fun findInternalIdsByExternalIds(externalIds: List<UInt>, server: String) = transaction {
         ChannelTable
-            .select(ChannelTable.externalStreamId, ChannelTable.id)
-            .where { ChannelTable.externalStreamId inList externalIds.map { it } }
+            .select(ChannelTable.xtreamStreamId, ChannelTable.id)
+            .where { ChannelTable.xtreamStreamId inList externalIds.map { it } }
             .andWhere { ChannelTable.server eq server }
-            .associateBy({ it[ChannelTable.externalStreamId] }, { it[ChannelTable.id].value })
+            .associateBy({ it[ChannelTable.xtreamStreamId] }, { it[ChannelTable.id].value })
     }
 
     fun getIptvChannelCount(): UInt = transaction {
@@ -151,7 +151,7 @@ class ChannelRepository : KoinComponent {
             return IptvChannel(
                 id = this[ChannelTable.id].value,
                 externalPosition = this[ChannelTable.externalPosition],
-                externalStreamId = this[ChannelTable.externalStreamId],
+                externalStreamId = this[ChannelTable.xtreamStreamId],
                 server = serversByName[this[ChannelTable.server]]!!,
                 name = this[ChannelTable.name],
                 url = URI(this[ChannelTable.url]),

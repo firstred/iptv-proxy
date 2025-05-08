@@ -12,7 +12,7 @@ object ChannelTable : UIntIdTable("channel") {
     val externalPosition = uinteger("external_position") // External playlist position
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength) // Link with EPG
     val url = text("url")
-    val externalStreamId = uinteger("external_stream_id")  // External stream ID, used for requests to external servers
+    val xtreamStreamId = uinteger("xtream_stream_id").nullable() // External stream ID, used for requests to external servers
     val server = varchar("server", maxServerNameLength)
     val icon = text("icon").nullable()
     val name = text("name")
@@ -33,7 +33,7 @@ object ChannelTable : UIntIdTable("channel") {
         uniqueIndex(
             customIndexName = "uniq_037df95408f7de3c48f8ff391f86c3df",
             server,
-            externalStreamId,
+            xtreamStreamId,
         )
     }
 }

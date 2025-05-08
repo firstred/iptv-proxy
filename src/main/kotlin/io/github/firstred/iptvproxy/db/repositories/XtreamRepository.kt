@@ -383,7 +383,7 @@ class XtreamRepository : KoinComponent {
                     ChannelTable,
                     JoinType.INNER,
                     onColumn = LiveStreamTable.externalStreamId,
-                    otherColumn = ChannelTable.externalStreamId,
+                    otherColumn = ChannelTable.xtreamStreamId,
                     additionalConstraint = { ChannelTable.server eq ChannelTable.server },
                 )
                 .select(
@@ -483,7 +483,7 @@ class XtreamRepository : KoinComponent {
                     ChannelTable,
                     JoinType.INNER,
                     onColumn = MovieTable.externalStreamId,
-                    otherColumn = ChannelTable.externalStreamId,
+                    otherColumn = ChannelTable.xtreamStreamId,
                     additionalConstraint = { MovieTable.server eq ChannelTable.server },
                 )
                 .select(
@@ -506,7 +506,7 @@ class XtreamRepository : KoinComponent {
                     ChannelTable.id,
                     ChannelTable.url,
                     ChannelTable.externalPosition,
-                    ChannelTable.externalStreamId,
+                    ChannelTable.xtreamStreamId,
                     categoryIds,
                 )
                 .groupBy(MovieTable.externalStreamId, MovieTable.server)

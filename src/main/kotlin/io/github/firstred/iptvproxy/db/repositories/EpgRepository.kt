@@ -37,6 +37,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
+import org.jetbrains.exposed.sql.countDistinct
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
@@ -60,16 +61,27 @@ class EpgRepository {
             EpgChannelTable.deleteWhere {
                 EpgChannelTable.server eq server
             }
+
             EpgChannelDisplayNameTable.deleteWhere {
                 EpgChannelDisplayNameTable.server eq server
             }
-            doc.channels?.let { upsertXmltvChannelsForServer(it, server) }
 
             // Delete old and insert new programmes
             EpgProgrammeTable.deleteWhere {
                 EpgProgrammeTable.server eq server
             }
-            doc.programmes?.let { upsertXmltvProgrammesForServer(it, server) }
+
+            var channelIds = listOf<String>()
+            doc.channels?.let {
+                upsertXmltvChannelsForServer(it, server)
+                it.forEach { channel ->
+                    if (null != channel.id) channelIds = channelIds + channel.id
+                }
+            }
+
+            doc.programmes
+                ?.filter { it.channel in channelIds }
+                ?.let { upsertXmltvProgrammesForServer(it, server) }
         }
     }
 
@@ -97,7 +109,6 @@ class EpgRepository {
 
                 EpgChannelTable.batchUpsert(
                     data = chunk,
-                    keys = arrayOf(EpgChannelTable.server, EpgChannelTable.epgChannelId),
                     shouldReturnGeneratedValues = false,
                 ) { channel ->
                     epgChannelDisplayNames[channel.id!!] = channel.displayNames ?: listOf()
@@ -114,7 +125,6 @@ class EpgRepository {
                     data = epgChannelDisplayNames.flatMap { (channelId, displayNames) ->
                         displayNames.map { displayName -> Pair(channelId, displayName) }
                     },
-                    keys = arrayOf(EpgChannelDisplayNameTable.server, EpgChannelDisplayNameTable.epgChannelId, EpgChannelDisplayNameTable.language),
                     shouldReturnGeneratedValues = false,
                 ) {(channelId, displayName) ->
                     this[EpgChannelDisplayNameTable.server] = server
@@ -263,18 +273,20 @@ class EpgRepository {
         var offset = 0L
 
         do {
-            val channelQuery = EpgChannelTable.selectAll()
-            server?.let { channelQuery.where { EpgChannelTable.server eq it } }
+            val epgChannelQuery = EpgChannelTable
+                .selectAll()
+                .withDistinctOn(EpgChannelTable.epgChannelId)
+            server?.let { epgChannelQuery.where { EpgChannelTable.server eq it } }
             if (sortedByName) {
-                channelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
+                epgChannelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
             } else {
-                channelQuery.orderBy(EpgChannelTable.server to SortOrder.ASC, EpgChannelTable.epgChannelId to SortOrder.ASC)
+                epgChannelQuery.orderBy(EpgChannelTable.server to SortOrder.ASC, EpgChannelTable.epgChannelId to SortOrder.ASC)
             }
-            channelQuery
+            epgChannelQuery
                 .limit(chunkSize)
                 .offset(offset)
             val channels: MutableList<XmltvChannel> = transaction {
-                channelQuery.map { it.toXmltvChannel() }.toMutableList()
+                epgChannelQuery.map { it.toXmltvChannel() }.toMutableList()
             }
 
             if (channels.isEmpty()) break
@@ -313,7 +325,8 @@ class EpgRepository {
             val programmeQuery = EpgProgrammeTable.selectAll()
             server?.let { programmeQuery.where { EpgProgrammeTable.server eq it } }
             programmeQuery
-                .orderBy(EpgProgrammeTable.server to SortOrder.ASC, EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
+                .groupBy(EpgProgrammeTable.epgChannelId, EpgProgrammeTable.start)
+                .orderBy(EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
                 .limit(chunkSize)
                 .offset(offset)
 
@@ -571,33 +584,63 @@ class EpgRepository {
         } while (programmes.isNotEmpty())
     }
 
+    fun getEpgIdForChannel(channelId: UInt): UInt? = transaction {
+        ChannelTable
+            .select(ChannelTable.epgChannelId)
+            .where { ChannelTable.id eq channelId }
+            .map { it[ChannelTable.epgChannelId].toUIntOrNull() }
+            .firstOrNull()
+    }
+    fun getEpgIdAndServerForChannel(channelId: UInt): Pair<String, String>? = transaction {
+        ChannelTable
+            .select(ChannelTable.epgChannelId)
+            .where { ChannelTable.id eq channelId }
+            .map { Pair(it[ChannelTable.epgChannelId], it[ChannelTable.server]) }
+            .firstOrNull()
+    }
+    fun getAlternativeServersForEpgId(epgId: String): List<String> = transaction {
+        EpgChannelTable
+            .select(EpgChannelTable.server)
+            .where { ChannelTable.epgChannelId eq epgId }
+            .map { it[ChannelTable.server] }
+    }
+
     fun getProgrammesForChannelId(
         channelId: UInt,
         count: Int = 4,
         now: Instant = Clock.System.now(),
     ): List<XmltvProgramme> = transaction {
-        val query = EpgProgrammeTable
-            .join(
-                ChannelTable,
-                JoinType.INNER,
-                onColumn = EpgProgrammeTable.epgChannelId,
-                otherColumn = ChannelTable.epgChannelId,
-            )
-            .selectAll()
-            .andWhere { ChannelTable.id eq channelId }
-            .andWhere {
-                (EpgProgrammeTable.start greaterEq now) or (
-                    (EpgProgrammeTable.start lessEq now) and (EpgProgrammeTable.stop greaterEq now)
+        val (epgId, server) = getEpgIdAndServerForChannel(channelId) ?: return@transaction emptyList()
+        val servers = listOf(server) + (getAlternativeServersForEpgId(epgId) - listOf(server))
+        for (server in servers) {
+            // Try the preferred server first
+            val query = EpgProgrammeTable
+                .join(
+                    ChannelTable,
+                    JoinType.INNER,
+                    onColumn = EpgProgrammeTable.epgChannelId,
+                    otherColumn = ChannelTable.epgChannelId,
                 )
-            }
-            .orderBy(EpgProgrammeTable.start to SortOrder.ASC)
-        if (count < Int.MAX_VALUE) query.limit(count)
+                .selectAll()
+                .where { EpgProgrammeTable.server eq server }
+                .andWhere {
+                    EpgProgrammeTable.epgChannelId eq epgId and
+                        (EpgProgrammeTable.start greaterEq now) or (
+                        (EpgProgrammeTable.start lessEq now) and (EpgProgrammeTable.stop greaterEq now)
+                    )
+                }
+                .orderBy(EpgProgrammeTable.start to SortOrder.ASC)
+            if (count < Int.MAX_VALUE) query.limit(count)
+            val results = query.map { it.toXmltvProgramme() }
 
-        return@transaction query.map { it.toXmltvProgramme() }
+            if (results.isNotEmpty()) return@transaction results
+        }
+
+        emptyList()
     }
 
     fun getEpgChannelCount(): Long = transaction {
-        EpgChannelTable.selectAll().count()
+        EpgChannelTable.select(EpgChannelTable.epgChannelId.countDistinct()).count()
     }
     fun getEpgProgrammeCount(): Long = transaction {
         EpgProgrammeTable.selectAll().count()

@@ -34,7 +34,7 @@ create table channel
     external_position  bigint                         not null,
     epg_channel_id     varchar(255)                   not null,
     url                text                           not null,
-    external_stream_id bigint                         not null,
+    xtream_stream_id   bigint                         null,
     server             varchar(127)                   not null,
     icon               text,
     name               text                           not null,
@@ -49,7 +49,7 @@ create table channel
     constraint chk_channel_unsigned_integer_external_position
         check (external_position between 0 and 4294967295),
     constraint chk_channel_unsigned_integer_external_stream_id
-        check (external_stream_id between 0 and 4294967295),
+        check (xtream_stream_id between 0 and 4294967295),
     constraint chk_channel_unsigned_integer_id
         check (id between 0 and 4294967295)
 );
@@ -58,7 +58,7 @@ create index idx_81e0d67366a2ec3bed4ad79abd8f8940
     on channel (server, external_position);
 
 create unique index uniq_037df95408f7de3c48f8ff391f86c3df
-    on channel (server, external_stream_id);
+    on channel (server, xtream_stream_id);
 
 create table epg_channel
 (

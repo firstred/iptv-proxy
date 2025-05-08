@@ -100,7 +100,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         xmltv.copy(
                             programmes = it.programmes?.filter { programme ->
                                 (programme.start < endOf) && (programme.stop > startOf)
-                            }?.toMutableList()
+                            }?.toMutableList(),
                         ),
                         server.name
                     )
