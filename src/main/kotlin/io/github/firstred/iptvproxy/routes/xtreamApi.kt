@@ -366,7 +366,7 @@ fun Route.xtreamApi() {
                 call.respondTextWriter(contentType = ContentType.Application.Json) {
                     write("[")
                     var first = true
-                    xtreamRepository.forEachSeriesChunk(categoryId = categoryId) { list ->
+                    xtreamRepository.forEachSeriesChunk(categoryId = categoryId, forUser = user) { list ->
                         list.forEachIndexed { idx, it ->
                             if (!first) write(",")
                             else first = false
@@ -640,7 +640,7 @@ fun Route.xtreamApi() {
                             }
                             write(",")
                             first = true
-                            xtreamRepository.forEachMovieChunk { list ->
+                            xtreamRepository.forEachMovieChunk(forUser = user) { list ->
                                 list.forEachIndexed { idx, it ->
                                     if (!first) write(",")
                                     else first = false
