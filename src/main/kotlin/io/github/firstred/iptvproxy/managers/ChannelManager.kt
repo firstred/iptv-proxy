@@ -144,7 +144,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                     addNewChannel(channelReference, newChannels[channelReference] ?: let {
                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
-                        val tvgId: String = server.config.epgRemapping[(m3uChannel.props["tvg-id"] ?: "")] ?: m3uChannel.props["tvg-id"] ?: ""
+                        val tvgId: String = server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
 
                         var xmltvCh: XmltvChannel? = null
                         if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]

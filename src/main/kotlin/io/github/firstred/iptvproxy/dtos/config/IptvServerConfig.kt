@@ -53,4 +53,17 @@ data class IptvServerConfig(
     override fun getPlaylistUrl(): URI? {
         return accounts?.firstOrNull()?.getPlaylistUrl()
     }
+
+    fun remapEpgChannelId(epgChannelId: String): String {
+        for ((key, value) in epgRemapping) {
+            if (key.startsWith("regexp:")) {
+                val pattern = key.substringAfter("regexp:").toRegex()
+                if (pattern.matches(epgChannelId)) return value
+            } else if (key == epgChannelId) {
+                return value
+            }
+        }
+
+        return epgChannelId
+    }
 }
