@@ -42,6 +42,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import nl.adaptivity.xmlutil.serialization.XmlParsingException
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -93,9 +94,14 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     config.timeouts.playlist.totalMilliseconds,
                     server.config.accounts?.first(),
                 ) { serverConnection, _ ->
-                    LOG.info("Parsing xmltv data")
-                    loadXmltv(serverConnection).let { inputStream ->
-                        inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
+                    try {
+                        LOG.info("Parsing xmltv data")
+                        loadXmltv(serverConnection).let { inputStream ->
+                            inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
+                        }
+                    } catch (e: XmlParsingException) {
+                        Sentry.captureException(e)
+                        LOG.warn("Unable to parse xmltv data: ${e.message} - skipping xmltv import for server ${server.name}")
                     }
                 }
 
