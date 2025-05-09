@@ -505,11 +505,17 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 
                                     output.writeFully(chunk)
                                 }
-
                                 // Immediately release the connection after the read channel is closed
                                 releaseConnectionEarly()
 
-                                if ("video/mp2t" == response.headers["Content-Type"]?.lowercase()) {
+                                // Flush any remaining data in the buffer
+                                output.flush()
+
+                                val remoteContentLength = response.contentLength() ?: 0L
+                                if (
+                                    remoteContentLength > 0L && remoteContentLength < 32_000_000L
+                                    && "video/mp2t" == response.headers["Content-Type"]?.lowercase()
+                                ) {
                                     // Cache the video chunk
                                     responseURI.let { responseURI -> totalCache.let { totalCache ->
                                         cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
