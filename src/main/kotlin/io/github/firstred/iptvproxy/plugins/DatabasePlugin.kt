@@ -39,14 +39,18 @@ val dataSource = HikariDataSource(HikariConfig().apply {
 
     if (config.database.jdbcUrl.startsWith("jdbc:sqlite")) {
         val dataSourcePropertyKeys = config.database.dataSourceProperties.keys
-        if (!dataSourcePropertyKeys.contains("synchronous")) {
-            addDataSourceProperty("synchronous", "OFF")
-        }
+
         if (!dataSourcePropertyKeys.contains("journal_mode")) {
-            addDataSourceProperty("journal_mode", "MEMORY")
+            addDataSourceProperty("journal_mode", "WAL")
+        }
+        if (!dataSourcePropertyKeys.contains("synchronous")) {
+            addDataSourceProperty("synchronous", "NORMAL")
+        }
+        if (!dataSourcePropertyKeys.contains("temp_store")) {
+            addDataSourceProperty("temp_store", "MEMORY")
         }
         if (!dataSourcePropertyKeys.contains("cache_size")) {
-            addDataSourceProperty("cache_size", "-512000")
+            addDataSourceProperty("cache_size", "-64000")
         }
         if (!dataSourcePropertyKeys.contains("shared_cache")) {
             addDataSourceProperty("shared_cache", "false")
