@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.routes
 
-import com.mayakapps.kache.InMemoryKache
+import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -37,9 +37,12 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.serialization.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.sentry.Sentry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.format
@@ -52,6 +55,8 @@ import org.koin.ktor.ext.inject
 import org.koin.mp.KoinPlatform.getKoin
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.File
+import java.io.FileNotFoundException
 import java.io.Writer
 import java.net.URI
 import java.net.URISyntaxException
@@ -66,8 +71,9 @@ fun Route.xtreamApi() {
     val epgRepository: EpgRepository by inject()
     val xtreamRepository: XtreamRepository by inject()
     val serversByName: IptvServersByName by inject()
-    val movieInfoCache: InMemoryKache<String, XtreamMovieInfoEndpoint> by inject(named("movie-info"))
-    val seriesInfoCache: InMemoryKache<String, XtreamSeriesInfoEndpoint> by inject(named("series-info"))
+    val movieInfoCache: FileKache by inject(named("movie-info"))
+    val seriesInfoCache: FileKache by inject(named("series-info"))
+    val cacheCoroutineScope: CoroutineScope by inject(named("cache"))
 
     get("/xmltv.php") {
         if (isNotMainPort()) return@get
@@ -250,15 +256,26 @@ fun Route.xtreamApi() {
                     val targetUrl = account?.getXtreamMovieInfoUrl()
                     if (null == targetUrl) return@let
 
+
+                    var movieInfo: XtreamMovieInfoEndpoint? = null
+
                     try {
-                        val uniqueKey = "server=${iptvServer.name}|vod_id=$vodId"
-                        val movieInfo: XtreamMovieInfoEndpoint = movieInfoCache.getOrPut(uniqueKey) {
-                            lateinit var response: HttpResponse
+                        val uniqueKey = "baseUrl=$baseUrl|server=${iptvServer.name}|vod_id=$vodId"
+
+                        var movieInfoFile: String? = null
+                        try {
+                            movieInfoFile = movieInfoCache.get(uniqueKey)
+                        } catch (_: FileNotFoundException) {
+                        }
+
+                        if (null == movieInfoFile) {
+          lateinit var response: HttpResponse
                             iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnection ->
                                 response = connection.httpClient.get("$targetUrl&vod_id=$vodId") {
                                     headers {
-                                        call.request.headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) }
-                                        }
+                                        call.request.headers.filterHttpRequestHeaders()
+                                            .entries()
+                                            .forEach { (key, value) -> value.forEach { append(key, it) } }
                                         accept(ContentType.Application.Json)
                                         addDefaultClientHeaders(connection.config)
                                     }
@@ -266,8 +283,32 @@ fun Route.xtreamApi() {
                                 response = followRedirects(response, connection, call.request.headers).body()
                             }
 
-                            return@getOrPut response.body<XtreamMovieInfoEndpoint>()
-                        }!!
+                            try {
+                                movieInfo = response.body<XtreamMovieInfoEndpoint>()
+                            } catch (_: JsonConvertException) {
+                                movieInfo = XtreamMovieInfoEndpoint()
+                            }
+
+                            movieInfo.let {
+                                 cacheCoroutineScope.launch { movieInfoCache.putAsync(uniqueKey) { fileName ->
+                                    val file = File(fileName)
+                                    val text = json.encodeToString(XtreamMovieInfoEndpoint.serializer(), it)
+                                    file.writeText(text)
+
+                                    true
+                                } }
+                            }
+                        }
+
+                        if (null == movieInfo) {
+                            if (null != movieInfoFile) {
+                                movieInfo = File(movieInfoFile).readText().let {
+                                    json.decodeFromString(XtreamMovieInfoEndpoint.serializer(), it)
+                                }
+                            } else {
+                                throw IllegalStateException("Movie info cache not found")
+                            }
+                        }
 
                         // First gather all external stream IDs from the response so they can be mapped in one go
                         val foundMovieStreamIds = mutableListOf<UInt>()
@@ -383,8 +424,18 @@ fun Route.xtreamApi() {
                     val targetUrl = account?.getXtreamSeriesInfoUrl()
                     if (null == targetUrl) return@get
 
+                    var seriesInfo: XtreamSeriesInfoEndpoint? = null
+
                     try {
-                        val seriesInfo: XtreamSeriesInfoEndpoint = seriesInfoCache.getOrPut("server=$serverName|series_id=$seriesId") {
+                        val uniqueKey = "baseUrl=$baseUrl|server=$serverName|series_id=$seriesId"
+
+                        var seriesInfoFile: String? = null
+                        try {
+                            seriesInfoFile = seriesInfoCache.get(uniqueKey)
+                        } catch (_: FileNotFoundException) {
+                        }
+
+                        if (null == seriesInfoFile) {
                             lateinit var response: HttpResponse
                             iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
                                 response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
@@ -397,8 +448,32 @@ fun Route.xtreamApi() {
                                 response = followRedirects(response, connection, call.request.headers)
                             }
 
-                            return@getOrPut response.body<XtreamSeriesInfoEndpoint>()
-                        }!!
+                            try {
+                                seriesInfo = response.body<XtreamSeriesInfoEndpoint>()
+                            } catch (_: JsonConvertException) {
+                                seriesInfo = XtreamSeriesInfoEndpoint()
+                            }
+
+                            seriesInfo.let {
+                                cacheCoroutineScope.launch { seriesInfoCache.putAsync(uniqueKey) { fileName ->
+                                    val file = File(fileName)
+                                    val text = json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), it)
+                                    file.writeText(text)
+
+                                    true
+                                } }
+                            }
+                        }
+
+                        if (null == seriesInfo) {
+                            if (null != seriesInfoFile) {
+                                seriesInfo = File(seriesInfoFile).readText().let {
+                                    json.decodeFromString(XtreamSeriesInfoEndpoint.serializer(), it)
+                                }
+                            } else {
+                                throw IllegalStateException("Series info cache not found")
+                            }
+                        }
 
                         // First gather all external stream IDs from the response so they can be mapped in one go
                         val foundEpisodeStreamIds = mutableListOf<UInt>()

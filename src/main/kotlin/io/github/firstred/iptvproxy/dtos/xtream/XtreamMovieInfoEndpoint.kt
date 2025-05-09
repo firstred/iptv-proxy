@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class XtreamMovieInfoEndpoint(
-    val info: XtreamMovieInfo,
-    @SerialName("movie_data") val movieData: XtreamMovieData,
+    val info: XtreamMovieInfo = XtreamMovieInfo(),
+    @SerialName("movie_data") val movieData: XtreamMovieData = XtreamMovieData(),
     val url: String? = null,
 )

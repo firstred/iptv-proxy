@@ -25,6 +25,6 @@ data class XtreamEpisodeListing(
     @SerialName("backdrop_path") val backdropPath: List<String> = emptyList(),
     @SerialName("youtube_trailer") val youtubeTrailer: String? = null,
     @SerialName("episode_run_time") val episodeRunTime: String? = null,
-    @SerialName("category_id") val categoryId: String,
+    @SerialName("category_id") val categoryId: String = "",
     @SerialName("category_ids") val categoryIds: List<UInt> = emptyList(),
 )

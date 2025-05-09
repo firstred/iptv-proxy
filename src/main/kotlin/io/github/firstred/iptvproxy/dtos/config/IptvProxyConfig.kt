@@ -68,7 +68,7 @@ data class IptvProxyConfig(
         })
     }
 
-    fun getMiscCacheDirectory(subdir: String? = null): String {
+    fun getCacheDirectory(subdir: String? = null): String {
         return subdir?.let {
             checkDir(getBaseCacheDirectory() + "/cache")
 

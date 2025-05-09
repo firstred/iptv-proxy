@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.routes.imagesRoute
 import io.ktor.http.*
-import sun.net.www.ParseUtil.toURI
 import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder

@@ -1,6 +1,6 @@
 package io.github.firstred.iptvproxy.plugins
 
-import com.mayakapps.kache.InMemoryKache
+import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -36,12 +36,16 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.io.readByteArray
 import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
 import org.slf4j.LoggerFactory
+import java.io.File
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
@@ -355,12 +359,15 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
     routingContext: RoutingContext,
     remoteUrl: URI = channel.url,
 ) {
-    val videoChunkCache: InMemoryKache<String, ByteArray> = getKoin().get(named("video-chunks"))
+    val videoChunkCache: FileKache = getKoin().get(named("video-chunks"))
+    val cacheCoroutineScope: CoroutineScope by getKoin().inject(named("cache"))
     var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
-    val cachedResponse: ByteArray? = videoChunkCache.get(responseURI.toString())
-    if (null != cachedResponse) {
-        call.respondBytes(cachedResponse, contentType = ContentType("video", "mp2t"))
+    val cachedResponseFile: String? = videoChunkCache.get(responseURI.toString())
+    if (null != cachedResponseFile) {
+        call.respondBytesWriter {
+            File(cachedResponseFile).inputStream().toByteReadChannel().copyAndClose(this)
+        }
         return
     }
 
@@ -437,7 +444,14 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 
                             if ("video/mp2t" == response.headers["Content-Type"]?.lowercase()) {
                                 // Cache the video chunk
-                                videoChunkCache.put(responseURI.toString(), totalCache)
+                                responseURI.let { responseURI -> totalCache.let { totalCache ->
+                                    cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
+                                        val file = File(fileName)
+                                        file.writeBytes(totalCache)
+
+                                        true
+                                    } }
+                                } }
                             }
                         }
                     }

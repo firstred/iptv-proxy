@@ -207,6 +207,7 @@ dependencies {
     implementation(libs.arrow.fx.coroutines)
     implementation(libs.arrow.suspendapp)
     implementation(libs.kache)
+    implementation(libs.kache.file)
 
     // tests
     testImplementation(libs.kotlin.test)

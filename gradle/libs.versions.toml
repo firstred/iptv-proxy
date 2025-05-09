@@ -107,6 +107,7 @@ arrow = { module = "io.arrow-kt:arrow-core", version.ref = "arrow" }
 arrow-fx-coroutines = { module = "io.arrow-kt:arrow-fx-coroutines", version.ref = "arrow" }
 arrow-suspendapp = { module = "io.arrow-kt:suspendapp-jvm", version.ref = "arrow" }
 kache = { module = "com.mayakapps.kache:kache", version.ref = "kache" }
+kache-file = { module = "com.mayakapps.kache:file-kache", version.ref = "kache" }
 
 apache-commons-codec = { module = "commons-codec:commons-codec", version.ref = "apache-commons-codec" }
 apache-commons-io = { module = "commons-io:commons-io", version.ref = "apache-commons-io" }

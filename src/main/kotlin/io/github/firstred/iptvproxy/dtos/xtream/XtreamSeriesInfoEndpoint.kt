@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class XtreamSeriesInfoEndpoint(
-    val seasons: List<XtreamSeason>,
-    val info: XtreamEpisodeListing,
-    val episodes: Map<String, List<XtreamEpisode>>,
+    val seasons: List<XtreamSeason> = listOf(),
+    val info: XtreamEpisodeListing = XtreamEpisodeListing(),
+    val episodes: Map<String, List<XtreamEpisode>> = mapOf(),
 )

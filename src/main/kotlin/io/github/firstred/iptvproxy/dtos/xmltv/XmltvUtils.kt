@@ -85,7 +85,7 @@ class XmltvUtils {
         }
 
         fun getCachedXmltvFile(compressed: Boolean = true): File {
-            return File(config.getMiscCacheDirectory() + "/xmltv.xml" + if (compressed) ".gz" else "")
+            return File(config.getCacheDirectory() + "/xmltv.xml" + if (compressed) ".gz" else "")
         }
     }
 }
