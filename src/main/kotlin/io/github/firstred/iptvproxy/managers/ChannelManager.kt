@@ -100,7 +100,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
                         }
                     } catch (e: XmlParsingException) {
-                        Sentry.captureException(e)
                         LOG.warn("Unable to parse xmltv data: ${e.message} - skipping xmltv import for server ${server.name}")
                     }
                 }

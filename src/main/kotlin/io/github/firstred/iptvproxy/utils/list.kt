@@ -1,8 +1,10 @@
 package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.classes.IptvUser
+import io.github.firstred.iptvproxy.dtos.config.IIptvServerConfigWithoutAccounts
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyUserConfig
+import io.github.firstred.iptvproxy.dtos.config.IptvServerConfig
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.andWhere
@@ -138,16 +140,3 @@ fun IptvProxyUserConfig.toListFilters() = ListFilters(
 fun CharSequence.isNotGlobOrRegexp(): Boolean =
     !this.startsWith("regexp:") && !this.startsWith("glob:")
 fun CharSequence.isRegexp(): Boolean = this.startsWith("regexp:")
-
-fun IptvFlatServerConfig.remapEpgChannelId(epgChannelId: String): String {
-    for ((key, value) in epgRemapping) {
-        if (key.startsWith("regexp:")) {
-            val pattern = key.substringAfter("regexp:").toRegex()
-            if (pattern.matches(epgChannelId)) return epgChannelId.replace(pattern, value)
-        } else if (key == epgChannelId) {
-            return value
-        }
-    }
-
-    return epgChannelId
-}
