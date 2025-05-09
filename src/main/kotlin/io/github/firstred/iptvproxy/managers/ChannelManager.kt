@@ -141,17 +141,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
                         val tvgId: String = server.config.epgRemapping[(m3uChannel.props["tvg-id"] ?: "")] ?: m3uChannel.props["tvg-id"] ?: ""
 
-                        if (server.config.groupFilters.isNotEmpty()) {
-                            if (m3uChannel.groups.stream().noneMatch { group: String ->
-                                    server.config.groupFilters.stream()
-                                        .anyMatch { f: Pattern? -> f!!.matcher(group).find() }
-                                }
-                            ) {
-                                // skip channel - filtered by group filter
-                                return@forEach
-                            }
-                        }
-
                         var xmltvCh: XmltvChannel? = null
                         if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
                         if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]

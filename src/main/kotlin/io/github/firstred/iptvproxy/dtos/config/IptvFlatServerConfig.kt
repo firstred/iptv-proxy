@@ -23,8 +23,6 @@ data class IptvFlatServerConfig(
 
     override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
 
-    override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
-
     override val userAgent: String? = null,
 
     override val epgRemapping: Map<String, String> = mapOf(),
@@ -39,7 +37,6 @@ data class IptvFlatServerConfig(
         proxyStream = proxyStream,
         accounts = account?.let { listOf(if (idx == 0u) it else throw IllegalStateException("Only the first account is supported in flat config")) } ?: emptyList(),
         timeouts = timeouts,
-        groupFilters = groupFilters,
         userAgent = userAgent,
         epgRemapping = epgRemapping,
     )

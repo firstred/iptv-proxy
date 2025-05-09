@@ -19,8 +19,6 @@ interface IIptvServerConfigWithoutAccounts {
 
     val timeouts: IptvConnectionTimeoutsConfig
 
-    val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern>
-
     val userAgent: String?
 
     val epgRemapping: Map<String, String>

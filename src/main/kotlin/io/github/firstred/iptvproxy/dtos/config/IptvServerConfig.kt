@@ -24,8 +24,6 @@ data class IptvServerConfig(
 
     override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
 
-    override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
-
     override val userAgent: String? = null,
 
     override val epgRemapping: Map<String, String> = mapOf(),
@@ -40,7 +38,6 @@ data class IptvServerConfig(
         proxyStream = proxyStream,
         account = accounts?.let { it[accountIndex.toInt()] },
         timeouts = timeouts,
-        groupFilters = groupFilters,
         userAgent = userAgent,
         epgRemapping = epgRemapping,
     )
