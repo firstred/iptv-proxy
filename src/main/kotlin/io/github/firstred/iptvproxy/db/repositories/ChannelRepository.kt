@@ -224,7 +224,12 @@ class ChannelRepository : KoinComponent {
             do {
                 val deleted = ChannelTable.deleteWhere {
                     ChannelTable.id inList ChannelTable
-                        .select(ChannelTable.id, ChannelTable.server, ChannelTable.xtreamStreamId, ChannelTable.updatedAt.min())
+                        .select(
+                            ChannelTable.id,
+                            ChannelTable.server,
+                            ChannelTable.xtreamStreamId,
+                            ChannelTable.updatedAt.min(),
+                        )
                         .where { ChannelTable.xtreamStreamId greater 1u }
                         .groupBy(ChannelTable.server, ChannelTable.xtreamStreamId)
                         .having { ChannelTable.xtreamStreamId.count() greater 1 }
