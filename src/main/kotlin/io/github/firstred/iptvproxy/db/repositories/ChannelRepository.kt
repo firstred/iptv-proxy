@@ -130,8 +130,8 @@ class ChannelRepository : KoinComponent {
                 }
                 forUser?.let {
                     it.toListFilters().applyToQuery(channelQuery, ChannelTable.name, ChannelTable.mainGroup)
-                    if (!it.moviesEnabled) channelQuery.andWhere { ChannelTable.type eq IptvChannelType.movie }
-                    if (!it.seriesEnabled) channelQuery.andWhere { ChannelTable.type eq IptvChannelType.series }
+                    if (!it.moviesEnabled) channelQuery.andWhere { ChannelTable.type neq IptvChannelType.movie }
+                    if (!it.seriesEnabled) channelQuery.andWhere { ChannelTable.type neq IptvChannelType.series }
                 }
                 channelQuery
                     .limit(chunkSize)
