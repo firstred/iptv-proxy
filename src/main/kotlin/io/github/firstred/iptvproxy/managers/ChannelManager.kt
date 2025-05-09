@@ -23,6 +23,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
+import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
@@ -34,14 +35,23 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
+import io.ktor.utils.io.asByteWriteChannel
+import io.ktor.utils.io.copyAndClose
 import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.MonitorConfig
 import io.sentry.Sentry
 import io.sentry.util.CheckInUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.datetime.Clock
+import kotlinx.io.Buffer
+import kotlinx.io.asInputStream
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.decodeFromStream
 import nl.adaptivity.xmlutil.serialization.XmlParsingException
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
@@ -70,6 +80,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-channels"))
     private val databaseMutex: Mutex by inject(named("large-database-transactions"))
 
+    @OptIn(ExperimentalSerializationApi::class)
     private suspend fun updateChannels()
     {
         LOG.info("Updating channels")
@@ -196,25 +207,41 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        liveStreamCategories = httpClient.get(
+                        val buffer = Buffer()
+
+                         httpClient.prepareGet(
                             serverConnection.config.account!!.getXtreamLiveStreamCategoriesUrl().toString()
                         ) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        liveStreamCategories = json.decodeFromStream(buffer.asInputStream())
                     }
+
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        liveStreams = httpClient.get(serverConnection.config.account!!.getXtreamLiveStreamsUrl().toString()) {
+                        val buffer = Buffer()
+                        httpClient.prepareGet(serverConnection.config.account!!.getXtreamLiveStreamsUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        liveStreams = json.decodeFromStream(buffer.asInputStream())
                     }
                     xtreamRepository.upsertLiveStreamsAndCategories(liveStreams, liveStreamCategories, server.name)
 
@@ -225,23 +252,37 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        movieCategories = httpClient.get(serverConnection.config.account!!.getXtreamMovieCategoriesUrl().toString()) {
+                        val buffer = Buffer()
+                        httpClient.prepareGet(serverConnection.config.account!!.getXtreamMovieCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body<List<XtreamCategory>>()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        movieCategories = json.decodeFromStream(buffer.asInputStream())
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        movies = httpClient.get(serverConnection.config.account!!.getXtreamMoviesUrl().toString()) {
+                        val buffer = Buffer()
+                        httpClient.prepareGet(serverConnection.config.account!!.getXtreamMoviesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body<List<XtreamMovie>>()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        movies = json.decodeFromStream(buffer.asInputStream())
                     }
                     xtreamRepository.upsertMoviesAndCategories(movies, movieCategories, server.name)
 
@@ -252,23 +293,37 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        seriesCategories = httpClient.get(serverConnection.config.account!!.getXtreamSeriesCategoriesUrl().toString()) {
+                        val buffer = Buffer()
+                        httpClient.prepareGet(serverConnection.config.account!!.getXtreamSeriesCategoriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body<List<XtreamCategory>>()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        seriesCategories = json.decodeFromStream(buffer.asInputStream())
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
                     ) { serverConnection, _ ->
-                        series = httpClient.get(serverConnection.config.account!!.getXtreamSeriesUrl().toString()) {
+                        val buffer = Buffer()
+                        httpClient.prepareGet(serverConnection.config.account!!.getXtreamSeriesUrl().toString()) {
                             headers {
                                 accept(ContentType.Application.Json)
                                 addDefaultClientHeaders(serverConnection.config)
                             }
-                        }.body<List<XtreamSeries>>()
+                        }.execute { response ->
+                            coroutineScope { async(Dispatchers.IO) {
+                                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+                            } }
+                        }
+
+                        series = json.decodeFromStream(buffer.asInputStream())
                     }
                     xtreamRepository.upsertSeriesAndCategories(series, seriesCategories, server.name)
 
@@ -301,31 +356,44 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     }
 
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
-        val response = httpClient.get(serverConnection.config.getEpgUrl().toString()) {
+        return httpClient.prepareGet(serverConnection.config.getEpgUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
-        }
-        val inputStream = BufferedInputStream(response.bodyAsChannel().toInputStream())
-        inputStream.mark(2)
-        val peekInputStream = PeekableInputStream(inputStream)
-        val data = peekInputStream.readNBytes(2)
-        inputStream.reset()
-        val isGzip = data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()
+        }.execute { response ->
+            val buffer = Buffer()
 
-        return if (isGzip) GZIPInputStream(inputStream) else inputStream
+            coroutineScope { async (Dispatchers.IO) {
+                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+            } }
+
+            val inputStream = BufferedInputStream(buffer.asInputStream(), 32_000)
+            inputStream.mark(2)
+            val peekInputStream = PeekableInputStream(inputStream)
+            val data = peekInputStream.readNBytes(2)
+            inputStream.reset()
+            val isGzip = data.size >= 2 && data[0] == 0x1f.toByte() && data[1] == 0x8b.toByte()
+
+            if (isGzip) GZIPInputStream(inputStream) else inputStream
+        }
     }
 
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         if (null == serverConnection.config.account) throw IllegalArgumentException("Cannot load channels without an account")
 
-        @Suppress("UNNECESSARY_NOT_NULL_ASSERTION")
-        val response = httpClient.get(serverConnection.config.account!!.getPlaylistUrl().toString()) {
+        return httpClient.prepareGet(serverConnection.config.account!!.getPlaylistUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
+        }.execute { response ->
+            val buffer = Buffer()
+
+            coroutineScope { async (Dispatchers.IO) {
+                response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
+            } }
+
+            buffer.asInputStream()
         }
-        return response.bodyAsChannel().toInputStream()
     }
 
     suspend fun getChannelPlaylist(
