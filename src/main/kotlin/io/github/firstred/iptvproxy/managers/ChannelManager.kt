@@ -138,8 +138,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
 
                     addNewChannel(channelReference, newChannels[channelReference] ?: let {
-                        val tvgId: String = server.config.epgRemapping[(m3uChannel.props["tvg-id"] ?: "")] ?: m3uChannel.props["tvg-id"] ?: ""
                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
+                        val tvgId: String = server.config.epgRemapping[(m3uChannel.props["tvg-id"] ?: "")] ?: m3uChannel.props["tvg-id"] ?: ""
 
                         if (server.config.groupFilters.isNotEmpty()) {
                             if (m3uChannel.groups.stream().noneMatch { group: String ->
@@ -184,7 +184,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             url = Url(m3uChannel.url).toEncodedJavaURI(),
                             server = server,
                             type = m3uChannel.url.toChannelType(),
-                            m3uProps = m3uChannel.props,
+                            m3uProps = m3uChannel.props + mapOf(
+                                "tvg-id" to tvgId,
+                                "tvg-name" to tvgName,
+                            ),
                             vlcOpts = m3uChannel.vlcOpts,
                         )
                     })
