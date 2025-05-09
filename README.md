@@ -115,6 +115,8 @@ servers:
     proxy_stream: true
     proxy_forwarded_user: true
     proxy_forwarded_pass: "test"
+    epg_remapping:
+      "Old.News": "new.news"
     timeouts: *channel-timeouts
 #    group_filters:
 #      - 'movies'
@@ -208,6 +210,7 @@ false means using direct URLs for data
 * `epg_before` - filter programmes before specified time (to reduce xmltv size), java duration format (`P5D` - five days), default - unlimited
 * `timeouts` - timeouts for this server, see `timeouts[].*`
 * `group_filters` - list of regex channel filters
+* `epg_remapping` - allows to remap the server's EPG IDs to new ones
 
 #### Account settings (`servers[].accounts[]`)
 * `url` - url for the server, this is either the direct playlist URL or the Xtream API URL. In the latter case the `.get.php` or `.api.php` suffix should be omitted.

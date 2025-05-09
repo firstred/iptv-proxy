@@ -99,6 +99,8 @@ servers:
     proxy_forwarded_user: true
     proxy_forwarded_pass: "test"
     timeouts: *channel-timeouts
+    epg_remapping:
+      "Old.News": "new.news"
 users:
   - username: 12345
     password: login1
