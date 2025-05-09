@@ -1,11 +1,15 @@
 package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.classes.IptvUser
+import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyUserConfig
 import org.jetbrains.exposed.sql.Column
 import org.jetbrains.exposed.sql.Query
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.compoundOr
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.iterator
 
 fun List<String>.matchRegexpList(item: String): Boolean {
     return this.any {
@@ -135,3 +139,15 @@ fun CharSequence.isNotGlobOrRegexp(): Boolean =
     !this.startsWith("regexp:") && !this.startsWith("glob:")
 fun CharSequence.isRegexp(): Boolean = this.startsWith("regexp:")
 
+fun IptvFlatServerConfig.remapEpgChannelId(epgChannelId: String): String {
+    for ((key, value) in epgRemapping) {
+        if (key.startsWith("regexp:")) {
+            val pattern = key.substringAfter("regexp:").toRegex()
+            if (pattern.matches(epgChannelId)) return epgChannelId.replace(pattern, value)
+        } else if (key == epgChannelId) {
+            return value
+        }
+    }
+
+    return epgChannelId
+}
