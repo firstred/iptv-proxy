@@ -35,6 +35,7 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
@@ -72,7 +73,11 @@ suspend fun RoutingContext.isReady(): Boolean {
     val health: HealthListener by getKoin().inject()
 
     if (!health.isReady()) {
-        call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
+        try {
+            call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
+        } catch (_: ChannelWriteException) {
+            // Client closed connection
+        }
         return false
     }
 
@@ -85,7 +90,11 @@ suspend fun RoutingContext.isLive(): Boolean {
     val health: HealthListener by getKoin().inject()
 
     if (!health.isLive()) {
-        call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
+        try {
+            call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
+        } catch (_: ChannelWriteException) {
+            // Client closed connection
+        }
         return false
     }
 
@@ -153,12 +162,20 @@ fun Route.proxyRemotePlaylist() {
         try {
             user = findUserFromUrlInRoutingContext()
         } catch (_: Throwable) {
-            call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+            try {
+                call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
 
         val channelId = (call.parameters["streamid"] ?: run {
-            call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
+            try {
+                call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }).toUInt()
 
@@ -171,18 +188,22 @@ fun Route.proxyRemotePlaylist() {
                 )
             }
 
-            call.respondText(
-                channelManager.getChannelPlaylist(
-                    channelId,
-                    user,
-                    config.getActualBaseUrl(call.request),
-                    call.request.headers.filterHttpRequestHeaders(),
-                    call.request.queryParameters,
-                ) { headers ->
-                    headers.filterHttpResponseHeaders().entries()
-                        .forEach { (key, value) -> value.forEach { call.response.headers.append(key, it) } }
-                }
-            )
+            try {
+                call.respondText(
+                    channelManager.getChannelPlaylist(
+                        channelId,
+                        user,
+                        config.getActualBaseUrl(call.request),
+                        call.request.headers.filterHttpRequestHeaders(),
+                        call.request.queryParameters,
+                    ) { headers ->
+                        headers.filterHttpResponseHeaders().entries()
+                            .forEach { (key, value) -> value.forEach { call.response.headers.append(key, it) } }
+                    }
+                )
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
         }
     }
 }
@@ -200,7 +221,7 @@ suspend fun Route.rewriteRemotePlaylist(
     val outputWriter = outputStream.bufferedWriter(UTF_8)
     val server = channel.server
 
-    server.withConnection(server.config.timeouts.totalMilliseconds) { connection, _ ->
+    server.withConnection(server.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
         lateinit var response: HttpResponse
         val url = remoteUrl
         response = connection.httpClient.get(
@@ -235,38 +256,47 @@ suspend fun Route.rewriteRemotePlaylist(
             redirects++
         }
 
-        for (infoLine in response.body<String>().lines()) {
-            var infoLine = infoLine
+        val infoLines = response.body<String>().lines()
 
-            when {
-                // Only rewrite direct media URLs this time, no icons etc.
-                !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
-                    var newInfoLine = infoLine.trim(' ')
+        releaseConnectionEarly()
 
-                    // This is a stream URL
-                    if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
-                        newInfoLine = responseURI.resolve(newInfoLine).toString()
-                    }
+        try {
+            for (infoLine in infoLines) {
+                var infoLine = infoLine
 
-                    try {
-                        val remoteUrl = Url(newInfoLine).toEncodedJavaURI()
-                        val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
-                        val extension = remoteUrl.path.substringAfterLast('.', "")
+                when {
+                    // Only rewrite direct media URLs this time, no icons etc.
+                    !infoLine.trim(' ').startsWith("#") && infoLine.trim(' ').isNotBlank() -> {
+                        var newInfoLine = infoLine.trim(' ')
 
-                        infoLine = "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/${channel.id}/$fileName.$extension"
-                    } catch (e: URISyntaxException) {
-                        LOG.warn(
-                            "[{}] Error while parsing stream URL: {}, error: {}",
-                            user.username,
-                            infoLine,
-                            e.message,
-                        )
+                        // This is a stream URL
+                        if (!newInfoLine.startsWith("http://") && !newInfoLine.startsWith("https://")) {
+                            newInfoLine = responseURI.resolve(newInfoLine).toString()
+                        }
+
+                        try {
+                            val remoteUrl = Url(newInfoLine).toEncodedJavaURI()
+                            val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
+                            val extension = remoteUrl.path.substringAfterLast('.', "")
+
+                            infoLine =
+                                "${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/${channel.id}/$fileName.$extension"
+                        } catch (e: URISyntaxException) {
+                            LOG.warn(
+                                "[{}] Error while parsing stream URL: {}, error: {}",
+                                user.username,
+                                infoLine,
+                                e.message,
+                            )
+                        }
                     }
                 }
-            }
 
-            outputWriter.write("$infoLine\n")
-            outputWriter.flush()
+                outputWriter.write("$infoLine\n")
+                outputWriter.flush()
+            }
+        } catch (_: ChannelWriteException) {
+            // Client closed connection
         }
     }
 }
@@ -283,16 +313,28 @@ fun Route.proxyRemoteVideo() {
         try {
             user = findUserFromUrlInRoutingContext()
         } catch (_: Throwable) {
-            call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+            try {
+                call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
 
         val streamId = call.parameters["channelid"] ?: run {
-            call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
+            try {
+                call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
         val channel = channelRepository.getChannelById(streamId.toUInt()) ?: run {
-            call.respond(HttpStatusCode.NotFound, "Channel not found")
+            try{
+                call.respond(HttpStatusCode.NotFound, "Channel not found")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
 
@@ -310,37 +352,57 @@ fun Route.proxyRemoteHlsStream() {
 
         val channelId = (call.parameters["channelid"] ?: "").toLong()
         if (channelId < 0) {
-            call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
+            try {
+                call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
         val channel = channelRepository.getChannelById(channelId.toUInt()) ?: run {
-            call.respond(HttpStatusCode.NotFound, "Channel not found")
+            try {
+                call.respond(HttpStatusCode.NotFound, "Channel not found")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
 
         val remoteUrl = call.parameters["encryptedremoteurl"]?.aesDecryptFromHexString() ?: run {
-            call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            try {
+                call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
         if (!remoteUrl.hasSupportedScheme()) {
-            call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            try {
+                call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
+            }
             return@get
         }
 
         val remoteURI = Url(remoteUrl).toEncodedJavaURI()
 
         if (remoteUrl.isHlsPlaylist()) {
-            call.respondOutputStream(
-                contentType = ContentType("application", "x-mpegurl"),
-                status = HttpStatusCode.OK,
-            ) {
-                rewriteRemotePlaylist(
-                    this,
-                    user,
-                    channel,
-                    config.getActualBaseUrl(call.request),
-                    remoteURI,
-                )
+            try {
+                call.respondOutputStream(
+                    contentType = ContentType("application", "x-mpegurl"),
+                    status = HttpStatusCode.OK,
+                ) {
+                    rewriteRemotePlaylist(
+                        this,
+                        user,
+                        channel,
+                        config.getActualBaseUrl(call.request),
+                        remoteURI,
+                    )
+                }
+            } catch (_: ChannelWriteException) {
+                // Client closed connection
             }
         }
 
@@ -365,8 +427,12 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 
     val cachedResponseFile: String? = videoChunkCache.get(responseURI.toString())
     if (null != cachedResponseFile) {
-        call.respondBytesWriter {
-            File(cachedResponseFile).inputStream().toByteReadChannel().copyAndClose(this)
+        try {
+            call.respondBytesWriter {
+                File(cachedResponseFile).inputStream().toByteReadChannel().copyAndClose(this)
+            }
+        } catch (_: ChannelWriteException) {
+            // Client closed connection
         }
         return
     }
@@ -422,37 +488,41 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                             }
                         }
 
-                        call.respondBytesWriter(
-                            contentType = response.contentType(),
-                            status = response.status,
-                            contentLength = response.contentLength(),
-                        ) {
-                            val output = this
+                        try {
+                            call.respondBytesWriter(
+                                contentType = response.contentType(),
+                                status = response.status,
+                                contentLength = response.contentLength(),
+                            ) {
+                                val output = this
 
-                            var totalCache = byteArrayOf()
-                            val channel = response.bodyAsChannel()
+                                var totalCache = byteArrayOf()
+                                val channel = response.bodyAsChannel()
 
-                            while (!channel.exhausted()) {
-                                val chunk = channel.readRemaining(16_384).readByteArray()
-                                totalCache += chunk
+                                while (!channel.exhausted()) {
+                                    val chunk = channel.readRemaining(16_384).readByteArray()
+                                    totalCache += chunk
 
-                                output.writeFully(chunk)
-                            }
+                                    output.writeFully(chunk)
+                                }
 
-                            // Immediately release the connection after the read channel is closed
-                            releaseConnectionEarly()
+                                // Immediately release the connection after the read channel is closed
+                                releaseConnectionEarly()
 
-                            if ("video/mp2t" == response.headers["Content-Type"]?.lowercase()) {
-                                // Cache the video chunk
-                                responseURI.let { responseURI -> totalCache.let { totalCache ->
-                                    cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
-                                        val file = File(fileName)
-                                        file.writeBytes(totalCache)
+                                if ("video/mp2t" == response.headers["Content-Type"]?.lowercase()) {
+                                    // Cache the video chunk
+                                    responseURI.let { responseURI -> totalCache.let { totalCache ->
+                                        cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
+                                            val file = File(fileName)
+                                            file.writeBytes(totalCache)
 
-                                        true
+                                            true
+                                        } }
                                     } }
-                                } }
+                                }
                             }
+                        } catch (_: ChannelWriteException) {
+                            // Client closed connection
                         }
                     }
                 }

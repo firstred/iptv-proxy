@@ -14,6 +14,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
@@ -29,7 +30,11 @@ fun Route.images() {
             try {
                 findUserFromEncryptedAccountInRoutingContext()
             } catch (_: Throwable) {
-                call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+                try {
+                    call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
+                } catch (_: ChannelWriteException) {
+                    // Client closed connection
+                }
                 return@get
             }
 
@@ -39,7 +44,11 @@ fun Route.images() {
             if (!remoteUrl.hasSupportedScheme()) {
                 LOG.warn("Remote url must start with http(s):// - actual: {}", remoteUrl)
 
-                call.respond(HttpStatusCode.NotFound)
+                try {
+                    call.respond(HttpStatusCode.NotFound)
+                } catch (_: ChannelWriteException) {
+                    // Client closed connection
+                }
                 return@get
             }
 
@@ -58,9 +67,13 @@ fun Route.images() {
                     }
                 }
 
-                call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
-                    response.bodyAsChannel().copyAndClose(this)
-                    flushAndClose()
+                try {
+                    call.respondBytesWriter(response.contentType(), response.status, response.contentLength()) {
+                        response.bodyAsChannel().copyAndClose(this)
+                        flushAndClose()
+                    }
+                } catch (_: ChannelWriteException) {
+                    // Client closed connection
                 }
             }
         }

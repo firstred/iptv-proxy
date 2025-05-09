@@ -5,6 +5,7 @@ import io.github.firstred.iptvproxy.plugins.isNotHealthcheckPort
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import io.ktor.util.cio.*
 import org.koin.ktor.ext.inject
 
 fun Route.healthcheck() {
@@ -30,17 +31,25 @@ fun Route.healthcheck() {
 }
 
 private suspend fun RoutingContext.handleLive(health: HealthListener) {
-    if (health.isLive()) {
-        call.respondText("OK")
-    } else {
-        call.respondText("NOT LIVE", status = HttpStatusCode.ServiceUnavailable)
+    try {
+        if (health.isLive()) {
+            call.respondText("OK")
+        } else {
+            call.respondText("NOT LIVE", status = HttpStatusCode.ServiceUnavailable)
+        }
+    } catch (_: ChannelWriteException) {
+        // Client closed connection
     }
 }
 
 private suspend fun RoutingContext.handleReady(health: HealthListener) {
-    if (health.isReady()) {
-        call.respondText("OK")
-    } else {
-        call.respondText("NOT READY", status = HttpStatusCode.ServiceUnavailable)
+    try {
+        if (health.isReady()) {
+            call.respondText("OK")
+        } else {
+            call.respondText("NOT READY", status = HttpStatusCode.ServiceUnavailable)
+        }
+    } catch (_: ChannelWriteException) {
+        // Client closed connection
     }
 }
