@@ -23,6 +23,8 @@ interface IIptvServerConfigWithoutAccounts {
 
     val userAgent: String?
 
+    val epgRemapping: Map<String, String>
+
     fun getEpgUrl(): URI?
     fun getPlaylistUrl(): URI?
 }

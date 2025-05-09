@@ -26,6 +26,8 @@ data class IptvFlatServerConfig(
     override val groupFilters: List<@Serializable(RegexPatternSerializer::class) Pattern> = emptyList(),
 
     override val userAgent: String? = null,
+
+    override val epgRemapping: Map<String, String> = mapOf(),
 ) : IIptvServerConfigWithoutAccounts {
     fun toIptvServerConfig(idx: UInt): IptvServerConfig = IptvServerConfig(
         name = name,
@@ -39,6 +41,7 @@ data class IptvFlatServerConfig(
         timeouts = timeouts,
         groupFilters = groupFilters,
         userAgent = userAgent,
+        epgRemapping = epgRemapping,
     )
 
     override fun getEpgUrl(): URI? {

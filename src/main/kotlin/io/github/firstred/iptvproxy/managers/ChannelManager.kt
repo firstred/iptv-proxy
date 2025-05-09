@@ -138,7 +138,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     val channelReference = (server.name + "||" + m3uChannel.url).hash()
 
                     addNewChannel(channelReference, newChannels[channelReference] ?: let {
-                        val tvgId: String = m3uChannel.props["tvg-id"] ?: ""
+                        val tvgId: String = server.config.epgRemapping[(m3uChannel.props["tvg-id"] ?: "")] ?: m3uChannel.props["tvg-id"] ?: ""
                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
 
                         if (server.config.groupFilters.isNotEmpty()) {
@@ -179,7 +179,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             externalPosition = ++externalIndex,
                             logo = logo,
                             groups = m3uChannel.groups,
-                            epgId = m3uChannel.props["tvg-id"],
+                            epgId = tvgId,
                             catchupDays = days,
                             url = Url(m3uChannel.url).toEncodedJavaURI(),
                             server = server,
