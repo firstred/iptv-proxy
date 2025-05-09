@@ -14,7 +14,7 @@ val userModule = module {
         val users = IptvUsersByName()
 
         config.users.forEach {
-            users[it.username] = IptvUser(it.username, it.password, it.maxConnections)
+            users[it.username] = it.toIptvUser()
         }
 
         users

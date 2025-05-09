@@ -28,6 +28,7 @@ import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.github.firstred.iptvproxy.utils.toListFilters
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -54,7 +55,6 @@ import java.io.OutputStream
 import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
-import java.util.regex.Pattern
 import java.util.zip.GZIPInputStream
 import kotlin.text.Charsets.UTF_8
 
@@ -345,8 +345,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         val encryptedAccount = user.toEncryptedAccountHexString()
 
         outputWriter.write("#EXTM3U\n")
-
-        channelRepository.forEachIptvChannelChunk { chunk ->
+        channelRepository.forEachIptvChannelChunk(listFilters = user.toListFilters()) { chunk ->
             chunk.filterNot { null == it.id }.forEach { channel: IptvChannel ->
                 outputWriter.write("#EXTINF:-1")
                 outputWriter.write(" tvg-id=\"")
@@ -414,6 +413,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 outputWriter.flush()
             }
         }
+
     }
 
     private fun scheduleChannelCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {

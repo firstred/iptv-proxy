@@ -10,10 +10,18 @@ data class IptvProxyUserConfig(
     val username: String = "",
     val password: String = "",
     @Serializable(with = UIntWithUnderscoreSerializer::class) val maxConnections: UInt = defaultMaxConnections,
+    val channelBlacklist: List<String> = emptyList(),
+    val channelWhitelist: List<String> = emptyList(),
+    val categoryBlacklist: List<String> = emptyList(),
+    val categoryWhitelist: List<String> = emptyList(),
 ) {
     fun toIptvUser(): IptvUser = IptvUser(
         username = username,
         password = password,
         maxConnections = maxConnections,
+        channelBlacklist = channelBlacklist,
+        channelWhitelist = channelWhitelist,
+        categoryBlacklist = categoryBlacklist,
+        categoryWhitelist = categoryWhitelist,
     )
 }

@@ -6,6 +6,7 @@ import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.AppDataTable
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
+import io.github.firstred.iptvproxy.utils.db.SQLiteWithRegexpDialect
 import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.ktor.server.application.*
 import kotlinx.coroutines.CoroutineScope
@@ -17,8 +18,14 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
+import org.jetbrains.exposed.sql.vendors.SQLiteDialect
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import org.sqlite.Function
+import org.sqlite.SQLiteConnection
+import java.sql.SQLException
+import java.util.regex.Pattern
+import kotlin.jvm.java
 
 private val LOG: Logger = LoggerFactory.getLogger("DatabasePlugin")
 
@@ -67,7 +74,24 @@ fun Application.configureDatabase() {
         .dataSource(dataSource)
         .load().migrate()
 
-    Database.connect(dataSource)
+    // Override sqlite regexp functionality
+    Database.registerDialect(SQLiteDialect.dialectName) { SQLiteWithRegexpDialect() }
+    Database.connect(
+        datasource = dataSource,
+        setupConnection = {
+            Function.create(it.unwrap(SQLiteConnection::class.java), "REGEXP", object : Function() {
+                @Throws(SQLException::class)
+                protected override fun xFunc() {
+                    val expression: String = value_text(0) ?: ""
+                    var value: String? = value_text(1) ?: ""
+                    if (value == null) value = ""
+
+                    val pattern: Pattern = Pattern.compile(expression)
+                    result(if (pattern.matcher(value).find()) 1 else 0)
+                }
+            })
+        },
+    )
 
     transaction {
         AppDataTable.upsert {
