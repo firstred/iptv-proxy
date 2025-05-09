@@ -15,6 +15,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.flywaydb.core.Flyway
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.DatabaseConfig
 import org.jetbrains.exposed.sql.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
@@ -45,10 +46,10 @@ val dataSource = HikariDataSource(HikariConfig().apply {
             addDataSourceProperty("journal_mode", "MEMORY")
         }
         if (!dataSourcePropertyKeys.contains("cache_size")) {
-            addDataSourceProperty("cache_size", "-256000")
+            addDataSourceProperty("cache_size", "-512000")
         }
         if (!dataSourcePropertyKeys.contains("shared_cache")) {
-            addDataSourceProperty("shared_cache", "true")
+            addDataSourceProperty("shared_cache", "false")
         }
     }
 
@@ -76,6 +77,11 @@ fun Application.configureDatabase() {
     // Override sqlite regexp functionality
     Database.registerDialect(SQLiteWithRegexpDialect.dialectName) { SQLiteWithRegexpDialect() }
     Database.connect(
+        databaseConfig = DatabaseConfig {
+            defaultMaxAttempts = 9_999
+            defaultMinRetryDelay = 500
+            defaultMaxRetryDelay = 10_000
+        },
         datasource = dataSource,
         setupConnection = {
             Function.create(it.unwrap(SQLiteConnection::class.java), "REGEXP", object : Function() {
