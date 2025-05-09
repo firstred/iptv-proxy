@@ -1,8 +1,8 @@
 package io.github.firstred.iptvproxy.db.repositories
 
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
-import io.github.firstred.iptvproxy.db.tables.channels.LiveStreamTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelDisplayNameTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgChannelTable
 import io.github.firstred.iptvproxy.db.tables.epg.EpgProgrammeAudioTable
@@ -25,6 +25,8 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvRating
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvSubtitle
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvSubtitleLanguage
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
+import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.toListFilters
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.JoinType
@@ -39,7 +41,6 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.unionAll
 import org.jetbrains.exposed.sql.upsert
 
 class EpgRepository {
@@ -57,7 +58,7 @@ class EpgRepository {
 
             var channelIds = listOf<String>()
             doc.channels?.let {
-                upsertXmltvChannelsForServer(it, server)
+                upsertXmltvChannels(it)
                 it.forEach { channel ->
                     if (null != channel.id) channelIds = channelIds + channel.id
                 }
@@ -65,7 +66,7 @@ class EpgRepository {
 
             doc.programmes
                 ?.filter { it.channel in channelIds }
-                ?.let { upsertXmltvProgrammesForServer(it, server) }
+                ?.let { upsertXmltvProgrammes(it) }
         }
     }
 
@@ -86,7 +87,7 @@ class EpgRepository {
         }
     }
 
-    fun upsertXmltvChannelsForServer(channels: List<XmltvChannel>, server: String) {
+    fun upsertXmltvChannels(channels: List<XmltvChannel>) {
         transaction {
             channels.filter { null != it.id }.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
                 val epgChannelDisplayNames = mutableMapOf<String, List<XmltvText>>()
@@ -118,26 +119,26 @@ class EpgRepository {
         }
     }
 
-    fun upsertXmltvProgrammesForServer(programmes: List<XmltvProgramme>, server: String) {
+    fun upsertXmltvProgrammes(programmes: List<XmltvProgramme>) {
         transaction {
             programmes.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
-                val programmeCategories = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvText>>()
-                val programmeEpisodes = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvEpisodeNum>>()
-                val programmeRatings = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvRating>>()
-                val programmePreviouslyShown = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvProgrammePreviouslyShown>>()
-                val programmeAudio = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvAudioStereo>>()
-                val programmeSubtitles = mutableMapOf<Pair<String, XmltvProgramme>, List<XmltvSubtitleLanguage>>()
+                val programmeCategories = mutableMapOf<XmltvProgramme, List<XmltvText>>()
+                val programmeEpisodes = mutableMapOf<XmltvProgramme, List<XmltvEpisodeNum>>()
+                val programmeRatings = mutableMapOf<XmltvProgramme, List<XmltvRating>>()
+                val programmePreviouslyShown = mutableMapOf<XmltvProgramme, List<XmltvProgrammePreviouslyShown>>()
+                val programmeAudio = mutableMapOf<XmltvProgramme, List<XmltvAudioStereo>>()
+                val programmeSubtitles = mutableMapOf<XmltvProgramme, List<XmltvSubtitleLanguage>>()
 
                 EpgProgrammeTable.batchUpsert(
                     data = chunk,
                     shouldReturnGeneratedValues = false,
                 ) { programme ->
-                    programmeCategories[Pair(server ,programme)] = programme.category ?: listOf()
-                    programmeEpisodes[Pair(server ,programme)] = programme.episodeNumbers ?: listOf()
-                    programmeRatings[Pair(server ,programme)] = programme.rating ?: listOf()
-                    programmePreviouslyShown[Pair(server ,programme)] = programme.previouslyShown ?: listOf()
-                    programmeAudio[Pair(server ,programme)] = programme.audio?.stereo ?: listOf()
-                    programmeSubtitles[Pair(server ,programme)] = programme.subtitles?.flatMap { it.value ?: listOf() } ?: listOf()
+                    programmeCategories[programme] = programme.category ?: listOf()
+                    programmeEpisodes[programme] = programme.episodeNumbers ?: listOf()
+                    programmeRatings[programme] = programme.rating ?: listOf()
+                    programmePreviouslyShown[programme] = programme.previouslyShown ?: listOf()
+                    programmeAudio[programme] = programme.audio?.stereo ?: listOf()
+                    programmeSubtitles[programme] = programme.subtitles?.flatMap { it.value ?: listOf() } ?: listOf()
 
                     this[EpgProgrammeTable.start] = programme.start
                     this[EpgProgrammeTable.stop] = programme.stop
@@ -151,9 +152,7 @@ class EpgRepository {
 
                 // Upsert the XMLTV programme categories
                 EpgProgrammeCategoryTable.batchUpsert(
-                    data = programmeCategories.flatMap { (pair, categories) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmeCategories.flatMap { (programme, categories) ->
                         categories.map { category -> Triple(programme.channel, programme.start, category) }
                     },
                     shouldReturnGeneratedValues = false,
@@ -166,9 +165,7 @@ class EpgRepository {
 
                 // Upsert the XMLTV programme episodes
                 EpgProgrammeEpisodeNumberTable.batchUpsert(
-                    data = programmeEpisodes.flatMap { (pair, episodes) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmeEpisodes.flatMap { (programme, episodes) ->
                         episodes.map { episode -> Triple(programme.channel, programme.start, episode) }
                     },
                     shouldReturnGeneratedValues = false,
@@ -181,9 +178,7 @@ class EpgRepository {
 
                 // Upsert the XMLTV programme ratings
                 EpgProgrammeRatingTable.batchUpsert(
-                    data = programmeRatings.flatMap { (pair, ratings) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmeRatings.flatMap { (programme, ratings) ->
                         ratings.map { rating -> Triple(programme.channel, programme.start, rating) }
                     },
                     shouldReturnGeneratedValues = false,
@@ -196,9 +191,7 @@ class EpgRepository {
 
                 // Upsert the XMLTV programme previously shown
                 EpgProgrammePreviouslyShownTable.batchUpsert(
-                    data = programmePreviouslyShown.flatMap { (pair, previouslyShown) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmePreviouslyShown.flatMap { (programme, previouslyShown) ->
                         previouslyShown.map { shown -> Triple(programme.channel, programme.start, shown) }
                     }.filter { null != it.third.start },
                     shouldReturnGeneratedValues = false,
@@ -210,9 +203,7 @@ class EpgRepository {
 
                 // Upsert the XMLTV programme audio
                 EpgProgrammeAudioTable.batchUpsert(
-                    data = programmeAudio.flatMap { (pair, audio) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmeAudio.flatMap { (programme, audio) ->
                         audio.map { audio -> Triple(programme.channel, programme.start, audio) }
                     },
                     shouldReturnGeneratedValues = false,
@@ -223,9 +214,7 @@ class EpgRepository {
                 }
 
                 EpgProgrammeSubtitlesTable.batchUpsert(
-                    data = programmeSubtitles.flatMap { (pair, subtitles) ->
-                        val server = pair.first
-                        val programme = pair.second
+                    data = programmeSubtitles.flatMap { (programme, subtitles) ->
                         subtitles.map { subtitle -> Triple(programme.channel, programme.start, subtitle) }
                     },
                     shouldReturnGeneratedValues = false,
@@ -240,15 +229,15 @@ class EpgRepository {
     }
 
     fun forEachEpgChannelChunk(
-        server: String? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         sortedByName: Boolean = config.sortChannelsByName,
         trimEpg: Boolean = config.trimEpg,
+        forUser: IptvUser? = null,
         action: (List<XmltvChannel>) -> Unit,
     ) {
         var offset = 0L
 
-        val usedIds = findAllUsedEpgChannelIds()
+        val usedIds = findAllUsedEpgChannelIds(user = forUser)
 
         do {
             val epgChannelQuery = EpgChannelTable
@@ -292,13 +281,13 @@ class EpgRepository {
     }
 
     fun forEachEpgProgrammeChunk(
-        server: String? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
+        forUser: IptvUser? = null,
         action: (List<XmltvProgramme>) -> Unit,
     ) {
         var offset = 0L
 
-        val usedIds = findAllUsedEpgChannelIds()
+        val usedIds = findAllUsedEpgChannelIds(user = forUser)
 
         do {
             val programmeQuery = EpgProgrammeTable
@@ -587,9 +576,14 @@ class EpgRepository {
         emptyList()
     }
 
-    fun findAllUsedEpgChannelIds(): List<String> = transaction {
-        ChannelTable.select(ChannelTable.epgChannelId)
-            .unionAll(LiveStreamTable.select(LiveStreamTable.epgChannelId))
+    fun findAllUsedEpgChannelIds(user: IptvUser? = null): List<String> = transaction {
+        val channelQuery = ChannelTable.select(ChannelTable.epgChannelId)
+        user?.let {
+            it.toListFilters().applyToQuery(channelQuery, ChannelTable.name, ChannelTable.mainGroup)
+            if (!it.moviesEnabled) channelQuery.andWhere { ChannelTable.type neq IptvChannelType.movie }
+            if (!it.seriesEnabled) channelQuery.andWhere { ChannelTable.type neq IptvChannelType.series }
+        }
+        channelQuery
             .withDistinct(true).mapNotNull { it[ChannelTable.epgChannelId]?.ifBlank { null } }
             .distinct()
     }

@@ -3,9 +3,9 @@ package io.github.firstred.iptvproxy.db.tables
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.dao.id.UIntIdTable
 import org.jetbrains.exposed.sql.json.json
-import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import io.github.firstred.iptvproxy.serialization.json as jsonSerializer
 
@@ -18,14 +18,14 @@ object ChannelTable : UIntIdTable("channel") {
     val server = varchar("server", maxServerNameLength)
     val icon = text("icon").nullable()
     val name = text("name")
-    val mainGroup = text("main_group").nullable()
+    val mainGroup = text("main_group")
     val groups = json<Array<String>>("groups", jsonSerializer).default(emptyArray())
     val catchupDays = uinteger("catchup_days").nullable()
     val m3uProps = json<Map<String, String>>("m3u_props", jsonSerializer).default(emptyMap())
     val vlcOpts = json<Map<String, String>>("vlc_opts", jsonSerializer).default(emptyMap())
     val type = enumerationByName(name = "type", length = IptvChannelType.maxDbLength, klass = IptvChannelType::class)
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
+    val createdAt = timestamp("created_at").default(Clock.System.now())
+    val updatedAt = timestamp("updated_at").default(Clock.System.now())
 
     init {
         uniqueIndex(

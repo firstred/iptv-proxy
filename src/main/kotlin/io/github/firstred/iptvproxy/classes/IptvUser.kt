@@ -2,7 +2,6 @@ package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.serialization.serializers.UIntWithUnderscoreSerializer
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
-import io.github.firstred.iptvproxy.utils.matchRegexpList
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.serialization.Serializable
 
@@ -15,6 +14,8 @@ class IptvUser(
     val channelWhitelist: List<String> = emptyList(),
     val categoryBlacklist: List<String> = emptyList(),
     val categoryWhitelist: List<String> = emptyList(),
+    val moviesEnabled: Boolean = true,
+    val seriesEnabled: Boolean = true,
 ) {
     val semaphore = Semaphore(maxConnections.toInt())
 

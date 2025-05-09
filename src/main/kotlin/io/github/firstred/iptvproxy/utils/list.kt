@@ -2,6 +2,10 @@ package io.github.firstred.iptvproxy.utils
 
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyUserConfig
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Query
+import org.jetbrains.exposed.sql.andWhere
+import org.jetbrains.exposed.sql.compoundOr
 
 fun List<String>.matchRegexpList(item: String): Boolean {
     return this.any {
@@ -67,6 +71,49 @@ data class ListFilters(
                 || categoryBlacklist.isNotEmpty()
                 || channelWhitelist.isNotEmpty()
                 || categoryWhitelist.isNotEmpty()
+    }
+
+    fun applyToQuery(query: Query, nameColumn: Column<String>, categoryColumn: Column<String>): Query {
+        if (isNotEmpty()) {
+            if (isWhiteListOnly()) {
+                query.andWhere {
+                    (listOf(
+                        nameColumn inList channelWhitelist.filter(String::isNotGlobOrRegexp),
+                        categoryColumn inList categoryWhitelist.filter(String::isNotGlobOrRegexp),
+                    )
+                            + channelWhitelist.filter(String::isRegexp).map {
+                        nameColumn regexp it.substringAfter(":")
+                    }
+                            + categoryWhitelist.filter(String::isRegexp).map {
+                        categoryColumn regexp it.substringAfter(":")
+                    }
+                            ).compoundOr()
+                }
+            } else if (isNotEmpty() && isFilterActive()) {
+                if (channelBlacklist.isNotEmpty()) {
+                    query.andWhere {
+                        nameColumn notInList categoryBlacklist.filter(String::isNotGlobOrRegexp)
+                    }
+                    channelBlacklist.filter(String::isRegexp).forEach {
+                        query.andWhere {
+                            nameColumn regexp it.substringAfter(":")
+                        }
+                    }
+                }
+                if (categoryBlacklist.isNotEmpty()) {
+                    query.andWhere {
+                        categoryColumn notInList channelBlacklist.filter(String::isNotGlobOrRegexp)
+                    }
+                    categoryBlacklist.filter(String::isRegexp).forEach {
+                        query.andWhere {
+                            categoryColumn regexp it.substringAfter(":")
+                        }
+                    }
+                }
+            }
+        }
+
+        return query
     }
 }
 

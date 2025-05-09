@@ -96,7 +96,7 @@ fun Route.xtreamApi() {
         val encryptedAccount = user.toEncryptedAccountHexString()
         call.respondTextWriter {
             write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
-            epgRepository.forEachEpgChannelChunk {
+            epgRepository.forEachEpgChannelChunk(forUser = user) {
                 it.forEach { row ->
                     write(
                         xml.encodeToString(
@@ -113,7 +113,7 @@ fun Route.xtreamApi() {
                     flush()
                 }
             }
-            epgRepository.forEachEpgProgrammeChunk {
+            epgRepository.forEachEpgProgrammeChunk(forUser = user) {
                 it.forEach { row ->
                     write(xml.encodeToString(XmltvProgramme.serializer(), row))
                     flush()
@@ -148,7 +148,7 @@ fun Route.xtreamApi() {
                     write("[")
 
                     var first = true
-                    xtreamRepository.forEachLiveStreamChunk(categoryId = categoryId) { list ->
+                    xtreamRepository.forEachLiveStreamChunk(categoryId = categoryId, forUser = user) { list ->
                         list.forEachIndexed { idx, it ->
                             if (!first) write(",")
                             else first = false

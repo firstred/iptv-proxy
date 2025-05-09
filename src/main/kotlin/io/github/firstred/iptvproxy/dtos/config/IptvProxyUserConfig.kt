@@ -14,6 +14,8 @@ data class IptvProxyUserConfig(
     val channelWhitelist: List<String> = emptyList(),
     val categoryBlacklist: List<String> = emptyList(),
     val categoryWhitelist: List<String> = emptyList(),
+    val moviesEnabled: Boolean = true,
+    val seriesEnabled: Boolean = true,
 ) {
     fun toIptvUser(): IptvUser = IptvUser(
         username = username,
@@ -23,5 +25,7 @@ data class IptvProxyUserConfig(
         channelWhitelist = channelWhitelist,
         categoryBlacklist = categoryBlacklist,
         categoryWhitelist = categoryWhitelist,
+        moviesEnabled = moviesEnabled,
+        seriesEnabled = seriesEnabled,
     )
 }

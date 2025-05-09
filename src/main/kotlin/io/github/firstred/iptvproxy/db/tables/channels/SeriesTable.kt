@@ -2,8 +2,8 @@ package io.github.firstred.iptvproxy.db.tables.channels
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object SeriesTable : Table("series") {
@@ -25,8 +25,8 @@ object SeriesTable : Table("series") {
     val youtubeTrailer = varchar("youtube_trailer", defaultVarcharLength).nullable()
     val tmdb = uinteger("tmdb").nullable()
     val episodeRunTime = varchar("episode_run_time", defaultVarcharLength).nullable()
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
+    val createdAt = timestamp("created_at").default(Clock.System.now())
+    val updatedAt = timestamp("updated_at").default(Clock.System.now())
 
     override val primaryKey = PrimaryKey(arrayOf(server, externalSeriesId))
 

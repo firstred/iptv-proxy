@@ -1,11 +1,9 @@
 package io.github.firstred.iptvproxy.dtos.config
 
-import io.github.firstred.iptvproxy.serialization.serializers.RegexPatternSerializer
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import java.net.URI
-import java.util.regex.Pattern
 import kotlin.time.Duration
 
 @Serializable

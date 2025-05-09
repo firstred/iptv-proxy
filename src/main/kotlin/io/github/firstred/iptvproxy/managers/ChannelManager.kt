@@ -28,7 +28,6 @@ import io.github.firstred.iptvproxy.utils.dispatchHook
 import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
-import io.github.firstred.iptvproxy.utils.toListFilters
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -345,7 +344,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         val encryptedAccount = user.toEncryptedAccountHexString()
 
         outputWriter.write("#EXTM3U\n")
-        channelRepository.forEachIptvChannelChunk(listFilters = user.toListFilters()) { chunk ->
+        channelRepository.forEachIptvChannelChunk(forUser = user) { chunk ->
             chunk.filterNot { null == it.id }.forEach { channel: IptvChannel ->
                 outputWriter.write("#EXTINF:-1")
                 outputWriter.write(" tvg-id=\"")

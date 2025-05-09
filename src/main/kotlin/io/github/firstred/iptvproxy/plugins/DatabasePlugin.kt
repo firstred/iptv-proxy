@@ -18,14 +18,12 @@ import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.ExperimentalDatabaseMigrationApi
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
-import org.jetbrains.exposed.sql.vendors.SQLiteDialect
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.sqlite.Function
 import org.sqlite.SQLiteConnection
 import java.sql.SQLException
 import java.util.regex.Pattern
-import kotlin.jvm.java
 
 private val LOG: Logger = LoggerFactory.getLogger("DatabasePlugin")
 
@@ -72,10 +70,11 @@ fun Application.configureDatabase() {
     Flyway.configure()
         .locations("classpath:db/migrations/$databaseSystem")
         .dataSource(dataSource)
+        .placeholderReplacement(false)
         .load().migrate()
 
     // Override sqlite regexp functionality
-    Database.registerDialect(SQLiteDialect.dialectName) { SQLiteWithRegexpDialect() }
+    Database.registerDialect(SQLiteWithRegexpDialect.dialectName) { SQLiteWithRegexpDialect() }
     Database.connect(
         datasource = dataSource,
         setupConnection = {

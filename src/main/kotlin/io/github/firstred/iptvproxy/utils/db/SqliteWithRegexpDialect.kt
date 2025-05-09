@@ -1,30 +1,41 @@
 package io.github.firstred.iptvproxy.utils.db
 
 import org.jetbrains.exposed.exceptions.UnsupportedByDialectException
-import org.jetbrains.exposed.sql.vendors.DataTypeProvider
-
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Expression
+import org.jetbrains.exposed.sql.GroupConcat
+import org.jetbrains.exposed.sql.IColumnType
+import org.jetbrains.exposed.sql.Index
+import org.jetbrains.exposed.sql.Op
+import org.jetbrains.exposed.sql.QueryBuilder
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.append
+import org.jetbrains.exposed.sql.appendTo
+import org.jetbrains.exposed.sql.exposedLogger
 import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.sql.vendors.DataTypeProvider
 import org.jetbrains.exposed.sql.vendors.FunctionProvider
-import org.jetbrains.exposed.sql.vendors.MysqlDialect
 import org.jetbrains.exposed.sql.vendors.VendorDialect
 import org.jetbrains.exposed.sql.vendors.currentDialect
-
-internal fun String.inProperCase(): String =
-    TransactionManager.currentOrNull()?.db?.identifierManager?.inProperCase(this@inProperCase) ?: this
 
 internal fun Transaction.throwUnsupportedException(message: String): Nothing = throw UnsupportedByDialectException(
     message,
     db.dialect
 )
 
-object SQLiteDataTypeProvider : DataTypeProvider() {
+internal fun String.inProperCase(): String =
+    TransactionManager.currentOrNull()?.db?.identifierManager?.inProperCase(this@inProperCase) ?: this
+
+
+internal object SQLiteDataTypeProvider : DataTypeProvider() {
     override fun integerAutoincType(): String = "INTEGER PRIMARY KEY AUTOINCREMENT"
     override fun longAutoincType(): String = "INTEGER PRIMARY KEY AUTOINCREMENT"
     override fun ulongAutoincType(): String = "INTEGER PRIMARY KEY AUTOINCREMENT"
     override fun floatType(): String = "SINGLE"
     override fun binaryType(): String = "BLOB"
     override fun dateTimeType(): String = "TEXT"
+    override fun timestampType(): String = "BIGINT"
     override fun timestampWithTimeZoneType(): String = "TEXT"
     override fun dateType(): String = "TEXT"
     override fun booleanToStatementString(bool: Boolean) = if (bool) "1" else "0"
@@ -85,6 +96,15 @@ internal object SQLiteFunctionProvider : FunctionProvider() {
         append("INSTR(", expr, ",\'", substring, "\')")
     }
 
+    override fun <T : String?> regexp(
+        expr1: Expression<T>,
+        pattern: Expression<String>,
+        caseSensitive: Boolean,
+        queryBuilder: QueryBuilder
+    ): Unit = queryBuilder {
+        append("REGEXP(", pattern, ", ", expr1, ")")
+    }
+
     override fun <T> time(expr: Expression<T>, queryBuilder: QueryBuilder) = queryBuilder {
         append(
             "SUBSTR(", expr, ", INSTR(", expr, ", ' ') + 1,\n",
@@ -99,15 +119,6 @@ internal object SQLiteFunctionProvider : FunctionProvider() {
             "        LENGTH(", expr, ")\n",
             "END- INSTR(", expr, ", ' '))"
         )
-    }
-
-    override fun <T : String?> regexp(
-        expr1: Expression<T>,
-        pattern: Expression<String>,
-        caseSensitive: Boolean,
-        queryBuilder: QueryBuilder
-    ): Unit = queryBuilder {
-        append("REGEXP(", pattern, ", ", expr1, ")")
     }
 
     override fun <T> year(expr: Expression<T>, queryBuilder: QueryBuilder): Unit = queryBuilder {
@@ -301,7 +312,7 @@ open class SQLiteWithRegexpDialect : VendorDialect(dialectName, SQLiteDataTypePr
 
     override val supportsWindowFrameGroupsMode: Boolean = true
 
-    override fun supportsLimitWithUpdateOrDelete(): Boolean = true
+    override fun supportsLimitWithUpdateOrDelete(): Boolean = false
 
     override fun isAllowedAsColumnDefault(e: Expression<*>): Boolean = true
 
@@ -336,6 +347,8 @@ open class SQLiteWithRegexpDialect : VendorDialect(dialectName, SQLiteDataTypePr
             replaceWith = ReplaceWith("currentDialect.supportsLimitWithUpdateOrDelete()"),
             level = DeprecationLevel.WARNING
         )
-        val ENABLE_UPDATE_DELETE_LIMIT: Boolean by lazy { true }
+        val ENABLE_UPDATE_DELETE_LIMIT: Boolean by lazy {
+            false
+        }
     }
 }

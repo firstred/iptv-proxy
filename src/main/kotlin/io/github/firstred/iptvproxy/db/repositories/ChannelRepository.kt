@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.db.repositories
 
 import io.github.firstred.iptvproxy.classes.IptvChannel
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
@@ -8,13 +9,9 @@ import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.enums.IptvChannelType
-import io.github.firstred.iptvproxy.utils.ListFilters
-import io.github.firstred.iptvproxy.utils.isFilterActive
-import io.github.firstred.iptvproxy.utils.isNotGlobOrRegexp
-import io.github.firstred.iptvproxy.utils.isRegexp
-import io.github.firstred.iptvproxy.utils.isWhiteListOnly
 import io.github.firstred.iptvproxy.utils.toChannelTypeOrNull
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
+import io.github.firstred.iptvproxy.utils.toListFilters
 import io.ktor.http.*
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -26,7 +23,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
-import org.jetbrains.exposed.sql.compoundOr
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.min
@@ -70,7 +66,7 @@ class ChannelRepository : KoinComponent {
                     this[ChannelTable.server] = channel.server.name
                     this[ChannelTable.name] = channel.name
                     this[ChannelTable.url] = channel.url.toString()
-                    this[ChannelTable.mainGroup] = channel.groups.firstOrNull()
+                    this[ChannelTable.mainGroup] = channel.groups.firstOrNull() ?: ""
                     this[ChannelTable.groups] = channel.groups.toTypedArray()
                     this[ChannelTable.type] = channel.type
                     this[ChannelTable.epgChannelId] = channel.epgId ?: ""
@@ -112,7 +108,7 @@ class ChannelRepository : KoinComponent {
 
     fun forEachIptvChannelChunk(
         server: String? = null,
-        listFilters: ListFilters? = null,
+        forUser: IptvUser? = null,
         sortedByName: Boolean = config.sortChannelsByName,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<IptvChannel>) -> Unit,
@@ -132,45 +128,10 @@ class ChannelRepository : KoinComponent {
                         ChannelTable.externalPosition to SortOrder.ASC
                     )
                 }
-                listFilters?.let { filters ->
-                    if (filters.isNotEmpty()) {
-                        if (filters.isWhiteListOnly()) {
-                            channelQuery.andWhere {
-                                (listOf(
-                                    ChannelTable.name inList filters.channelWhitelist.filter(String::isNotGlobOrRegexp),
-                                    ChannelTable.mainGroup inList filters.categoryWhitelist.filter(String::isNotGlobOrRegexp),
-                                )
-                                        + filters.channelWhitelist.filter(String::isRegexp).map {
-                                    ChannelTable.name regexp it.substringAfter(":")
-                                }
-                                        + filters.categoryWhitelist.filter(String::isRegexp).map {
-                                    ChannelTable.mainGroup regexp it.substringAfter(":")
-                                }
-                                        ).compoundOr()
-                            }
-                        } else if (filters.isNotEmpty() && filters.isFilterActive()) {
-                            if (filters.categoryBlacklist.isNotEmpty()) {
-                                channelQuery.andWhere {
-                                    ChannelTable.name notInList filters.channelBlacklist.filter(String::isNotGlobOrRegexp)
-                                }
-                                filters.categoryBlacklist.filter(String::isRegexp).forEach {
-                                    channelQuery.andWhere {
-                                        ChannelTable.mainGroup regexp it.substringAfter(":")
-                                    }
-                                }
-                            }
-                            if (filters.channelBlacklist.isNotEmpty()) {
-                                channelQuery.andWhere {
-                                    ChannelTable.mainGroup notInList filters.categoryBlacklist.filter(String::isNotGlobOrRegexp)
-                                }
-                                filters.channelBlacklist.filter(String::isRegexp).forEach {
-                                    channelQuery.andWhere {
-                                        ChannelTable.name regexp it.substringAfter(":")
-                                    }
-                                }
-                            }
-                        }
-                    }
+                forUser?.let {
+                    it.toListFilters().applyToQuery(channelQuery, ChannelTable.name, ChannelTable.mainGroup)
+                    if (!it.moviesEnabled) channelQuery.andWhere { ChannelTable.type eq IptvChannelType.movie }
+                    if (!it.seriesEnabled) channelQuery.andWhere { ChannelTable.type eq IptvChannelType.series }
                 }
                 channelQuery
                     .limit(chunkSize)
@@ -248,7 +209,7 @@ class ChannelRepository : KoinComponent {
             .where { CategoryTable.name.isNull() }
             .associateBy(
                 { it[ChannelTable.id].value },
-                { Pair(it[ChannelTable.server], it[ChannelTable.mainGroup]!!) }
+                { Pair(it[ChannelTable.server], it[ChannelTable.mainGroup]) }
             )
     }
 

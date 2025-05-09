@@ -2,8 +2,8 @@ package io.github.firstred.iptvproxy.db.tables.channels
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
+import kotlinx.datetime.Clock
 import org.jetbrains.exposed.sql.Table
-import org.jetbrains.exposed.sql.kotlin.datetime.CurrentTimestamp
 import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object LiveStreamTable : Table("live_stream") {
@@ -14,15 +14,15 @@ object LiveStreamTable : Table("live_stream") {
     val icon = text("icon").nullable()
     val thumbnail = text("thumbnail").nullable()
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength).nullable()
-    val added = timestamp("added").defaultExpression(CurrentTimestamp)
+    val added = timestamp("added").default(Clock.System.now())
     val isAdult = bool("is_adult").default(false)
     val mainCategoryId = uinteger("main_category_id").nullable()
     val customSid = varchar("custom_sid", defaultVarcharLength).nullable()
     val tvArchive = bool("tv_archive").default(false)
     val directSource = varchar("direct_source", defaultVarcharLength).default("")
     val tvArchiveDuration = uinteger("tv_archive_duration").default(0u)
-    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
-    val updatedAt = timestamp("updated_at").defaultExpression(CurrentTimestamp)
+    val createdAt = timestamp("created_at").default(Clock.System.now())
+    val updatedAt = timestamp("updated_at").default(Clock.System.now())
 
     override val primaryKey = PrimaryKey(arrayOf(server, externalStreamId))
 

@@ -14,8 +14,8 @@ create table category
     category_name        text                             not null,
     parent_id            bigint default 0                 not null,
     type                 varchar(31)                      not null,
-    created_at           text   default CURRENT_TIMESTAMP not null,
-    updated_at           text   default CURRENT_TIMESTAMP not null,
+    created_at           bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))       not null,
+    updated_at           bigint default(CAST((unixepoch('subsec') * 1000) AS BIGINT))       not null,
     constraint chk_category_unsigned_integer_id
         check (id between 0 and 4294967295),
     constraint chk_category_unsigned_integer_parent_id
@@ -38,14 +38,14 @@ create table channel
     server             varchar(127)                   not null,
     icon               text,
     name               text                           not null,
-    main_group         text,
+    main_group         text                           not null,
     groups             json                           not null,
     catchup_days       bigint,
     m3u_props          json                           not null,
     vlc_opts           json                           not null,
     type               varchar(31)                    not null,
-    created_at         text default CURRENT_TIMESTAMP not null,
-    updated_at         text default CURRENT_TIMESTAMP not null,
+    created_at         bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at         bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     constraint chk_channel_unsigned_integer_catchup_days
         check (catchup_days between 0 and 4294967295),
     constraint chk_channel_unsigned_integer_external_position
@@ -68,8 +68,8 @@ create table epg_channel
     epg_channel_id varchar(255)                   not null,
     icon           text,
     name           varchar(511)                   not null,
-    created_at     text default CURRENT_TIMESTAMP not null,
-    updated_at     text default CURRENT_TIMESTAMP not null,
+    created_at     bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at     bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     constraint pk_epg_channel
         primary key (epg_channel_id)
 );
@@ -86,14 +86,14 @@ create table epg_display_name
 create table epg_programme
 (
     epg_channel_id varchar(255)                   not null,
-    start          text                           not null,
-    stop           text                           not null,
+    start          bigint                           not null,
+    stop           bigint                           not null,
     title          text                           not null,
     subtitle       text                           not null,
     description    text                           not null,
     icon           text,
-    created_at     text default CURRENT_TIMESTAMP not null,
-    updated_at     text default CURRENT_TIMESTAMP not null,
+    created_at     bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at     bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     constraint pk_epg_programme
         primary key (epg_channel_id, start)
 );
@@ -101,7 +101,7 @@ create table epg_programme
 create table epg_programme_audio
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
+    programme_start bigint         not null,
     type            varchar(255) not null,
     value           varchar(255) not null,
     constraint pk_epg_programme_audio
@@ -111,7 +111,7 @@ create table epg_programme_audio
 create table epg_programme_category
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
+    programme_start bigint         not null,
     language        varchar(255) not null,
     category        text         not null,
     constraint pk_epg_programme_category
@@ -121,7 +121,7 @@ create table epg_programme_category
 create table epg_programme_episode_number
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
+    programme_start bigint         not null,
     system          varchar(255),
     number          varchar(255) not null,
     constraint pk_epg_programme_episode_number
@@ -131,8 +131,8 @@ create table epg_programme_episode_number
 create table epg_programme_previously_shown
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
-    previous_start  text         not null,
+    programme_start bigint         not null,
+    previous_start  bigint         not null,
     constraint pk_epg_programme_previously_shown
         primary key (epg_channel_id, programme_start)
 );
@@ -140,7 +140,7 @@ create table epg_programme_previously_shown
 create table epg_programme_rating
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
+    programme_start bigint         not null,
     system          varchar(255) not null,
     rating          varchar(255) not null,
     constraint pk_epg_programme_rating
@@ -150,7 +150,7 @@ create table epg_programme_rating
 create table epg_programme_subtitles
 (
     epg_channel_id  varchar(255) not null,
-    programme_start text         not null,
+    programme_start bigint         not null,
     language        varchar(255) not null,
     subtitle        text         not null,
     constraint pk_epg_programme_subtitles
@@ -165,15 +165,15 @@ create table live_stream
     external_stream_id  bigint                                 not null,
     icon                text,
     epg_channel_id      varchar(255),
-    added               text         default CURRENT_TIMESTAMP not null,
+    added               bigint         default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     is_adult            boolean      default 0                 not null,
     main_category_id    bigint,
     custom_sid          varchar(255),
     tv_archive          boolean      default 0                 not null,
     direct_source       varchar(255) default ''                not null,
     tv_archive_duration bigint       default 0                 not null,
-    created_at          text         default CURRENT_TIMESTAMP not null,
-    updated_at          text         default CURRENT_TIMESTAMP not null,
+    created_at          bigint         default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at          bigint         default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     thumbnail           text,
     constraint pk_live_stream
         primary key (server, external_stream_id),
@@ -220,14 +220,14 @@ create table movie
     rating_5based        single,
     tmdb                 bigint,
     youtube_trailer      varchar(255),
-    added                text    default CURRENT_TIMESTAMP not null,
+    added                bigint    default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     is_adult             boolean default 0                 not null,
     main_category_id     bigint,
     container_extension  varchar(16)                       not null,
     custom_sid           varchar(255),
     direct_source        text,
-    created_at           text    default CURRENT_TIMESTAMP not null,
-    updated_at           text    default CURRENT_TIMESTAMP not null,
+    created_at           bigint    default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at           bigint    default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     constraint pk_movie
         primary key (server, external_stream_id),
     constraint chk_movie_unsigned_integer_external_stream_id
@@ -263,9 +263,9 @@ create table playlist_source
 (
     server              varchar(127)                   not null
         primary key,
-    created_at          text default CURRENT_TIMESTAMP not null,
-    started_import_at   text default CURRENT_TIMESTAMP not null,
-    completed_import_at text default CURRENT_TIMESTAMP not null
+    created_at          bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    started_import_at   bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    completed_import_at bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null
 );
 
 create table series
@@ -288,8 +288,8 @@ create table series
     youtube_trailer  varchar(255),
     tmdb             bigint,
     episode_run_time varchar(255),
-    created_at       text   default CURRENT_TIMESTAMP not null,
-    updated_at       text   default CURRENT_TIMESTAMP not null,
+    created_at       bigint   default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    updated_at       bigint   default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
     constraint pk_series
         primary key (server, series_id),
     constraint chk_series_unsigned_integer_main_category_id
@@ -327,17 +327,17 @@ create table xmltv_source
     source_info_url     text,
     source_info_name    text,
     source_info_logo    text,
-    created_at          text default CURRENT_TIMESTAMP not null,
-    started_import_at   text default CURRENT_TIMESTAMP not null,
-    completed_import_at text default CURRENT_TIMESTAMP not null
+    created_at          bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))    not null,
+    started_import_at   bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))    not null,
+    completed_import_at bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))    not null
 );
 
 create table xtream_source
 (
     server              varchar(127)                   not null
         primary key,
-    created_at          text default CURRENT_TIMESTAMP not null,
-    started_import_at   text default CURRENT_TIMESTAMP not null,
-    completed_import_at text default CURRENT_TIMESTAMP not null
+    created_at          bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    started_import_at   bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null,
+    completed_import_at bigint default (CAST((unixepoch('subsec') * 1000) AS BIGINT))     not null
 );
 

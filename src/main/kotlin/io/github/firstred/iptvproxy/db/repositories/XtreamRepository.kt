@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.db.repositories
 
+import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.CategoryTable
 import io.github.firstred.iptvproxy.db.tables.ChannelTable
@@ -18,6 +19,7 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.toBoolean
+import io.github.firstred.iptvproxy.utils.toListFilters
 import io.github.firstred.iptvproxy.utils.toUInt
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -380,6 +382,7 @@ class XtreamRepository : KoinComponent {
         server: String? = null,
         sortedByName: Boolean = config.sortChannelsByName,
         categoryId: UInt? = null,
+        forUser: IptvUser? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamLiveStream>) -> Unit,
     ) {
@@ -431,6 +434,7 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(LiveStreamTable.externalStreamId, LiveStreamTable.server)
             server?.let { liveStreamQuery.where { LiveStreamTable.server eq it } }
+            forUser?.toListFilters()?.applyToQuery(liveStreamQuery, ChannelTable.name, ChannelTable.mainGroup)
             if (sortedByName) {
                 liveStreamQuery.orderBy(LiveStreamTable.name to SortOrder.ASC)
             } else {
@@ -454,6 +458,7 @@ class XtreamRepository : KoinComponent {
         type: IptvChannelType,
         sortedByName: Boolean = config.sortChannelsByName,
         server: String? = null,
+        forUser: IptvUser? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamCategory>) -> Unit,
     ) {
@@ -485,9 +490,12 @@ class XtreamRepository : KoinComponent {
         server: String? = null,
         sortedByName: Boolean = config.sortChannelsByName,
         categoryId: UInt? = null,
+        forUser: IptvUser? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamMovie>) -> Unit,
     ) {
+        if (!(forUser?.moviesEnabled ?: true)) return
+
         var offset = 0L
 
         do {
@@ -538,6 +546,7 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(MovieTable.externalStreamId, MovieTable.server)
             server?.let { movieQuery.where { MovieTable.server eq it } }
+            forUser?.toListFilters()?.applyToQuery(movieQuery, ChannelTable.name, ChannelTable.mainGroup)
             if (sortedByName) {
                 movieQuery.orderBy(MovieTable.name to SortOrder.ASC)
             } else {
@@ -562,9 +571,12 @@ class XtreamRepository : KoinComponent {
         server: String? = null,
         sortedByName: Boolean = false,
         categoryId: UInt? = null,
+        forUser: IptvUser? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamSeries>) -> Unit,
     ) {
+        if (!(forUser?.seriesEnabled ?: true)) return
+
         var offset = 0L
 
         do {
@@ -582,6 +594,12 @@ class XtreamRepository : KoinComponent {
                     onColumn = SeriesTable.externalSeriesId,
                     otherColumn = SeriesToCategoryTable.externalSeriesId,
                     additionalConstraint = { SeriesTable.server eq SeriesToCategoryTable.server },
+                )
+                .join(
+                    CategoryTable,
+                    JoinType.INNER,
+                    onColumn = SeriesToCategoryTable.categoryId,
+                    otherColumn = CategoryTable.id,
                 )
                 .select(
                     SeriesTable.num,
@@ -607,6 +625,7 @@ class XtreamRepository : KoinComponent {
                 )
                 .groupBy(SeriesTable.server, SeriesTable.externalSeriesId)
             server?.let { seriesQuery.where { SeriesTable.server eq it } }
+            forUser?.toListFilters()?.applyToQuery(seriesQuery, SeriesTable.name, CategoryTable.name)
             if (sortedByName) {
                 seriesQuery.orderBy(SeriesTable.name to SortOrder.ASC)
             } else {
