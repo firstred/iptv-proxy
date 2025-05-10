@@ -18,6 +18,7 @@ val DROP_REQUEST_HEADERS = listOf(
     "x-forwarded-proto",   // Reserved for reverse proxies
     "x-forwarded-host",    // Reserved for reverse proxies
     "x-forwarded-port",    // Reserved for reverse proxies
+    "x-forwarded-server",  // Reserved for reverse proxies
     "x-real-ip",           // Reserved for reverse proxies
     "x-remote-ip",         // Reserved for reverse proxies
     "x-remote-port",       // Reserved for reverse proxies
