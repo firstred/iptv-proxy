@@ -67,7 +67,7 @@ class XtreamRepository : KoinComponent {
         }
     }
 
-    private fun upsertCategories(categories: List<XtreamCategory>, server: String, type: IptvChannelType) {
+    fun upsertCategories(categories: List<XtreamCategory>, server: String, type: IptvChannelType) {
         transaction {
             categories.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
                 CategoryTable.batchUpsert(
@@ -103,7 +103,7 @@ class XtreamRepository : KoinComponent {
         }
     }
 
-    private fun upsertLiveStreams(liveStreams: List<XtreamLiveStream>, server: String) {
+    fun upsertLiveStreams(liveStreams: List<XtreamLiveStream>, server: String) {
         transaction {
             val internalCategoryIds = getAllLiveStreamCategoryIds(server).values.associateBy { it.externalId }
 
@@ -154,7 +154,7 @@ class XtreamRepository : KoinComponent {
         upsertLiveStreams(liveStreams, server)
     }
 
-    private fun upsertMovies(movies: List<XtreamMovie>, server: String) {
+    fun upsertMovies(movies: List<XtreamMovie>, server: String) {
         transaction {
             val internalCategoryIds = getAllMovieCategoryIds(server).values.associateBy { it.externalId }
 
@@ -204,7 +204,7 @@ class XtreamRepository : KoinComponent {
         upsertMovies(movies, server)
     }
 
-    private fun upsertSeries(series: List<XtreamSeries>, server: String) {
+    fun upsertSeries(series: List<XtreamSeries>, server: String) {
         transaction {
             val internalCategoryIds = getAllSeriesCategoryIds(server).values.associateBy { it.externalId }
 

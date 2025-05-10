@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.managers
 
-import arrow.core.compareTo
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
@@ -10,7 +9,6 @@ import io.github.firstred.iptvproxy.db.repositories.EpgRepository
 import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
-import io.github.firstred.iptvproxy.dtos.m3u.M3uDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
@@ -27,7 +25,6 @@ import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.dispatchHook
-import io.github.firstred.iptvproxy.utils.hash
 import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
@@ -52,7 +49,7 @@ import kotlinx.datetime.Clock
 import kotlinx.io.Buffer
 import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi
-import kotlinx.serialization.json.decodeFromStream
+import kotlinx.serialization.json.decodeToSequence
 import nl.adaptivity.xmlutil.serialization.XmlParsingException
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
@@ -204,10 +201,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 if (account.isXtream()) {
                     xtreamRepository.signalXtreamImportStartedForServer(server.name)
-                    // Update xtream info
+
                     // Load live streams
-                    lateinit var liveStreamCategories: List<XtreamCategory>
-                    lateinit var liveStreams: List<XtreamLiveStream>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -226,8 +221,16 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
                             } }
                         }
+                        val categories: MutableList<XtreamCategory> = mutableListOf()
+                        json.decodeToSequence<XtreamCategory>(buffer.asInputStream()).forEach { category ->
+                            categories.add(category)
 
-                        liveStreamCategories = json.decodeFromStream(buffer.asInputStream())
+                            if (categories.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.live)
+                                categories.clear()
+                            }
+                        }
+                        xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.live)
                     }
 
                     server.withConnection(
@@ -246,13 +249,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             } }
                         }
 
-                        liveStreams = json.decodeFromStream(buffer.asInputStream())
+                        val liveStreams: MutableList<XtreamLiveStream> = mutableListOf()
+                        json.decodeToSequence<XtreamLiveStream>(buffer.asInputStream()).forEach { liveStream ->
+                            liveStreams.add(liveStream)
+
+                            if (liveStreams.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertLiveStreams(liveStreams, server.name)
+                                liveStreams.clear()
+                            }
+                        }
+                        xtreamRepository.upsertLiveStreams(liveStreams, server.name)
                     }
-                    xtreamRepository.upsertLiveStreamsAndCategories(liveStreams, liveStreamCategories, server.name)
 
                     // Load movies
-                    lateinit var movieCategories: List<XtreamCategory>
-                    lateinit var movies: List<XtreamMovie>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -269,7 +278,16 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             } }
                         }
 
-                        movieCategories = json.decodeFromStream(buffer.asInputStream())
+                        val categories: MutableList<XtreamCategory> = mutableListOf()
+                        json.decodeToSequence<XtreamCategory>(buffer.asInputStream()).forEach { category ->
+                            categories.add(category)
+
+                            if (categories.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.movie)
+                                categories.clear()
+                            }
+                        }
+                        xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.movie)
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -287,13 +305,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             } }
                         }
 
-                        movies = json.decodeFromStream(buffer.asInputStream())
+                        val movies: MutableList<XtreamMovie> = mutableListOf()
+                        json.decodeToSequence<XtreamMovie>(buffer.asInputStream()).forEach { movie ->
+                            movies.add(movie)
+
+                            if (movies.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertMovies(movies, server.name)
+                                movies.clear()
+                            }
+                        }
+                        xtreamRepository.upsertMovies(movies, server.name)
                     }
-                    xtreamRepository.upsertMoviesAndCategories(movies, movieCategories, server.name)
 
                     // Load tv series
-                    lateinit var seriesCategories: List<XtreamCategory>
-                    lateinit var series: List<XtreamSeries>
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -310,7 +334,16 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             } }
                         }
 
-                        seriesCategories = json.decodeFromStream(buffer.asInputStream())
+                        val categories: MutableList<XtreamCategory> = mutableListOf()
+                        json.decodeToSequence<XtreamCategory>(buffer.asInputStream()).forEach { category ->
+                            categories.add(category)
+
+                            if (categories.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.series)
+                                categories.clear()
+                            }
+                        }
+                        xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.series)
                     }
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -328,9 +361,17 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             } }
                         }
 
-                        series = json.decodeFromStream(buffer.asInputStream())
+                        val seriesList: MutableList<XtreamSeries> = mutableListOf()
+                        json.decodeToSequence<XtreamSeries>(buffer.asInputStream()).forEach { series ->
+                            seriesList.add(series)
+
+                            if (seriesList.size > config.database.chunkSize.toInt()) {
+                                xtreamRepository.upsertSeries(seriesList, server.name)
+                                seriesList.clear()
+                            }
+                        }
+                        xtreamRepository.upsertSeries(seriesList, server.name)
                     }
-                    xtreamRepository.upsertSeriesAndCategories(series, seriesCategories, server.name)
 
                     xtreamRepository.signalXtreamImportCompletedForServer(server.name)
                 }
