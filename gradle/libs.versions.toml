@@ -29,7 +29,6 @@ apache-commons-io = "2.19.0"
 apache-commons-text = "1.13.1"
 
 dotenv = "6.5.1"
-ipaddress = "5.5.1"
 clikt = "4.3.0"
 cryptography = "0.4.0"
 semver = "3.0.0"
@@ -98,7 +97,6 @@ koin-logger = { module = "io.insert-koin:koin-logger-slf4j" }
 
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }
 clikt = { module = "com.github.ajalt.clikt:clikt", version.ref = "clikt" }
-ipaddress = { module = "com.github.seancfoley:ipaddress", version.ref = "ipaddress" }
 cryptography = { module = "dev.whyoleg.cryptography:cryptography-core", version.ref = "cryptography" }
 cryptography-provider-jvm = { module = "dev.whyoleg.cryptography:cryptography-provider-jdk", version.ref = "cryptography" }
 semver = { module = "io.github.z4kn4fein:semver", version.ref = "semver" }

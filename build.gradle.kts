@@ -201,7 +201,6 @@ dependencies {
     // app specific
     implementation(libs.dotenv)
     implementation(libs.clikt)
-    implementation(libs.ipaddress)
     implementation(libs.cryptography)
     implementation(libs.cryptography.provider.jvm)
     implementation(libs.semver)
