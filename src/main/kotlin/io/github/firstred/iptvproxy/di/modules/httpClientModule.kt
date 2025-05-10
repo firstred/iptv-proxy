@@ -5,7 +5,6 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.dtos.config.IptvFlatServerConfig
 import io.github.firstred.iptvproxy.managers.CacheManager
-import io.github.firstred.iptvproxy.plugins.ktor.client.ProxyFileStorage
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.defaultMaxConnections
 import io.ktor.client.*
@@ -13,6 +12,7 @@ import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.cache.*
+import io.ktor.client.plugins.cache.storage.FileStorage
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
@@ -62,7 +62,7 @@ val httpClientModule = module {
             followRedirects = true
 
             if (config.cache.enabled) install(HttpCache) {
-                publicStorage(ProxyFileStorage(File(config.getHttpCacheDirectory("images"))))
+                publicStorage(FileStorage(File(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
                 maxRetries = 5
