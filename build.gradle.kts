@@ -100,7 +100,9 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
         jvmFlags = listOf(
             "-server",
             "-Djava.awt.headless=true",
-            "-XX:+UseG1GC",
+            "-XX:+UseZGC",
+            "-XX:+ZGenerational",
+            "-XX:+AlwaysPreTouch",
             "-XX:+UseStringDeduplication",
         )
         user = "1000"
