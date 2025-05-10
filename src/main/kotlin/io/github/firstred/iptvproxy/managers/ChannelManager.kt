@@ -284,7 +284,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         json.decodeToSequence<XtreamLiveStream>(buffer.asInputStream()).forEach { liveStream ->
                             // Remap live stream categories if necessary
                             liveStreams.add(liveStream.copy(
-                                categoryId = liveStream.categoryId?.let { liveCategoriesToRemapByExternalId[it] }?.id,
+                                categoryId = liveStream.categoryId?.let { liveCategoriesToRemapByExternalId[it] }?.id ?: liveStream.categoryId,
                                 categoryIds = liveStream.categoryIds?.map { liveCategoriesToRemapByExternalId[it.toString()]?.id?.toUInt() ?: it },
                             ))
 

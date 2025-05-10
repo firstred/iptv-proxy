@@ -1,6 +1,5 @@
 package io.github.firstred.iptvproxy.db.repositories
 
-import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.CategoryTable
@@ -28,12 +27,10 @@ import org.jetbrains.exposed.sql.CustomFunction
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.TextColumnType
-import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.batchUpsert
@@ -134,11 +131,10 @@ class XtreamRepository : KoinComponent {
                 @Suppress("UNCHECKED_CAST")
                 val liveStreamsAndCategoryIds = chunk
                     .flatMap { liveStream -> listOf(Triple(internalCategoryIds[liveStream.categoryId]?.id, server, liveStream.streamId)) + (liveStream.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, liveStream.streamId) } ?: emptyList()) }
-                    .filter { null != it.first } as List<Triple<UInt, String, UInt>>
+                    .filter { null != it.first }
+                    .distinctBy { Triple(it.first, it.second, it.third) }
+                        as List<Triple<UInt, String, UInt>>
 
-                LiveStreamToCategoryTable.deleteWhere {
-                    LiveStreamToCategoryTable.server eq server and (LiveStreamToCategoryTable.externalStreamId inList liveStreams.map { it.streamId })
-                }
                 if (liveStreamsAndCategoryIds.isNotEmpty()) LiveStreamToCategoryTable.batchUpsert(
                     data = liveStreamsAndCategoryIds,
                     shouldReturnGeneratedValues = false,
@@ -149,10 +145,6 @@ class XtreamRepository : KoinComponent {
                 }
             }
         }
-    }
-    fun upsertLiveStreamsAndCategories(liveStreams: List<XtreamLiveStream>, liveStreamCategories: List<XtreamCategory>, server: String) {
-        upsertCategories(liveStreamCategories, server, type = IptvChannelType.live)
-        upsertLiveStreams(liveStreams, server)
     }
 
     fun upsertMovies(movies: List<XtreamMovie>, server: String) {
@@ -186,9 +178,6 @@ class XtreamRepository : KoinComponent {
                     .flatMap { movie -> listOf(Triple(internalCategoryIds[movie.categoryId]?.id, server, movie.streamId)) + (movie.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, movie.streamId) } ?: emptyList()) }
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
-                MovieToCategoryTable.deleteWhere {
-                    MovieToCategoryTable.server eq server and (MovieToCategoryTable.externalStreamId inList movies.map { it.streamId })
-                }
                 if (moviesAndCategoryIds.isNotEmpty()) MovieToCategoryTable.batchUpsert(
                     data = moviesAndCategoryIds,
                     shouldReturnGeneratedValues = false,
@@ -199,10 +188,6 @@ class XtreamRepository : KoinComponent {
                 }
             }
         }
-    }
-    fun upsertMoviesAndCategories(movies: List<XtreamMovie>, movieCategories: List<XtreamCategory>, server: String) {
-        upsertCategories(movieCategories, server, type = IptvChannelType.movie)
-        upsertMovies(movies, server)
     }
 
     fun upsertSeries(series: List<XtreamSeries>, server: String) {
@@ -238,11 +223,10 @@ class XtreamRepository : KoinComponent {
                 @Suppress("UNCHECKED_CAST")
                 val seriesAndCategoryIds = series
                     .flatMap { series -> listOf(Triple(internalCategoryIds[series.categoryId]?.id, server, series.seriesId)) + (series.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, series.seriesId) } ?: emptyList()) }
-                    .filter { null != it.first } as List<Triple<UInt, String, UInt>>
+                    .filter { null != it.first }
+                    .distinctBy { Triple(it.first, it.second, it.third) }
+                        as List<Triple<UInt, String, UInt>>
 
-                SeriesToCategoryTable.deleteWhere {
-                    SeriesToCategoryTable.server eq server and (SeriesToCategoryTable.externalSeriesId inList series.map { it.seriesId })
-                }
                 if (seriesAndCategoryIds.isNotEmpty()) SeriesToCategoryTable.batchUpsert(
                     data = seriesAndCategoryIds,
                     shouldReturnGeneratedValues = false,
@@ -254,62 +238,7 @@ class XtreamRepository : KoinComponent {
             }
         }
     }
-    fun upsertSeriesAndCategories(series: List<XtreamSeries>, seriesCategories: List<XtreamCategory>, server: String) {
-        upsertCategories(seriesCategories, server, type = IptvChannelType.series)
-        upsertSeries(series, server)
-    }
 
-    fun getAllCategoryIds(server: String? = null): Map<UInt, XtreamCategoryIdServer> {
-        return transaction {
-            val channelTypeLiteral = stringLiteral(IptvChannelType.live.type)
-
-            val liveStreamCategoryQuery = CategoryTable
-                .select(
-                    listOf(
-                        CategoryTable.id,
-                        CategoryTable.externalCategoryId,
-                        CategoryTable.server,
-                        channelTypeLiteral,
-                    )
-                )
-            server?.let { liveStreamCategoryQuery.where { CategoryTable.server eq it } }
-
-            val movieCategoryQuery = CategoryTable
-                .select(
-                    listOf(
-                        CategoryTable.id,
-                        CategoryTable.externalCategoryId,
-                        CategoryTable.server,
-                        stringLiteral(IptvChannelType.movie.type),
-                    )
-                )
-            server?.let { movieCategoryQuery.where { CategoryTable.server eq it } }
-
-            val seriesCategoryQuery = CategoryTable
-                .select(
-                    listOf(
-                        CategoryTable.id,
-                        CategoryTable.externalCategoryId,
-                        CategoryTable.server,
-                        stringLiteral(IptvChannelType.series.type),
-                    )
-                )
-            server?.let { seriesCategoryQuery.where { CategoryTable.server eq it } }
-
-            liveStreamCategoryQuery
-                .unionAll(movieCategoryQuery)
-                .unionAll(seriesCategoryQuery)
-                .associateBy(
-                    { it[CategoryTable.id].value },
-                    { XtreamCategoryIdServer(
-                        id =  it[CategoryTable.id].value,
-                        externalId = it[CategoryTable.externalCategoryId],
-                        server = it[CategoryTable.server],
-                        type = IptvChannelType.valueOf(it[channelTypeLiteral])
-                    ) }
-                )
-        }
-    }
     fun getAllLiveStreamCategoryIds(server: String? = null): Map<UInt, XtreamCategoryIdServer> {
         return transaction {
             val query = CategoryTable
