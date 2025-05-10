@@ -38,7 +38,6 @@ import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.stringLiteral
 import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.unionAll
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
 import kotlin.uuid.ExperimentalUuidApi

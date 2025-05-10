@@ -12,7 +12,7 @@ import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.cache.*
-import io.ktor.client.plugins.cache.storage.FileStorage
+import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
