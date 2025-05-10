@@ -24,6 +24,7 @@ data class IptvFlatServerConfig(
     override val userAgent: String? = null,
 
     override val epgRemapping: Map<String, String> = mapOf(),
+    override val liveCategoryRemapping: Map<String, String> = mapOf(),
 ) : IIptvServerConfigWithoutAccounts {
     fun toIptvServerConfig(idx: UInt): IptvServerConfig = IptvServerConfig(
         name = name,
@@ -37,6 +38,7 @@ data class IptvFlatServerConfig(
         timeouts = timeouts,
         userAgent = userAgent,
         epgRemapping = epgRemapping,
+        liveCategoryRemapping = liveCategoryRemapping,
     )
 
     override fun getEpgUrl(): URI? {

@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.db.repositories
 
+import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.tables.CategoryTable
@@ -646,6 +647,32 @@ class XtreamRepository : KoinComponent {
         } while (channels.isNotEmpty())
     }
 
+    fun getAndCreateMissingCategoriesByName(list: List<String>, server: String): Map<String, Pair<String, XtreamCategory>> = transaction {
+        val existingCategories = CategoryTable
+            .select(CategoryTable.name)
+            .where { CategoryTable.name inList list }
+            .map { it[CategoryTable.name] }
+
+        val missingCategories = list.filter { it !in existingCategories }
+
+        CategoryTable.batchInsert(
+            data = missingCategories.map { XtreamCategory(id = "", name = it)},
+            shouldReturnGeneratedValues = false,
+        ) { category ->
+            this[CategoryTable.server] = server
+            this[CategoryTable.externalCategoryId] = Uuid.random().toHexDashString()
+            this[CategoryTable.name] = category.name
+            this[CategoryTable.parentId] = category.parentId ?: 0u
+            this[CategoryTable.type] = IptvChannelType.live
+            this[CategoryTable.updatedAt] = Clock.System.now()
+        }
+
+        CategoryTable
+            .selectAll()
+            .where { CategoryTable.name inList list }
+            .associateBy({ it[CategoryTable.name] }, { Pair(it[CategoryTable.externalCategoryId], it.toXtreamCategory()) })
+    }
+
     fun findServerByLiveStreamId(liveStreamId: UInt): String? = transaction {
         ChannelTable
             .select(ChannelTable.server)
@@ -662,16 +689,6 @@ class XtreamRepository : KoinComponent {
             .firstOrNull()
     }
 
-    fun getCategoryIdToExternalIdMap(): Map<UInt, String> {
-        return transaction {
-            CategoryTable
-                .selectAll()
-                .associateBy(
-                    { it[CategoryTable.id].value },
-                    { it[CategoryTable.externalCategoryId] },
-                )
-        }
-    }
     fun getExternalCategoryIdToIdMap(): Map<String, UInt> {
         return transaction {
             @Suppress("UNCHECKED_CAST")

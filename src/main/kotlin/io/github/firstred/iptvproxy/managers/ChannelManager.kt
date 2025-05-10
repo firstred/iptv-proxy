@@ -65,6 +65,7 @@ import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
+import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 @Suppress("UnstableApiUsage")
@@ -102,7 +103,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 if (newChannels.count() >= config.database.chunkSize.toInt()) flushChannels()
             }
 
-            if (server.config.epgUrl != null) {
+            if (null != server.config.epgUrl) {
                 LOG.info("Waiting for xmltv data to be downloaded")
 
                 epgRepository.signalXmltvImportStartedForServer(server.name)
@@ -126,9 +127,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             xmltvChannels.add(xmltvChannel)
 
                             // Flush once db chunk size has been reached
-                            if (xmltvChannels.count() >= config.database.chunkSize.toInt()) {
-                                flushXmltvChannels()
-                            }
+                            if (xmltvChannels.count() >= config.database.chunkSize.toInt()) flushXmltvChannels()
                         }
 
                         val xmltvProgrammes = mutableListOf<XmltvProgramme>()
@@ -142,9 +141,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             xmltvProgrammes.add(xmltvProgramme)
 
                             // Flush once db chunk size has been reached
-                            if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) {
-                                flushXmltvProgrammes()
-                            }
+                            if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) flushXmltvProgrammes()
                         }
 
                         XmltvParser.forEachXmltvItem(
@@ -168,6 +165,15 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             // All accounts should provide the same info, so we use the first one
             server.config.accounts?.firstOrNull()?.let { account ->
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
+                val liveCategoriesToRemapByName: Map<String, Pair<String, XtreamCategory>> = if (server.config.liveCategoryRemapping.isNotEmpty()) {
+                    val newCategories = xtreamRepository.getAndCreateMissingCategoriesByName(server.config.liveCategoryRemapping.values.toList().distinct(), server.name)
+                    server.config.liveCategoryRemapping.map { (key, value) ->
+                        Pair(key, newCategories[value]!!)
+                    }.associateBy({ it.first }, { it.second })
+                } else {
+                    mapOf()
+                }
+                val liveCategoriesToRemapByExternalId: Map<String, XtreamCategory> = liveCategoriesToRemapByName.values.associateBy({ it.first }, { it.second })
 
                 server.withConnection(
                     config.timeouts.playlist.totalMilliseconds,
@@ -199,11 +205,12 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                     }
                                 }
 
+                                val channelType = m3uChannel.url.toChannelType()
                                 IptvChannel(
                                     name = m3uChannel.name,
                                     externalPosition = ++externalIndex,
                                     logo = m3uChannel.props["tvg-logo"],
-                                    groups = m3uChannel.groups,
+                                    groups = m3uChannel.groups.map { if (IptvChannelType.live == channelType) (liveCategoriesToRemapByName[it]?.second?.name ?: it) else it },
                                     epgId = tvgId,
                                     catchupDays = days,
                                     url = Url(m3uChannel.url).toEncodedJavaURI(),
@@ -212,7 +219,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                     m3uProps = m3uChannel.props + mapOf(
                                         "tvg-id" to tvgId,
                                         "tvg-name" to tvgName,
-                                    ),
+                                    ) + mapOf("group-title" to (liveCategoriesToRemapByName[m3uChannel.props["group-title"]]?.second?.name ?: m3uChannel.props["group-title"] ?: "")).filterValues { it.isNotBlank() },
                                     vlcOpts = m3uChannel.vlcOpts,
                                 )
                             })
@@ -275,7 +282,11 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                         val liveStreams: MutableList<XtreamLiveStream> = mutableListOf()
                         json.decodeToSequence<XtreamLiveStream>(buffer.asInputStream()).forEach { liveStream ->
-                            liveStreams.add(liveStream)
+                            // Remap live stream categories if necessary
+                            liveStreams.add(liveStream.copy(
+                                categoryId = liveStream.categoryId?.let { liveCategoriesToRemapByExternalId[it] }?.id,
+                                categoryIds = liveStream.categoryIds?.map { liveCategoriesToRemapByExternalId[it.toString()]?.id?.toUInt() ?: it },
+                            ))
 
                             if (liveStreams.size > config.database.chunkSize.toInt()) {
                                 xtreamRepository.upsertLiveStreams(liveStreams, server.name)
