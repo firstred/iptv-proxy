@@ -438,7 +438,9 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
     if (null != cachedResponseFile) {
         try {
             call.respondBytesWriter {
-                File(cachedResponseFile).inputStream().toByteReadChannel().copyAndClose(this)
+                File(cachedResponseFile).inputStream().use {
+                    it.toByteReadChannel().copyAndClose(this)
+                }
             }
         } catch (_: ChannelWriteException) {
             // Client closed connection
