@@ -165,7 +165,8 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 epgRepository.signalXmltvImportCompletedForServer(server.name)
             }
 
-            for (account in server.config.accounts ?: emptyList()) {
+            // All accounts should provide the same info, so we use the first one
+            server.config.accounts?.firstOrNull()?.let { account ->
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
 
                 server.withConnection(
@@ -232,7 +233,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     ) { serverConnection, _ ->
                         val buffer = Buffer()
 
-                         httpClient.prepareGet(
+                        httpClient.prepareGet(
                             serverConnection.config.account!!.getXtreamLiveStreamCategoriesUrl().toString()
                         ) {
                             headers {
