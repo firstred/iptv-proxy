@@ -33,7 +33,6 @@ ipaddress = "5.5.1"
 clikt = "4.3.0"
 cryptography = "0.4.0"
 semver = "3.0.0"
-stately-concurrency = "2.1.0"
 arrow = "2.1.1"
 
 
