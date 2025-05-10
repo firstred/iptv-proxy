@@ -51,22 +51,14 @@ class EpgRepository {
                 it[XmltvSourceTable.server] = server
                 it[XmltvSourceTable.generatorInfoName] = doc.generatorInfoName
                 it[XmltvSourceTable.generatorInfoUrl] = doc.generatorInfoUrl
-                it[XmltvSourceTable.sourceInfoUrl] = doc.sourceInfoUrl
                 it[XmltvSourceTable.sourceInfoName] = doc.sourceInfoName
+                it[XmltvSourceTable.sourceInfoUrl] = doc.sourceInfoUrl
                 it[XmltvSourceTable.sourceInfoLogo] = doc.sourceInfoLogo
             }
 
-            var channelIds = listOf<String>()
-            doc.channels?.let {
-                upsertXmltvChannels(it)
-                it.forEach { channel ->
-                    if (null != channel.id) channelIds = channelIds + channel.id
-                }
-            }
+            doc.channels?.let { upsertXmltvChannels(it) }
 
-            doc.programmes
-                ?.filter { it.channel in channelIds }
-                ?.let { upsertXmltvProgrammes(it) }
+            doc.programmes?.let { upsertXmltvProgrammes(it) }
         }
     }
 

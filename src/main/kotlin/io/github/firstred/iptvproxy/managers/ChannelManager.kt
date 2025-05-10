@@ -11,7 +11,7 @@ import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvUtils
+import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
@@ -22,6 +22,7 @@ import io.github.firstred.iptvproxy.listeners.hooks.HasOnApplicationEventHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnDatabaseInitializedHook
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
 import io.github.firstred.iptvproxy.parsers.M3uParser
+import io.github.firstred.iptvproxy.parsers.XmltvParser
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.dispatchHook
@@ -33,8 +34,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
-import io.ktor.utils.io.asByteWriteChannel
-import io.ktor.utils.io.copyAndClose
+import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.MonitorConfig
 import io.sentry.Sentry
@@ -50,6 +50,7 @@ import kotlinx.io.Buffer
 import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeToSequence
+import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
 import nl.adaptivity.xmlutil.serialization.XmlParsingException
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
@@ -65,7 +66,10 @@ import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
+import javax.xml.stream.XMLInputFactory
+import javax.xml.stream.events.StartElement
 import kotlin.text.Charsets.UTF_8
+
 
 @Suppress("UnstableApiUsage")
 class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicationOnDatabaseInitializedHook {
@@ -79,7 +83,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-channels"))
     private val databaseMutex: Mutex by inject(named("large-database-transactions"))
 
-    @OptIn(ExperimentalSerializationApi::class)
+    @OptIn(ExperimentalSerializationApi::class, ExperimentalXmlUtilApi::class)
     private suspend fun updateChannels()
     {
         LOG.info("Updating channels")
@@ -102,7 +106,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 if (newChannels.count() >= config.database.chunkSize.toInt()) flushChannels()
             }
 
-            var xmltv: XmltvDoc? = null
             if (server.config.epgUrl != null) {
                 LOG.info("Waiting for xmltv data to be downloaded")
 
@@ -114,32 +117,57 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 ) { serverConnection, _ ->
                     try {
                         LOG.info("Parsing xmltv data")
-                        loadXmltv(serverConnection).let { inputStream ->
-                            inputStream.use { xmltv = XmltvUtils.parseXmltv(it) }
+
+                        val endOf = Clock.System.now() + server.config.epgAfter
+                        val startOf = Clock.System.now() - server.config.epgBefore
+
+                        val xmltvChannels = mutableListOf<XmltvChannel>()
+                        fun flushXmltvChannels() {
+                            epgRepository.upsertXmltvChannels(xmltvChannels)
+                            xmltvChannels.clear()
                         }
+                        fun addXmltvChannel(xmltvChannel: XmltvChannel) {
+                            xmltvChannels.add(xmltvChannel)
+
+                            // Flush once db chunk size has been reached
+                            if (xmltvChannels.count() >= config.database.chunkSize.toInt()) {
+                                flushXmltvChannels()
+                            }
+                        }
+
+                        val xmltvProgrammes = mutableListOf<XmltvProgramme>()
+                        fun flushXmltvProgrammes() {
+                            epgRepository.upsertXmltvProgrammes(xmltvProgrammes)
+                            xmltvProgrammes.clear()
+                        }
+                        fun addXmltvProgramme(xmltvProgramme: XmltvProgramme) {
+                            if (xmltvProgramme.start > endOf || xmltvProgramme.stop < startOf) return
+
+                            xmltvProgrammes.add(xmltvProgramme)
+
+                            // Flush once db chunk size has been reached
+                            if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) {
+                                flushXmltvProgrammes()
+                            }
+                        }
+
+                        XmltvParser.forEachXmltvItem(
+                            loadXmltv(serverConnection),
+                            onHeader = { xmltv ->
+                                epgRepository.upsertXmltvSourceForServer(xmltv, server.name)
+                            },
+                            onChannel = { addXmltvChannel(it) },
+                            onProgramme = { addXmltvProgramme(it) },
+                        )
+                        flushXmltvChannels()
+                        flushXmltvProgrammes()
                     } catch (e: XmlParsingException) {
                         LOG.warn("Unable to parse xmltv data: ${e.message} - skipping xmltv import for server ${server.name}")
                     }
                 }
 
-                val endOf = Clock.System.now() + server.config.epgAfter
-                val startOf = Clock.System.now() - server.config.epgBefore
-                xmltv?.let {
-                    epgRepository.upsertXmltvSourceForServer(
-                        xmltv.copy(
-                            programmes = it.programmes?.filter { programme ->
-                                (programme.start < endOf) && (programme.stop > startOf)
-                            }?.toMutableList(),
-                        ),
-                        server.name
-                    )
-                }
-
                 epgRepository.signalXmltvImportCompletedForServer(server.name)
             }
-
-            val xmltvById: MutableMap<String, XmltvChannel> = mutableMapOf()
-            val xmltvByName: MutableMap<String, XmltvChannel> = mutableMapOf()
 
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
@@ -157,17 +185,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             addNewChannel(run {
                                 val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
                                 val tvgId: String = server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
-
-                                var xmltvCh: XmltvChannel? = null
-                                if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
-                                if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
-                                if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh =
-                                    xmltvByName[tvgName.replace(' ', '_')]
-                                if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
-                                if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
-
-                                // Redirect logo URI
-                                val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])
 
                                 var days = 0
                                 var daysStr = m3uChannel.props["tvg-rec"] ?: ""
@@ -188,7 +205,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 IptvChannel(
                                     name = m3uChannel.name,
                                     externalPosition = ++externalIndex,
-                                    logo = logo,
+                                    logo = m3uChannel.props["tvg-logo"],
                                     groups = m3uChannel.groups,
                                     epgId = tvgId,
                                     catchupDays = days,
