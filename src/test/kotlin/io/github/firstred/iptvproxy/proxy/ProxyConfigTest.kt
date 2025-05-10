@@ -24,3 +24,4 @@ class ProxyConfigTest {
         assertNull(config.getActualHttpProxyConfiguration()?.username)
     }
 }
+
