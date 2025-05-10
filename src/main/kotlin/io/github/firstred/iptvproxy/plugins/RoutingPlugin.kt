@@ -23,6 +23,7 @@ import io.github.firstred.iptvproxy.utils.filterHttpResponseHeaders
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
 import io.github.firstred.iptvproxy.utils.hasSupportedScheme
 import io.github.firstred.iptvproxy.utils.isHlsPlaylist
+import io.github.firstred.iptvproxy.utils.maxCacheableVideoChunkSize
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.github.firstred.iptvproxy.utils.sendBasicAuth
 import io.github.firstred.iptvproxy.utils.sendUserAgent
@@ -499,12 +500,13 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                 var totalCache = byteArrayOf()
                                 val channel = response.bodyAsChannel()
 
+                                // Keep reading and pushing to temp cache + output until exhausted
                                 while (!channel.exhausted()) {
-                                    val chunk = channel.readRemaining(16_384).readByteArray()
-                                    totalCache += chunk
-
+                                    val chunk = channel.readRemaining(131_072).readByteArray()
+                                    if (totalCache.size < maxCacheableVideoChunkSize) totalCache += chunk
                                     output.writeFully(chunk)
                                 }
+
                                 // Immediately release the connection after the read channel is closed
                                 releaseConnectionEarly()
 
@@ -513,7 +515,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 
                                 val remoteContentLength = response.contentLength() ?: 0L
                                 if (
-                                    remoteContentLength > 0L && remoteContentLength < 32_000_000L
+                                    totalCache.size < maxCacheableVideoChunkSize
                                     && "video/mp2t" == response.headers["Content-Type"]?.lowercase()
                                 ) {
                                     // Cache the video chunk
