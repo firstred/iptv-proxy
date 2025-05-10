@@ -65,7 +65,6 @@ import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
-import kotlin.system.exitProcess
 import kotlin.text.Charsets.UTF_8
 
 @Suppress("UnstableApiUsage")
@@ -144,14 +143,17 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) flushXmltvProgrammes()
                         }
 
-                        XmltvParser.forEachXmltvItem(
-                            loadXmltv(serverConnection),
-                            onHeader = { xmltv ->
-                                epgRepository.upsertXmltvSourceForServer(xmltv, server.name)
-                            },
-                            onChannel = { addXmltvChannel(it) },
-                            onProgramme = { addXmltvProgramme(it) },
-                        )
+                        loadXmltv(serverConnection).use { xmltvInputStream ->
+                            XmltvParser.forEachXmltvItem(
+                                xmltvInputStream,
+                                onHeader = { xmltv ->
+                                    epgRepository.upsertXmltvSourceForServer(xmltv, server.name)
+                                },
+                                onChannel = { addXmltvChannel(it) },
+                                onProgramme = { addXmltvProgramme(it) },
+                            )
+                        }
+
                         flushXmltvChannels()
                         flushXmltvProgrammes()
                     } catch (e: XmlParsingException) {
@@ -179,55 +181,63 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     config.timeouts.playlist.totalMilliseconds,
                     account,
                 ) { serverConnection, _ ->
-                    val channelsInputStream = loadChannels(serverConnection)
+                    loadChannels(serverConnection).use { channelsInputStream ->
 
-                    var externalIndex = 0u
+                        var externalIndex = 0u
 
-                    try {
-                        M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
-                            addNewChannel(run {
-                                val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
-                                val tvgId: String = server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
+                        try {
+                            M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
+                                addNewChannel(run {
+                                    val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
+                                    val tvgId: String =
+                                        server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
 
-                                var days = 0
-                                var daysStr = m3uChannel.props["tvg-rec"] ?: ""
-                                if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
-                                if (daysStr.isNotBlank()) {
-                                    try {
-                                        days = daysStr.toInt()
-                                    } catch (e: NumberFormatException) {
-                                        Sentry.captureException(e)
-                                        LOG.warn(
-                                            "Error parsing catchup days: {}, channel: {}",
-                                            daysStr,
-                                            m3uChannel.name
-                                        )
+                                    var days = 0
+                                    var daysStr = m3uChannel.props["tvg-rec"] ?: ""
+                                    if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
+                                    if (daysStr.isNotBlank()) {
+                                        try {
+                                            days = daysStr.toInt()
+                                        } catch (e: NumberFormatException) {
+                                            Sentry.captureException(e)
+                                            LOG.warn(
+                                                "Error parsing catchup days: {}, channel: {}",
+                                                daysStr,
+                                                m3uChannel.name
+                                            )
+                                        }
                                     }
-                                }
 
-                                val channelType = m3uChannel.url.toChannelType()
-                                IptvChannel(
-                                    name = m3uChannel.name,
-                                    externalPosition = ++externalIndex,
-                                    logo = m3uChannel.props["tvg-logo"],
-                                    groups = m3uChannel.groups.map { if (IptvChannelType.live == channelType) (liveCategoriesToRemapByName[it]?.second?.name ?: it) else it },
-                                    epgId = tvgId,
-                                    catchupDays = days,
-                                    url = Url(m3uChannel.url).toEncodedJavaURI(),
-                                    server = server,
-                                    type = m3uChannel.url.toChannelType(),
-                                    m3uProps = m3uChannel.props + mapOf(
-                                        "tvg-id" to tvgId,
-                                        "tvg-name" to tvgName,
-                                    ) + mapOf("group-title" to (liveCategoriesToRemapByName[m3uChannel.props["group-title"]]?.second?.name ?: m3uChannel.props["group-title"] ?: "")).filterValues { it.isNotBlank() },
-                                    vlcOpts = m3uChannel.vlcOpts,
-                                )
-                            })
+                                    val channelType = m3uChannel.url.toChannelType()
+                                    IptvChannel(
+                                        name = m3uChannel.name,
+                                        externalPosition = ++externalIndex,
+                                        logo = m3uChannel.props["tvg-logo"],
+                                        groups = m3uChannel.groups.map {
+                                            if (IptvChannelType.live == channelType) (liveCategoriesToRemapByName[it]?.second?.name
+                                                ?: it) else it
+                                        },
+                                        epgId = tvgId,
+                                        catchupDays = days,
+                                        url = Url(m3uChannel.url).toEncodedJavaURI(),
+                                        server = server,
+                                        type = m3uChannel.url.toChannelType(),
+                                        m3uProps = m3uChannel.props + mapOf(
+                                            "tvg-id" to tvgId,
+                                            "tvg-name" to tvgName,
+                                        ) + mapOf(
+                                            "group-title" to (liveCategoriesToRemapByName[m3uChannel.props["group-title"]]?.second?.name
+                                                ?: m3uChannel.props["group-title"] ?: "")
+                                        ).filterValues { it.isNotBlank() },
+                                        vlcOpts = m3uChannel.vlcOpts,
+                                    )
+                                })
+                            }
+                        } catch (_: IOException) {
+                            LOG.warn("Unable to parse m3u data: ${server.name} - skipping m3u import for server ${server.name}")
                         }
-                    } catch (_: IOException) {
-                        LOG.warn("Unable to parse m3u data: ${server.name} - skipping m3u import for server ${server.name}")
+                        flushChannels()
                     }
-                    flushChannels()
                 }
 
                 if (account.isXtream()) {
