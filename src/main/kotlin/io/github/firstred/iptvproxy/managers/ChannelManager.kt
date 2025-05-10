@@ -10,7 +10,6 @@ import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.m3u.M3uChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvDoc
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
@@ -66,10 +65,7 @@ import java.net.URI
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
-import javax.xml.stream.XMLInputFactory
-import javax.xml.stream.events.StartElement
 import kotlin.text.Charsets.UTF_8
-
 
 @Suppress("UnstableApiUsage")
 class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicationOnDatabaseInitializedHook {
