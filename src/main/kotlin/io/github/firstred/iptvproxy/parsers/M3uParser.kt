@@ -20,7 +20,75 @@ class M3uParser {
         private val PROP_PATTERN: Pattern = Pattern.compile("""(?<key>[^=\s]+)="(?<value>(?:(?!"\s+[^=\s]+=).)*)"""")
         private val INFO_PATTERN: Pattern = Pattern.compile("([-+0-9]+) ?(.*)")
 
-        fun parse(inputStream: InputStream): M3uDoc? {
+        fun forEachChannel(inputStream: InputStream, action: (M3uChannel) -> Unit) {
+            var name = "Channel name not found"
+            var m3uProps = mutableMapOf<String, String>()
+            var props = mutableMapOf<String, String>()
+            var vlcOpts = mutableMapOf<String, String>()
+            var groups = mutableListOf<String>()
+
+            fun resetVars() {
+                name = "Channel name not found"
+                m3uProps = mutableMapOf()
+                props = mutableMapOf()
+                vlcOpts = mutableMapOf()
+                groups = mutableListOf()
+            }
+
+            inputStream.use { input -> for (rawLine in input.bufferedReader(UTF_8).lines()) {
+                // Remove control characters and trim line
+                val line = rawLine
+                    .replace(Regex("\\p{Cc}"), "")
+                    .replace("\u2028", "")
+                    .trim()
+
+                var matcher: Matcher
+                if ((TAG_PATTERN.matcher(line).also { matcher = it }).matches()) {
+                    when (matcher.group(1)) {
+                        "EXTM3U" -> Unit
+
+                        "EXTINF" -> {
+                            val infoLine = matcher.group(2)
+                            matcher = INFO_PATTERN.matcher(infoLine)
+                            if (matcher.matches()) {
+                                name = parseProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
+                                if (name.startsWith(",")) name = name.substring(1).trim()
+                            } else {
+                                LOG.warn("malformed channel info: {}", infoLine)
+                                continue
+                            }
+                        }
+
+                        "EXTVLCOPT" -> {
+                            vlcOpts.put(matcher.group(2).substringBefore("="), matcher.group(2).substringAfter("="))
+                        }
+
+                        "EXTGRP" -> for (group in matcher.group(2).trim().split(";".toRegex()).dropLastWhile { it.isEmpty() }
+                            .toTypedArray()) {
+                            groups.add(group.trim())
+                        }
+
+                        else -> LOG.warn("unknown m3u tag: {}", matcher.group(1))
+                    }
+                } else if (line.isNotEmpty()) {
+                    props.remove("group-title")?.let { group -> groups.addAll(group.trim().split(";")) }
+
+                    try {
+                        Url(line).toEncodedJavaURI()
+                        action(M3uChannel(line, name, groups, props.toMap(), vlcOpts.toMap()))
+                    } catch (_: URISyntaxException) {
+                        LOG.warn("malformed channel uri: {}", line)
+                        resetVars()
+                        continue
+                    }
+
+                    // Reset after every resource line
+                    resetVars()
+                }
+            } }
+        }
+
+        fun parseEntirely(inputStream: InputStream): M3uDoc? {
             val channels: MutableList<M3uChannel> = ArrayList()
             var name = "Channel name not found"
             var m3uProps = mutableMapOf<String, String>()

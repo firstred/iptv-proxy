@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.managers
 
+import arrow.core.compareTo
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
@@ -90,9 +91,17 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         serversByName.keys.forEach { channelRepository.signalPlaylistImportStartedForServer(it) }
 
         for (server in serversByName.values) {
-            val newChannels: MutableMap<String, IptvChannel> = mutableMapOf()
-            fun addNewChannel(reference: String, channel: IptvChannel) {
-                newChannels[reference] = channel
+            val newChannels: MutableList<IptvChannel> = mutableListOf()
+            fun flushChannels() {
+                channelRepository.upsertChannels(newChannels)
+                newChannels.clear()
+            }
+
+            fun addNewChannel(channel: IptvChannel) {
+                newChannels.add(channel)
+
+                // Flush once db chunk size has been reached
+                if (newChannels.count() >= config.database.chunkSize.toInt()) flushChannels()
             }
 
             var xmltv: XmltvDoc? = null
@@ -137,64 +146,60 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             for (account in server.config.accounts ?: emptyList()) {
                 LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
 
-                lateinit var channelsInputStream: InputStream
-                lateinit var m3u: M3uDoc
-
                 server.withConnection(
                     config.timeouts.playlist.totalMilliseconds,
                     account,
                 ) { serverConnection, _ ->
-                    channelsInputStream = loadChannels(serverConnection)
-                    m3u = M3uParser.parse(channelsInputStream) ?: throw RuntimeException("Error parsing m3u")
-                }
-                var externalIndex = 0u
+                    val channelsInputStream = loadChannels(serverConnection)
 
-                m3u.channels.forEach { m3uChannel: M3uChannel ->
-                    val channelReference = (server.name + "||" + m3uChannel.url).hash()
+                    var externalIndex = 0u
 
-                    addNewChannel(channelReference, newChannels[channelReference] ?: let {
-                        val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
-                        val tvgId: String = server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
+                    M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
+                        addNewChannel(run {
+                            val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
+                            val tvgId: String = server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
 
-                        var xmltvCh: XmltvChannel? = null
-                        if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
-                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
-                        if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
-                        if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
-                        if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
+                            var xmltvCh: XmltvChannel? = null
+                            if (tvgId.isNotBlank()) xmltvCh = xmltvById[tvgId]
+                            if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName]
+                            if (xmltvCh == null && tvgName.isNotBlank()) xmltvCh = xmltvByName[tvgName.replace(' ', '_')]
+                            if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name]
+                            if (xmltvCh == null) xmltvCh = xmltvByName[m3uChannel.name.replace(' ', '_')]
 
-                        // Redirect logo URI
-                        val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])
+                            // Redirect logo URI
+                            val logo = (xmltvCh?.icon?.src ?: m3uChannel.props["tvg-logo"])
 
-                        var days = 0
-                        var daysStr = m3uChannel.props["tvg-rec"] ?: ""
-                        if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
-                        if (daysStr.isNotBlank()) {
-                            try {
-                                days = daysStr.toInt()
-                            } catch (e: NumberFormatException) {
-                                Sentry.captureException(e)
-                                LOG.warn("Error parsing catchup days: {}, channel: {}", daysStr, m3uChannel.name)
+                            var days = 0
+                            var daysStr = m3uChannel.props["tvg-rec"] ?: ""
+                            if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
+                            if (daysStr.isNotBlank()) {
+                                try {
+                                    days = daysStr.toInt()
+                                } catch (e: NumberFormatException) {
+                                    Sentry.captureException(e)
+                                    LOG.warn("Error parsing catchup days: {}, channel: {}", daysStr, m3uChannel.name)
+                                }
                             }
-                        }
 
-                        IptvChannel(
-                            name = m3uChannel.name,
-                            externalPosition = ++externalIndex,
-                            logo = logo,
-                            groups = m3uChannel.groups,
-                            epgId = tvgId,
-                            catchupDays = days,
-                            url = Url(m3uChannel.url).toEncodedJavaURI(),
-                            server = server,
-                            type = m3uChannel.url.toChannelType(),
-                            m3uProps = m3uChannel.props + mapOf(
-                                "tvg-id" to tvgId,
-                                "tvg-name" to tvgName,
-                            ),
-                            vlcOpts = m3uChannel.vlcOpts,
-                        )
-                    })
+                            IptvChannel(
+                                name = m3uChannel.name,
+                                externalPosition = ++externalIndex,
+                                logo = logo,
+                                groups = m3uChannel.groups,
+                                epgId = tvgId,
+                                catchupDays = days,
+                                url = Url(m3uChannel.url).toEncodedJavaURI(),
+                                server = server,
+                                type = m3uChannel.url.toChannelType(),
+                                m3uProps = m3uChannel.props + mapOf(
+                                    "tvg-id" to tvgId,
+                                    "tvg-name" to tvgName,
+                                ),
+                                vlcOpts = m3uChannel.vlcOpts,
+                            )
+                        })
+                    }
+                    flushChannels()
                 }
 
                 if (account.isXtream()) {
@@ -331,7 +336,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 }
             }
 
-            channelRepository.upsertChannels(newChannels.values.toList())
             channelRepository.signalPlaylistImportCompletedForServer(server.name)
         }
 
