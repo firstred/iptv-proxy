@@ -197,10 +197,7 @@ create table live_stream_to_category
 (
     server             varchar(127) not null,
     external_stream_id bigint       not null,
-    category_id        bigint       not null
-        constraint fk_8343e7d497dc8ffdbcc4ed31a3e66141
-            references category
-            on update cascade on delete cascade,
+    category_id        bigint       not null,
     constraint pk_live_stream_to_category
         primary key (server, external_stream_id, category_id),
     constraint chk_live_stream_to_category_unsigned_integer_category_id
@@ -247,10 +244,7 @@ create table movie_to_category
 (
     server             varchar(127) not null,
     external_stream_id bigint       not null,
-    category_id        bigint       not null
-        constraint fk_bf79cb5f218687462a48b89ea961ead3
-            references category
-            on update cascade on delete cascade,
+    category_id        bigint       not null,
     constraint pk_movie_to_category
         primary key (server, external_stream_id, category_id),
     constraint chk_movie_to_category_unsigned_integer_category_id
