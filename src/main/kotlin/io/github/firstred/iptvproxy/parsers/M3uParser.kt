@@ -5,6 +5,7 @@ import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.ktor.http.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import java.io.IOException
 import java.io.InputStream
 import java.net.URISyntaxException
 import java.util.regex.Matcher
@@ -32,57 +33,63 @@ class M3uParser {
                 groups = mutableListOf()
             }
 
-            inputStream.use { input -> for (rawLine in input.bufferedReader(UTF_8).lines()) {
-                // Remove control characters and trim line
-                val line = rawLine
-                    .replace(Regex("\\p{Cc}"), "")
-                    .replace("\u2028", "")
-                    .trim()
+            inputStream.use { input ->
+                val reader = input.bufferedReader(UTF_8)
+                // First line should be #EXTM3U
+                if (reader.readLine().uppercase() != "#EXTM3U") throw IOException("Invalid M3U file format")
 
-                var matcher: Matcher
-                if ((TAG_PATTERN.matcher(line).also { matcher = it }).matches()) {
-                    when (matcher.group(1)) {
-                        "EXTM3U" -> Unit
+                for (rawLine in reader.lines()) {
+                    // Remove control characters and trim line
+                    val line = rawLine
+                        .replace(Regex("\\p{Cc}"), "")
+                        .replace("\u2028", "")
+                        .trim()
 
-                        "EXTINF" -> {
-                            val infoLine = matcher.group(2)
-                            matcher = INFO_PATTERN.matcher(infoLine)
-                            if (matcher.matches()) {
-                                name = parseProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
-                                if (name.startsWith(",")) name = name.substring(1).trim()
-                            } else {
-                                LOG.warn("malformed channel info: {}", infoLine)
-                                continue
+                    var matcher: Matcher
+                    if ((TAG_PATTERN.matcher(line).also { matcher = it }).matches()) {
+                        when (matcher.group(1)) {
+                            "EXTM3U" -> Unit
+
+                            "EXTINF" -> {
+                                val infoLine = matcher.group(2)
+                                matcher = INFO_PATTERN.matcher(infoLine)
+                                if (matcher.matches()) {
+                                    name = parseProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
+                                    if (name.startsWith(",")) name = name.substring(1).trim()
+                                } else {
+                                    LOG.warn("malformed channel info: {}", infoLine)
+                                    continue
+                                }
                             }
+
+                            "EXTVLCOPT" -> {
+                                vlcOpts.put(matcher.group(2).substringBefore("="), matcher.group(2).substringAfter("="))
+                            }
+
+                            "EXTGRP" -> for (group in matcher.group(2).trim().split(";".toRegex()).dropLastWhile { it.isEmpty() }
+                                .toTypedArray()) {
+                                groups.add(group.trim())
+                            }
+
+                            else -> LOG.warn("unknown m3u tag: {}", matcher.group(1))
+                        }
+                    } else if (line.isNotEmpty()) {
+                        props.remove("group-title")?.let { group -> groups.addAll(group.trim().split(";")) }
+
+                        try {
+                            Url(line).toEncodedJavaURI()
+                            action(M3uChannel(line, name, groups, props.toMap(), vlcOpts.toMap()))
+                        } catch (_: URISyntaxException) {
+                            LOG.warn("malformed channel uri: {}", line)
+                            resetVars()
+                            continue
                         }
 
-                        "EXTVLCOPT" -> {
-                            vlcOpts.put(matcher.group(2).substringBefore("="), matcher.group(2).substringAfter("="))
-                        }
-
-                        "EXTGRP" -> for (group in matcher.group(2).trim().split(";".toRegex()).dropLastWhile { it.isEmpty() }
-                            .toTypedArray()) {
-                            groups.add(group.trim())
-                        }
-
-                        else -> LOG.warn("unknown m3u tag: {}", matcher.group(1))
-                    }
-                } else if (line.isNotEmpty()) {
-                    props.remove("group-title")?.let { group -> groups.addAll(group.trim().split(";")) }
-
-                    try {
-                        Url(line).toEncodedJavaURI()
-                        action(M3uChannel(line, name, groups, props.toMap(), vlcOpts.toMap()))
-                    } catch (_: URISyntaxException) {
-                        LOG.warn("malformed channel uri: {}", line)
+                        // Reset after every resource line
                         resetVars()
-                        continue
                     }
-
-                    // Reset after every resource line
-                    resetVars()
                 }
-            } }
+            }
         }
 
         private fun parseProps(line: String, props: MutableMap<String, String>): String {
