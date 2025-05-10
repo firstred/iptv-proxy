@@ -42,7 +42,7 @@ fun String.toProxiedIconUrl(baseUrl: String, encryptedAccount: String): String {
 
 fun Url.toEncodedJavaURI() = URI(
     protocol.name,
-    encodedUser,
+    if (!encodedUser.isNullOrBlank()) "$encodedUser:$encodedPassword" else null,
     host,
     port,
     encodedPath,

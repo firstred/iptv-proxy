@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.addHeadersFromPlaylistProps
+import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.forwardProxyUser
@@ -73,6 +74,7 @@ class IptvChannel(
                     sendUserAgent(connection.config)
                     if (null != connection.config.account) sendBasicAuth(connection.config.account)
                     addHeadersFromPlaylistProps(m3uProps, vlcOpts)
+                    addProxyAuthorizationHeaderIfNecessary()
                 }
             }
             headersCallback?.invoke(response.headers)
@@ -86,7 +88,16 @@ class IptvChannel(
                 val location = response.headers["Location"] ?: break
 
                 // Follow redirects
-                response = connection.httpClient.get(location)
+                response = connection.httpClient.get(location) {
+                    headers {
+                        additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
+                        forwardProxyUser(connection.config)
+                        sendUserAgent(connection.config)
+                        if (null != connection.config.account) sendBasicAuth(connection.config.account)
+                        addHeadersFromPlaylistProps(m3uProps, vlcOpts)
+                        addProxyAuthorizationHeaderIfNecessary()
+                    }
+                }
                 response.body<String>()
                 try {
                     responseURI = responseURI.resolve(location)

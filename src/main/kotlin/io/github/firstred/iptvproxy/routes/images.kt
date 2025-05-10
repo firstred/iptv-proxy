@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.routes
 
 import io.github.firstred.iptvproxy.plugins.findUserFromEncryptedAccountInRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainPort
+import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.aesDecryptFromHexString
 import io.github.firstred.iptvproxy.utils.appendQueryParameters
 import io.github.firstred.iptvproxy.utils.filterAndAppendHttpRequestHeaders
@@ -59,6 +60,7 @@ fun Route.images() {
                 method = HttpMethod.Get
                 headers {
                     filterAndAppendHttpRequestHeaders(this@headers, this@get)
+                    addProxyAuthorizationHeaderIfNecessary()
                 }
             }.execute { response ->
                 call.response.headers.apply {

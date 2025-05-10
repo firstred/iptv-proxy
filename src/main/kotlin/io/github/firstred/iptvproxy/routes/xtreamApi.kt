@@ -30,6 +30,7 @@ import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.serialization.xml
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
+import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.maxRedirects
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
@@ -791,6 +792,7 @@ private suspend fun followRedirects(
                 headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) } }
                 accept(ContentType.Application.Json)
                 addDefaultClientHeaders(connection.config)
+                addProxyAuthorizationHeaderIfNecessary()
             }
         }
         newLocation = newResponse.headers["Location"] ?: ""

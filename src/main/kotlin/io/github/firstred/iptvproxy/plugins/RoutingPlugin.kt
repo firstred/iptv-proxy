@@ -247,7 +247,15 @@ suspend fun Route.rewriteRemotePlaylist(
             val location = response.headers["Location"] ?: break
 
             // Follow redirects
-            response = connection.httpClient.get(location)
+            response = connection.httpClient.get(location) {
+                headers {
+                    additionalHeaders.forEach { key, values -> values.forEach { value -> append(key, value) } }
+                    forwardProxyUser(connection.config)
+                    sendUserAgent(connection.config)
+                    if (null != connection.config.account) sendBasicAuth(connection.config.account)
+                    addHeadersFromPlaylistProps(channel.m3uProps, channel.vlcOpts)
+                }
+            }
             response.body<String>()
             try {
                 responseURI = responseURI.resolve(location)
