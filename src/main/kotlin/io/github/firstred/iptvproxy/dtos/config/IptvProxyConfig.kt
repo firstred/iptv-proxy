@@ -120,15 +120,12 @@ data class IptvProxyConfig(
 
             var username: String? = null
             var password: String? = null
-            println("userinfo is: ${uri}")
 
             uri?.userInfo?.let {
                 val userInfo = it.split(":")
                 username = userInfo[0]
                 password = if (userInfo.size > 1) userInfo[1] else null
             }
-
-            println("password is: $password")
 
             IptvConnectionProxyConfig(
                 type = ProxyType.HTTP,
