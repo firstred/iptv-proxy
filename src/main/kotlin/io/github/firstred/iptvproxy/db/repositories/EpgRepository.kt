@@ -590,8 +590,41 @@ class EpgRepository {
             EpgChannelTable.deleteWhere {
                 EpgChannelTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
+
             EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_FUTURE))
+                EpgProgrammeTable.epgChannelId notInList
+                        EpgChannelTable.selectAll()
+                            .map { it[EpgChannelTable.epgChannelId] }
+            }
+            EpgProgrammeAudioTable.deleteWhere {
+                Pair(EpgProgrammeAudioTable.epgChannelId, EpgProgrammeAudioTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+            }
+            EpgProgrammeCategoryTable.deleteWhere {
+                Pair(EpgProgrammeCategoryTable.epgChannelId, EpgProgrammeCategoryTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+            }
+            EpgProgrammeEpisodeNumberTable.deleteWhere {
+                Pair(EpgProgrammeEpisodeNumberTable.epgChannelId, EpgProgrammeEpisodeNumberTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+            }
+            EpgProgrammePreviouslyShownTable.deleteWhere {
+                Pair(EpgProgrammePreviouslyShownTable.epgChannelId, EpgProgrammePreviouslyShownTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+            }
+            EpgProgrammeRatingTable.deleteWhere {
+                Pair(EpgProgrammeRatingTable.epgChannelId, EpgProgrammeRatingTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+            }
+            EpgProgrammeSubtitlesTable.deleteWhere {
+                Pair(EpgProgrammeSubtitlesTable.epgChannelId, EpgProgrammeSubtitlesTable.programmeStart) notInList
+                        EpgProgrammeTable.selectAll()
+                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
             }
         }
     }
