@@ -348,7 +348,7 @@ fun Route.xtreamApi() {
                         call.respond(movieInfo.copy(
                             movieData = movieInfo.movieData.copy(
                                 streamId = streamIdMapping[movieInfo.movieData.streamId.toUInt()]?.toInt() ?: 0,
-                                cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                cover = movieInfo.movieData.cover?.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId]?.toString() ?: "0",
                                 categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toString()]?.toInt() ?: 0 } }
                                 catch (e: IllegalArgumentException) {
@@ -357,13 +357,16 @@ fun Route.xtreamApi() {
                                 }
                             ),
                             info = movieInfo.info.copy(
-                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                cover = movieInfo.info.cover?.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                coverBig = movieInfo.info.coverBig.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                movieImage = movieInfo.info.movieImage.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 backdropPath = movieInfo.info.backdropPath.mapNotNull {
                                     it.let {
-                                        if (it.isNotBlank()) it.toProxiedIconUrl(
+                                        if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(
                                             baseUrl,
                                             encryptedAccount
-                                        ) else null
+                                        ) else it) else null
                                     }
                                 },
                             )
@@ -533,14 +536,14 @@ fun Route.xtreamApi() {
                         // Rewrite images and remap external IDs to internal IDs
                         call.respond(seriesInfo.copy(
                             seasons = seriesInfo.seasons.map { it.copy(
-                                cover = it.cover.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                coverBig = it.coverBig.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                overview = it.overview.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
+                                cover = it.cover.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                coverBig = it.coverBig.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                overview = it.overview.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
                             ) },
                             info = seriesInfo.info.copy(
-                                cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) it.toProxiedIconUrl(baseUrl, encryptedAccount) else "" },
-                                backdropPath = seriesInfo.info.backdropPath.map { it.toProxiedIconUrl(baseUrl, encryptedAccount) },
+                                cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                backdropPath = seriesInfo.info.backdropPath.map { (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  },
                                 categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId]?.toString() ?: "0",
                                 categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it.toString()] ?: 0u } } catch (e: IllegalArgumentException) {
                                     Sentry.captureException(e)
@@ -552,7 +555,7 @@ fun Route.xtreamApi() {
                                     episode.copy(
                                         id = streamIdMapping[episode.id.toUInt()]?.toString() ?: "0",
                                         info = episode.info.copy(
-                                            movieImage = episode.info.movieImage.toProxiedIconUrl(baseUrl, encryptedAccount),
+                                            movieImage = if (iptvServer.config.proxyStream) episode.info.movieImage.toProxiedIconUrl(baseUrl, encryptedAccount) else episode.info.movieImage,
                                         )
                                     )
                                 }
