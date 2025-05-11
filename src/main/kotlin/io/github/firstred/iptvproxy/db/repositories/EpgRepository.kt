@@ -630,13 +630,6 @@ class EpgRepository {
     }
 
     companion object {
-        private fun ResultRow.toXmltvDoc() = XmltvDoc(
-            this[XmltvSourceTable.generatorInfoName],
-            this[XmltvSourceTable.generatorInfoUrl],
-            this[XmltvSourceTable.sourceInfoUrl],
-            this[XmltvSourceTable.sourceInfoName],
-            this[XmltvSourceTable.sourceInfoLogo],
-        )
         private fun ResultRow.toXmltvChannel() = XmltvChannel(
             id = this[EpgChannelTable.epgChannelId],
             displayNames = listOf(),

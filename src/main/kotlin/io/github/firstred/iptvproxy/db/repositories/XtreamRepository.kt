@@ -387,7 +387,6 @@ class XtreamRepository : KoinComponent {
         type: IptvChannelType,
         sortedByName: Boolean = config.sortChannelsByName,
         server: String? = null,
-        forUser: IptvUser? = null,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<XtreamCategory>) -> Unit,
     ) {
@@ -608,7 +607,6 @@ class XtreamRepository : KoinComponent {
             .map { it[ChannelTable.server] }
             .firstOrNull()
     }
-    fun findServerByMovieId(movieId: UInt): String? = findServerByLiveStreamId(movieId)
     fun findServerBySeriesId(seriesId: UInt): String? = transaction {
         SeriesTable
             .select(SeriesTable.server)
