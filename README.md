@@ -38,7 +38,6 @@ host: 127.0.0.1 # IPv4 or IPv6 address to bind to, use `::` (dual-stack) or `0.0
 port: ${PORT:-8080}
 base_url: http://127.0.0.1:8888
 app_secret: "Changeme!"
-log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
 # database:
 #   jdbc_url: jdbc:sqlite:iptv.db
 #   maximum_pool_size: 6
@@ -137,7 +136,7 @@ users:
 * `base_url` - base URL of your service, you may omit this (see `forwarded_pass`) - this URL will be used for every link generated in e.g. playlists
 * `forwarded_pass` - password for `Forwarded` header in case iptv-proxy is behind a proxy and you'd like to use a dynamic different base_url
 * `app_secret` - just random chars, they are used to create encrypted tokens
-* `log_level` - log level, possible values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `OFF`
+* `log_level` - REMOVED: The log level can now be set via system properties, e.g. java -Dlog.level=warn [..], possible values: `TRACE`, `DEBUG`, `INFO`, `WARN`, `ERROR`, `OFF`
 
 * `client_connection_max_idle_seconds` - max idle time (no packets at all) for client connections (default is 60 seconds)
 * `update_interval` - interval to update the playlist and EPG data (default is 6 hours)

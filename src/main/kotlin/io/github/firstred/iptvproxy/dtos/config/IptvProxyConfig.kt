@@ -21,7 +21,6 @@ data class IptvProxyConfig(
     val baseUrl: String? = null,
     val forwardedPass: String? = null,
     val appSecret: String = "ChangeMe!",
-    val logLevel: String = "ERROR",
     val timeouts: IptvProxyConfigTimeouts = IptvProxyConfigTimeouts(),
 
     val database: IptvProxyDatabaseConfig = IptvProxyDatabaseConfig(),

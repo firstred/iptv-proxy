@@ -109,8 +109,6 @@ private fun startServer() {
     embeddedServer(
         CIO,
         serverConfig {
-            developmentMode = config.logLevel.uppercase() in listOf("DEBUG", "TRACE")
-
             module {
                 install(Koin) {
                     slf4jLogger()

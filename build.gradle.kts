@@ -100,6 +100,7 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
         jvmFlags = listOf(
             "-server",
             "-Djava.awt.headless=true",
+            "-Dlog.level=warn",
             "-XX:+UseZGC",
             "-XX:+ZGenerational",
             "-XX:+AlwaysPreTouch",

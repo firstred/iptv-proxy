@@ -23,7 +23,6 @@ host: 127.0.0.1 # IPv4 or IPv6 address to bind to, use `::` (dual-stack) or `0.0
 port: ${PORT:-8080}
 base_url: http://127.0.0.1:8888
 app_secret: "Changeme!"
-log_level: ${IPTV_PROXY_LOG_LEVEL:-ERROR}
 # database:
 #   jdbc_url: jdbc:sqlite:iptv.db
 #   maximum_pool_size: 6
