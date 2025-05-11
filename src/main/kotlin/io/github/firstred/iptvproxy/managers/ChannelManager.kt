@@ -575,7 +575,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 outputWriter.flush()
             }
         }
-
     }
 
     private fun scheduleChannelCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
@@ -616,6 +615,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                 updateChannels()
                             }
                         }
+                        scheduleChannelCleanups()
                         scheduleChannelUpdates(config.updateInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {
@@ -634,8 +634,17 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
     override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
-        scheduleChannelUpdates()
-        scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
+        var nextUpdateRunInMinutes = 0L
+        if (!config.updateOnStartup) {
+            val lastCompletedRun = channelRepository.findLastUpdateCompletedAt()
+            // Find next run
+            val now = Clock.System.now()
+            val nextRun = (lastCompletedRun + config.updateInterval).coerceIn(now, now + config.updateInterval)
+            nextUpdateRunInMinutes = nextRun.minus(now).inWholeMinutes
+        }
+
+        scheduleChannelUpdates(nextUpdateRunInMinutes)
+        scheduleChannelCleanups(nextUpdateRunInMinutes + config.cleanupInterval.inWholeMinutes)
         LOG.info("Channel manager started")
 
         val channelCount = channelRepository.getIptvChannelCount()

@@ -217,6 +217,15 @@ class ChannelRepository : KoinComponent {
         ChannelTable.selectAll().count().toUInt()
     }
 
+    fun findLastUpdateCompletedAt(): Instant = transaction {
+        PlaylistSourceTable
+            .select(PlaylistSourceTable.completedImportAt)
+            .orderBy(PlaylistSourceTable.completedImportAt, SortOrder.DESC)
+            .limit(1)
+            .map { it[PlaylistSourceTable.completedImportAt] }
+            .firstOrNull() ?: Instant.DISTANT_PAST
+    }
+
     fun cleanup() {
         val now = Clock.System.now()
 

@@ -34,6 +34,7 @@ data class IptvProxyConfig(
     val updateIntervalOnFailure: Duration = Duration.parse("PT10M"),
     val cleanupInterval: Duration = Duration.parse("PT6H"),
     val channelMaxStalePeriod: Duration = Duration.parse("P7D"),
+    val updateOnStartup: Boolean = true,
     @Serializable(with = UIntWithUnderscoreSerializer::class) val schedulerThreadPoolSize: UInt = 2u,
 
     val servers: List<IptvServerConfig> = emptyList(),
