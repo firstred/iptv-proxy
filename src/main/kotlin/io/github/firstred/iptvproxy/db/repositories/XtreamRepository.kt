@@ -18,6 +18,7 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.databaseExpressionTreeLimit
 import io.github.firstred.iptvproxy.utils.toBoolean
 import io.github.firstred.iptvproxy.utils.toListFilters
 import io.github.firstred.iptvproxy.utils.toUInt
@@ -40,6 +41,7 @@ import org.jetbrains.exposed.sql.stringLiteral
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
 import org.koin.core.component.KoinComponent
+import kotlin.math.floor
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -138,7 +140,7 @@ class XtreamRepository : KoinComponent {
                     liveStreamsAndCategoryIds
                         .map { Pair(it.third, server) }
                         .distinct()
-                        .chunked(500)
+                        .chunked(floor(databaseExpressionTreeLimit / 2f).toInt())
                         .forEach { chunk ->
                             LiveStreamToCategoryTable.deleteWhere {
                                 (LiveStreamToCategoryTable.externalStreamId to LiveStreamToCategoryTable.server) inList chunk
@@ -193,7 +195,7 @@ class XtreamRepository : KoinComponent {
                     moviesAndCategoryIds
                         .map { Pair(it.third, server) }
                         .distinct()
-                        .chunked(500)
+                        .chunked(floor(databaseExpressionTreeLimit / 2f).toInt())
                         .forEach { chunk ->
                             MovieToCategoryTable.deleteWhere {
                                 (MovieToCategoryTable.externalStreamId to MovieToCategoryTable.server) inList chunk
@@ -254,7 +256,7 @@ class XtreamRepository : KoinComponent {
                     seriesAndCategoryIds
                         .map { Pair(it.third, server) }
                         .distinct()
-                        .chunked(500)
+                        .chunked(floor(databaseExpressionTreeLimit / 2f).toInt())
                         .forEach { chunk ->
                             SeriesToCategoryTable.deleteWhere {
                                 (SeriesToCategoryTable.externalSeriesId to SeriesToCategoryTable.server) inList chunk

@@ -9,6 +9,7 @@ import io.github.firstred.iptvproxy.db.tables.sources.PlaylistSourceTable
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.utils.databaseExpressionTreeLimit
 import io.github.firstred.iptvproxy.utils.toChannelTypeOrNull
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toListFilters
@@ -252,7 +253,7 @@ class ChannelRepository : KoinComponent {
                         .where { ChannelTable.xtreamStreamId greater 1u }
                         .groupBy(ChannelTable.server, ChannelTable.xtreamStreamId)
                         .having { ChannelTable.xtreamStreamId.count() greater 1 }
-                        .limit(500) // Max 500 at once - should be supported by SQLite
+                        .limit(floor(databaseExpressionTreeLimit / 2f).toInt()) // Max 400-500 at once - should be supported by SQLite
                         .map { it[ChannelTable.id] }
                 }
             } while (deleted > 0)

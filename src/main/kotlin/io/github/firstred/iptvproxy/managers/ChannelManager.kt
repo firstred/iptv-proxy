@@ -114,12 +114,13 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     try {
                         LOG.info("Parsing xmltv data")
 
-                        val endOf = Clock.System.now() + server.config.epgAfter
                         val startOf = Clock.System.now() - server.config.epgBefore
+                        val endOf = Clock.System.now() + server.config.epgAfter
+                        val importStarted = Clock.System.now()
 
                         val xmltvChannels = mutableListOf<XmltvChannel>()
                         fun flushXmltvChannels() {
-                            epgRepository.upsertXmltvChannels(xmltvChannels)
+                            epgRepository.upsertXmltvChannels(xmltvChannels, importStarted)
                             xmltvChannels.clear()
                         }
                         fun addXmltvChannel(xmltvChannel: XmltvChannel) {
