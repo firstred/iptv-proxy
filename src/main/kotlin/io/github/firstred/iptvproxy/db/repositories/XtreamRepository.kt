@@ -600,13 +600,6 @@ class XtreamRepository : KoinComponent {
             .associateBy({ it[CategoryTable.name] }, { Pair(it[CategoryTable.externalCategoryId], it.toXtreamCategory()) })
     }
 
-    fun findServerByLiveStreamId(liveStreamId: UInt): String? = transaction {
-        ChannelTable
-            .select(ChannelTable.server)
-            .where { ChannelTable.id eq liveStreamId }
-            .map { it[ChannelTable.server] }
-            .firstOrNull()
-    }
     fun findServerBySeriesId(seriesId: UInt): String? = transaction {
         SeriesTable
             .select(SeriesTable.server)
