@@ -135,10 +135,15 @@ class XtreamRepository : KoinComponent {
                         as List<Triple<UInt, String, UInt>>
 
                 if (liveStreamsAndCategoryIds.isNotEmpty()) {
-                    LiveStreamToCategoryTable.deleteWhere {
-                        (LiveStreamToCategoryTable.externalStreamId to LiveStreamToCategoryTable.server) inList
-                                liveStreamsAndCategoryIds.map { Pair(it.third, server) }.distinct()
-                    }
+                    liveStreamsAndCategoryIds
+                        .map { Pair(it.third, server) }
+                        .distinct()
+                        .chunked(500)
+                        .forEach { chunk ->
+                            LiveStreamToCategoryTable.deleteWhere {
+                                (LiveStreamToCategoryTable.externalStreamId to LiveStreamToCategoryTable.server) inList chunk
+                            }
+                        }
 
                     LiveStreamToCategoryTable.batchUpsert(
                         data = liveStreamsAndCategoryIds,
@@ -185,10 +190,15 @@ class XtreamRepository : KoinComponent {
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
                 if (moviesAndCategoryIds.isNotEmpty()) {
-                    MovieToCategoryTable.deleteWhere {
-                        (MovieToCategoryTable.externalStreamId to MovieToCategoryTable.server) inList
-                                moviesAndCategoryIds.map { Pair(it.third, server) }.distinct()
-                    }
+                    moviesAndCategoryIds
+                        .map { Pair(it.third, server) }
+                        .distinct()
+                        .chunked(500)
+                        .forEach { chunk ->
+                            MovieToCategoryTable.deleteWhere {
+                                (MovieToCategoryTable.externalStreamId to MovieToCategoryTable.server) inList chunk
+                            }
+                        }
 
                     MovieToCategoryTable.batchUpsert(
                         data = moviesAndCategoryIds,
@@ -241,10 +251,15 @@ class XtreamRepository : KoinComponent {
                         as List<Triple<UInt, String, UInt>>
 
                 if (seriesAndCategoryIds.isNotEmpty()) {
-                    SeriesToCategoryTable.deleteWhere {
-                        (SeriesToCategoryTable.externalSeriesId to SeriesToCategoryTable.server) inList
-                                seriesAndCategoryIds.map { Pair(it.third, server) }.distinct()
-                    }
+                    seriesAndCategoryIds
+                        .map { Pair(it.third, server) }
+                        .distinct()
+                        .chunked(500)
+                        .forEach { chunk ->
+                            SeriesToCategoryTable.deleteWhere {
+                                (SeriesToCategoryTable.externalSeriesId to SeriesToCategoryTable.server) inList chunk
+                            }
+                        }
 
                     SeriesToCategoryTable.batchUpsert(
                         data = seriesAndCategoryIds,

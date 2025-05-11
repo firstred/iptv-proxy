@@ -33,6 +33,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import org.koin.mp.KoinPlatform.getKoin
 import java.net.URI
+import kotlin.math.floor
 
 class ChannelRepository : KoinComponent {
     private val serversByName: IptvServersByName by inject()
@@ -251,6 +252,7 @@ class ChannelRepository : KoinComponent {
                         .where { ChannelTable.xtreamStreamId greater 1u }
                         .groupBy(ChannelTable.server, ChannelTable.xtreamStreamId)
                         .having { ChannelTable.xtreamStreamId.count() greater 1 }
+                        .limit(500) // Max 500 at once - should be supported by SQLite
                         .map { it[ChannelTable.id] }
                 }
             } while (deleted > 0)

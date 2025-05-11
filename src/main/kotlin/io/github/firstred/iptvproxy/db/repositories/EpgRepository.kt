@@ -38,6 +38,7 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.notExists
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -583,48 +584,165 @@ class EpgRepository {
     fun cleanup() {
         val now = Clock.System.now()
         transaction {
+            // Delete XMLTV sources where the server no longer exists
             XmltvSourceTable.deleteWhere {
                 XmltvSourceTable.server notInList config.servers.map { it.name }
             }
 
+            // Delete channels that have not been updated for a long time
             EpgChannelTable.deleteWhere {
                 EpgChannelTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
 
+            // Clear programme table where the channel ID no longer exists
             EpgProgrammeTable.deleteWhere {
-                EpgProgrammeTable.epgChannelId notInList
-                        EpgChannelTable.selectAll()
-                            .map { it[EpgChannelTable.epgChannelId] }
+                notExists(
+                    EpgChannelTable
+                        .join(
+                            EpgProgrammeTable,
+                            JoinType.INNER,
+                            onColumn = EpgChannelTable.epgChannelId,
+                            otherColumn = EpgProgrammeTable.epgChannelId,
+                        )
+                        .select(EpgChannelTable.epgChannelId, EpgProgrammeTable.epgChannelId)
+                        .where {
+                            EpgChannelTable.epgChannelId eq EpgProgrammeTable.epgChannelId
+                        })
             }
+
+            // Clear programmes that are too old for any server
+            val oldestAllowed = (now - config.servers.maxOf { it.epgBefore }).coerceAtLeast(Instant.DISTANT_PAST)
+            EpgProgrammeTable.deleteWhere {
+                EpgProgrammeTable.updatedAt less oldestAllowed
+            }
+
+            EpgProgrammeTable.deleteWhere {
+                notExists(
+                    EpgChannelTable
+                        .join(
+                            EpgProgrammeTable,
+                            JoinType.INNER,
+                            onColumn = EpgChannelTable.epgChannelId,
+                            otherColumn = EpgProgrammeTable.epgChannelId,
+                        )
+                        .select(EpgChannelTable.epgChannelId, EpgProgrammeTable.epgChannelId)
+                        .where {
+                            EpgChannelTable.epgChannelId eq EpgProgrammeTable.epgChannelId
+                        })
+            }
+
+            // Delete orphaned programme properties
             EpgProgrammeAudioTable.deleteWhere {
-                Pair(EpgProgrammeAudioTable.epgChannelId, EpgProgrammeAudioTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammeAudioTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammeAudioTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammeAudioTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammeAudioTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammeAudioTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammeAudioTable.programmeStart)
+                        })
             }
             EpgProgrammeCategoryTable.deleteWhere {
-                Pair(EpgProgrammeCategoryTable.epgChannelId, EpgProgrammeCategoryTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammeCategoryTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammeCategoryTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammeCategoryTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammeCategoryTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammeCategoryTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammeCategoryTable.programmeStart)
+                        })
             }
             EpgProgrammeEpisodeNumberTable.deleteWhere {
-                Pair(EpgProgrammeEpisodeNumberTable.epgChannelId, EpgProgrammeEpisodeNumberTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammeEpisodeNumberTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammeEpisodeNumberTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammeEpisodeNumberTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammeEpisodeNumberTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammeEpisodeNumberTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammeEpisodeNumberTable.programmeStart)
+                        })
             }
             EpgProgrammePreviouslyShownTable.deleteWhere {
-                Pair(EpgProgrammePreviouslyShownTable.epgChannelId, EpgProgrammePreviouslyShownTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammePreviouslyShownTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammePreviouslyShownTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammePreviouslyShownTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammePreviouslyShownTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammePreviouslyShownTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammePreviouslyShownTable.programmeStart)
+                        })
+            }
+            EpgProgrammePreviouslyShownTable.deleteWhere {
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammePreviouslyShownTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammePreviouslyShownTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammePreviouslyShownTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammePreviouslyShownTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammePreviouslyShownTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammePreviouslyShownTable.programmeStart)
+                        })
             }
             EpgProgrammeRatingTable.deleteWhere {
-                Pair(EpgProgrammeRatingTable.epgChannelId, EpgProgrammeRatingTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammeRatingTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammeRatingTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammeRatingTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammeRatingTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammeRatingTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammeRatingTable.programmeStart)
+                        })
             }
             EpgProgrammeSubtitlesTable.deleteWhere {
-                Pair(EpgProgrammeSubtitlesTable.epgChannelId, EpgProgrammeSubtitlesTable.programmeStart) notInList
-                        EpgProgrammeTable.selectAll()
-                            .map { Pair(it[EpgProgrammeTable.epgChannelId], it[EpgProgrammeTable.start]) }
+                notExists(
+                    EpgProgrammeTable
+                        .join(
+                            EpgProgrammeSubtitlesTable,
+                            JoinType.INNER,
+                            onColumn = EpgProgrammeTable.epgChannelId,
+                            otherColumn = EpgProgrammeSubtitlesTable.epgChannelId,
+                            additionalConstraint = { EpgProgrammeTable.start eq EpgProgrammeSubtitlesTable.programmeStart }
+                        )
+                        .select(EpgProgrammeTable.start, EpgProgrammeSubtitlesTable.programmeStart)
+                        .where {
+                            (EpgProgrammeTable.epgChannelId eq EpgProgrammeSubtitlesTable.epgChannelId) and
+                                    (EpgProgrammeTable.start eq EpgProgrammeSubtitlesTable.programmeStart)
+                        })
             }
         }
     }
