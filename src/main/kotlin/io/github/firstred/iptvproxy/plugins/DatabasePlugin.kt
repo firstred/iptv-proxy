@@ -82,9 +82,9 @@ fun Application.configureDatabase() {
     Database.registerDialect(SQLiteWithRegexpDialect.dialectName) { SQLiteWithRegexpDialect() }
     Database.connect(
         databaseConfig = DatabaseConfig {
-            defaultMaxAttempts = 9_999
-            defaultMinRetryDelay = 500
-            defaultMaxRetryDelay = 10_000
+            defaultMaxAttempts = 10
+            defaultMinRetryDelay = 2_000
+            defaultMaxRetryDelay = 60_000
         },
         datasource = dataSource,
         setupConnection = {
