@@ -43,6 +43,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.cio.*
 import io.sentry.Sentry
+import io.sentry.Sentry.captureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
@@ -282,7 +283,6 @@ fun Route.xtreamApi() {
                     val targetUrl = account?.getXtreamMovieInfoUrl()
                     if (null == targetUrl) return@let
 
-
                     var movieInfo: XtreamMovieInfoEndpoint? = null
 
                     val uniqueKey = "baseUrl=$baseUrl|server=${iptvServer.name}|vod_id=$vodId"
@@ -310,18 +310,18 @@ fun Route.xtreamApi() {
 
                         try {
                             movieInfo = response.body<XtreamMovieInfoEndpoint>()
-                        } catch (_: JsonConvertException) {
+                            movieInfo.let {
+                                cacheCoroutineScope.launch { movieInfoCache.putAsync(uniqueKey) { fileName ->
+                                    val file = File(fileName)
+                                    val text = json.encodeToString(XtreamMovieInfoEndpoint.serializer(), it)
+                                    file.writeText(text)
+
+                                    true
+                                } }
+                            }
+                        } catch (e: JsonConvertException) {
+                            captureException(e)
                             movieInfo = XtreamMovieInfoEndpoint()
-                        }
-
-                        movieInfo.let {
-                             cacheCoroutineScope.launch { movieInfoCache.putAsync(uniqueKey) { fileName ->
-                                val file = File(fileName)
-                                val text = json.encodeToString(XtreamMovieInfoEndpoint.serializer(), it)
-                                file.writeText(text)
-
-                                true
-                            } }
                         }
                     }
 
@@ -352,7 +352,7 @@ fun Route.xtreamApi() {
                                 categoryId = externalCategoryIdToIdMap[movieInfo.movieData.categoryId]?.toString() ?: "0",
                                 categoryIds = try { movieInfo.movieData.categoryIds.map { externalCategoryIdToIdMap[it.toString()]?.toInt() ?: 0 } }
                                 catch (e: IllegalArgumentException) {
-                                    Sentry.captureException(e)
+                                    captureException(e)
                                     movieInfo.movieData.categoryIds
                                 }
                             ),
@@ -372,7 +372,7 @@ fun Route.xtreamApi() {
                             )
                         ))
                     } catch (e: IllegalArgumentException) {
-                        Sentry.captureException(e)
+                        captureException(e)
                         call.respond(movieInfo)
                     } catch (_: ChannelWriteException) {
                         // Client closed connection
@@ -498,18 +498,18 @@ fun Route.xtreamApi() {
 
                         try {
                             seriesInfo = response.body<XtreamSeriesInfoEndpoint>()
-                        } catch (_: JsonConvertException) {
+                            seriesInfo.let {
+                                cacheCoroutineScope.launch { seriesInfoCache.putAsync(uniqueKey) { fileName ->
+                                    val file = File(fileName)
+                                    val text = json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), it)
+                                    file.writeText(text)
+
+                                    true
+                                } }
+                            }
+                        } catch (e: JsonConvertException) {
+                            captureException(e)
                             seriesInfo = XtreamSeriesInfoEndpoint()
-                        }
-
-                        seriesInfo.let {
-                            cacheCoroutineScope.launch { seriesInfoCache.putAsync(uniqueKey) { fileName ->
-                                val file = File(fileName)
-                                val text = json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), it)
-                                file.writeText(text)
-
-                                true
-                            } }
                         }
                     }
 
@@ -546,7 +546,7 @@ fun Route.xtreamApi() {
                                 backdropPath = seriesInfo.info.backdropPath.map { (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  },
                                 categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId]?.toString() ?: "0",
                                 categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it.toString()] ?: 0u } } catch (e: IllegalArgumentException) {
-                                    Sentry.captureException(e)
+                                    captureException(e)
                                     seriesInfo.info.categoryIds
                                 }
                             ),
@@ -596,7 +596,7 @@ fun Route.xtreamApi() {
                 try {
                     programmes = epgRepository.getProgrammesForChannelId(channelId, limit)
                 } catch (e: Throwable) {
-                    Sentry.captureException(e)
+                    captureException(e)
                     programmes = listOf()
                 }
 
@@ -627,7 +627,7 @@ fun Route.xtreamApi() {
                         Instant.fromEpochMilliseconds(0)
                     )
                 } catch (e: Throwable) {
-                    Sentry.captureException(e)
+                    captureException(e)
                     programmes = listOf()
                 }
 
