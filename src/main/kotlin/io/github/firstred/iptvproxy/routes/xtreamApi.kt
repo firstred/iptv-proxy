@@ -357,10 +357,10 @@ fun Route.xtreamApi() {
                                 }
                             ),
                             info = movieInfo.info.copy(
-                                cover = movieInfo.info.cover?.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
-                                coverBig = movieInfo.info.coverBig.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
-                                movieImage = movieInfo.info.movieImage.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
-                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                cover = movieInfo.info.cover?.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                coverBig = movieInfo.info.coverBig.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                movieImage = movieInfo.info.movieImage.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 backdropPath = movieInfo.info.backdropPath.mapNotNull {
                                     it.let {
                                         if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(
@@ -536,10 +536,10 @@ fun Route.xtreamApi() {
                         // Rewrite images and remap external IDs to internal IDs
                         call.respond(seriesInfo.copy(
                             seasons = seriesInfo.seasons.map { it.copy(
-                                cover = it.cover.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
-                                coverBig = it.coverBig.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
-                                overview = it.overview.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
-                                coverTmdb = it.coverTmdb.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                cover = it.cover.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                coverBig = it.coverBig.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                overview = it.overview.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
+                                coverTmdb = it.coverTmdb.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
                             ) },
                             info = seriesInfo.info.copy(
                                 cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },

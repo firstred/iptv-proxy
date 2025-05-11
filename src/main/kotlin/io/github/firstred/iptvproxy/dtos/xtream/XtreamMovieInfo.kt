@@ -1,20 +1,19 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
-import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
+@Serializable(with = EnsureValidXtreamInfoSerializer::class)
 @OptIn(ExperimentalSerializationApi::class)
 data class XtreamMovieInfo(
     @SerialName("kinopoisk_url") val kinopoiskUrl: String = "",
-    @SerialName("tmdb_id") val tmdb_id: Int? = null,
+    @SerialName("tmdb_id") val tmdbId: Int? = null,
     val name: String = "",
-    @SerialName("o_name") val o_name: String = "",
-    @EncodeDefault(EncodeDefault.Mode.NEVER) val cover: String? = null,
-    @SerialName("cover_big") val coverBig: String = "",
-    @SerialName("movie_image") val movieImage: String = "",
+    @SerialName("o_name") val oName: String = "",
+    val cover: String? = null,
+    @SerialName("cover_big") val coverBig: String? = null,
+    @SerialName("movie_image") val movieImage: String? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("releasedate") val releasedate: String? = null,
     @SerialName("episode_run_time") val episodeRunTime: Int? = null,
