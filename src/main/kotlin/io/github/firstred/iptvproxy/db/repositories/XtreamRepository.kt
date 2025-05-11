@@ -134,13 +134,20 @@ class XtreamRepository : KoinComponent {
                     .distinctBy { Triple(it.first, it.second, it.third) }
                         as List<Triple<UInt, String, UInt>>
 
-                if (liveStreamsAndCategoryIds.isNotEmpty()) LiveStreamToCategoryTable.batchUpsert(
-                    data = liveStreamsAndCategoryIds,
-                    shouldReturnGeneratedValues = false,
-                ) { (categoryId, server, streamId) ->
-                    this[LiveStreamToCategoryTable.server] = server
-                    this[LiveStreamToCategoryTable.externalStreamId] = streamId
-                    this[LiveStreamToCategoryTable.categoryId] = categoryId // Translate external category ID to internal category ID
+                if (liveStreamsAndCategoryIds.isNotEmpty()) {
+                    LiveStreamToCategoryTable.deleteWhere {
+                        (LiveStreamToCategoryTable.externalStreamId to LiveStreamToCategoryTable.server) inList
+                                liveStreamsAndCategoryIds.map { Pair(it.third, server) }.distinct()
+                    }
+
+                    LiveStreamToCategoryTable.batchUpsert(
+                        data = liveStreamsAndCategoryIds,
+                        shouldReturnGeneratedValues = false,
+                    ) { (categoryId, server, streamId) ->
+                        this[LiveStreamToCategoryTable.server] = server
+                        this[LiveStreamToCategoryTable.externalStreamId] = streamId
+                        this[LiveStreamToCategoryTable.categoryId] = categoryId // Translate external category ID to internal category ID
+                    }
                 }
             }
         }
@@ -177,13 +184,20 @@ class XtreamRepository : KoinComponent {
                     .flatMap { movie -> listOf(Triple(internalCategoryIds[movie.categoryId]?.id, server, movie.streamId)) + (movie.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, movie.streamId) } ?: emptyList()) }
                     .filter { null != it.first } as List<Triple<UInt, String, UInt>>
 
-                if (moviesAndCategoryIds.isNotEmpty()) MovieToCategoryTable.batchUpsert(
-                    data = moviesAndCategoryIds,
-                    shouldReturnGeneratedValues = false,
-                ) { (categoryId, server, streamId) ->
-                    this[MovieToCategoryTable.server] = server
-                    this[MovieToCategoryTable.externalStreamId] = streamId
-                    this[MovieToCategoryTable.categoryId] = categoryId
+                if (moviesAndCategoryIds.isNotEmpty()) {
+                    MovieToCategoryTable.deleteWhere {
+                        (MovieToCategoryTable.externalStreamId to MovieToCategoryTable.server) inList
+                                moviesAndCategoryIds.map { Pair(it.third, server) }.distinct()
+                    }
+
+                    MovieToCategoryTable.batchUpsert(
+                        data = moviesAndCategoryIds,
+                        shouldReturnGeneratedValues = false,
+                    ) { (categoryId, server, streamId) ->
+                        this[MovieToCategoryTable.server] = server
+                        this[MovieToCategoryTable.externalStreamId] = streamId
+                        this[MovieToCategoryTable.categoryId] = categoryId
+                    }
                 }
             }
         }
@@ -226,13 +240,20 @@ class XtreamRepository : KoinComponent {
                     .distinctBy { Triple(it.first, it.second, it.third) }
                         as List<Triple<UInt, String, UInt>>
 
-                if (seriesAndCategoryIds.isNotEmpty()) SeriesToCategoryTable.batchUpsert(
-                    data = seriesAndCategoryIds,
-                    shouldReturnGeneratedValues = false,
-                ) { (categoryId, server, seriesId) ->
-                    this[SeriesToCategoryTable.server] = server
-                    this[SeriesToCategoryTable.externalSeriesId] = seriesId
-                    this[SeriesToCategoryTable.categoryId] = categoryId
+                if (seriesAndCategoryIds.isNotEmpty()) {
+                    SeriesToCategoryTable.deleteWhere {
+                        (SeriesToCategoryTable.externalSeriesId to SeriesToCategoryTable.server) inList
+                                seriesAndCategoryIds.map { Pair(it.third, server) }.distinct()
+                    }
+
+                    SeriesToCategoryTable.batchUpsert(
+                        data = seriesAndCategoryIds,
+                        shouldReturnGeneratedValues = false,
+                    ) { (categoryId, server, seriesId) ->
+                        this[SeriesToCategoryTable.server] = server
+                        this[SeriesToCategoryTable.externalSeriesId] = seriesId
+                        this[SeriesToCategoryTable.categoryId] = categoryId
+                    }
                 }
             }
         }
