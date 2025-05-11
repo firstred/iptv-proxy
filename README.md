@@ -143,6 +143,7 @@ users:
 * `update_interval` - interval to update the playlist and EPG data (default is 6 hours)
 * `update_interval_on_failure` - interval to retry failed updates (default is 10 minutes)
 * `cleanup_interval` - interval to clean up old data (default is 1 hour)
+* `update_on_startup` - whether the updater should schedule immediately (default is `true`)
 * `channel_max_stale_period` - wait time before a stale channel is removed from the database (default is 2 days). A channel is considered stale if it (temporarily) wasn't on the remote playlist.
 
 * `scheduler_thread_pool_size` - max. concurrent updater threads for the playlist and EPG (default is `2`)
