@@ -14,6 +14,6 @@ val databaseModule = module {
     single { ChannelRepository() } binds hooksOf(ChannelRepository::class)
     single { EpgRepository() } binds hooksOf(EpgRepository::class)
     single { XtreamRepository() } binds hooksOf(XtreamRepository::class)
-    single { DatabaseManager } binds hooksOf(DatabaseManager::class)
+    single { DatabaseManager() } binds hooksOf(DatabaseManager::class)
     single(named("large-database-transactions")) { Mutex() }
 }
