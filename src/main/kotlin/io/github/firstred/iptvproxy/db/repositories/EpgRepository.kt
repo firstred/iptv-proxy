@@ -247,13 +247,11 @@ class EpgRepository {
     ) {
         var offset = 0L
 
-        val usedIds = findAllUsedEpgChannelIds(user = forUser)
-
         do {
             val epgChannelQuery = EpgChannelTable
                 .selectAll()
                 .groupBy(EpgChannelTable.epgChannelId)
-            if (trimEpg) epgChannelQuery.andWhere { EpgChannelTable.epgChannelId inList usedIds }
+            forUser?.let { if (trimEpg) epgChannelQuery.andWhere { EpgChannelTable.epgChannelId inList findAllUsedEpgChannelIds(it) } }
             if (sortedByName) {
                 epgChannelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
             } else {
@@ -292,17 +290,17 @@ class EpgRepository {
 
     fun forEachEpgProgrammeChunk(
         chunkSize: Int = config.database.chunkSize.toInt(),
+        trimEpg: Boolean = config.trimEpg,
         forUser: IptvUser? = null,
         action: (List<XmltvProgramme>) -> Unit,
     ) {
         var offset = 0L
 
-        val usedIds = findAllUsedEpgChannelIds(user = forUser)
-
         do {
             val programmeQuery = EpgProgrammeTable
                 .selectAll()
-                .andWhere { EpgProgrammeTable.epgChannelId inList usedIds }
+
+            forUser?.let { if (trimEpg) programmeQuery.andWhere { EpgProgrammeTable.epgChannelId inList findAllUsedEpgChannelIds(it) } }
             programmeQuery
                 .groupBy(EpgProgrammeTable.epgChannelId, EpgProgrammeTable.start)
                 .orderBy(EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
