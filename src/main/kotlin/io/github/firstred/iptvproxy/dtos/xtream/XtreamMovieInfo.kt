@@ -1,10 +1,11 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
+import io.github.firstred.iptvproxy.serialization.serializers.EnsureValidXtreamMovieInfoSerializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable(with = EnsureValidXtreamInfoSerializer::class)
+@Serializable(with = EnsureValidXtreamMovieInfoSerializer::class)
 @OptIn(ExperimentalSerializationApi::class)
 data class XtreamMovieInfo(
     @SerialName("kinopoisk_url") val kinopoiskUrl: String = "",

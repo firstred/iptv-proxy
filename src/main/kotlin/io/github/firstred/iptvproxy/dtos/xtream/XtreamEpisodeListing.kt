@@ -1,10 +1,11 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.serialization.serializers.EnsureValidXtreamSeriesInfoSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
-@Serializable
+@Serializable(with = EnsureValidXtreamSeriesInfoSerializer::class)
 data class XtreamEpisodeListing(
     val num: UInt? = null,
     val name: String? = null,
