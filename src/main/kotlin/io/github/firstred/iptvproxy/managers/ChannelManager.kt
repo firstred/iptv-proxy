@@ -637,7 +637,9 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     override fun onApplicationDatabaseInitializedHook() {
         LOG.info("Channel manager starting")
         var nextUpdateRunInMinutes = 0L
-        if (!config.updateOnStartup) {
+        val channelCount = channelRepository.getIptvChannelCount()
+
+        if (!config.updateOnStartup && channelCount > 0u) {
             val lastCompletedRun = channelRepository.findLastUpdateCompletedAt()
             // Find next run
             val now = Clock.System.now()
@@ -649,7 +651,6 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         scheduleChannelCleanups(nextUpdateRunInMinutes + config.cleanupInterval.inWholeMinutes)
         LOG.info("Channel manager started")
 
-        val channelCount = channelRepository.getIptvChannelCount()
         LOG.info("Channel count: $channelCount")
         if (channelCount > 0u) {
             dispatchHook(HasOnApplicationEventHook::class, ChannelsAreAvailableEvent())
