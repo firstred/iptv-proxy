@@ -25,6 +25,7 @@ import io.github.firstred.iptvproxy.parsers.XmltvParser
 import io.github.firstred.iptvproxy.serialization.json
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.dispatchHook
+import io.github.firstred.iptvproxy.utils.isHlsPlaylist
 import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
@@ -565,10 +566,10 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 }
 
                 if (channel.server.config.proxyStream) {
-                    if (channel.type == IptvChannelType.live) {
+                    if (channel.url.isHlsPlaylist()) {
                         outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.m3u8").toString())
                     } else {
-                        outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.${channel.url.toString().substringAfterLast('.')}").toString())
+                        outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.${channel.url.toString().substringAfterLast('.').ifBlank { "m3u8" } }").toString())
                     }
                 } else {
                     outputWriter.write(channel.url.toString())
