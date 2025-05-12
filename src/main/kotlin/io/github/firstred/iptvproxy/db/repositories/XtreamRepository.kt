@@ -36,6 +36,7 @@ import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.deleteWhere
+import org.jetbrains.exposed.sql.notExists
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.stringLiteral
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -675,97 +676,110 @@ class XtreamRepository : KoinComponent {
                 XtreamSourceTable.server notInList config.servers.map { it.name }
             }
 
+            CategoryTable.deleteWhere {
+                CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
+            }
+
             LiveStreamTable.deleteWhere {
                 LiveStreamTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
-            CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
+            LiveStreamToCategoryTable.deleteWhere {
+                notExists(
+                    CategoryTable
+                        .join(
+                            LiveStreamToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = CategoryTable.id,
+                            otherColumn = LiveStreamToCategoryTable.categoryId,
+                        )
+                        .select(CategoryTable.id, LiveStreamToCategoryTable.categoryId)
+                        .where {
+                            CategoryTable.id eq LiveStreamToCategoryTable.categoryId
+                        }
+                )
             }
             LiveStreamToCategoryTable.deleteWhere {
-                LiveStreamToCategoryTable.categoryId inList LiveStreamToCategoryTable
-                    .join(
-                        CategoryTable,
-                        JoinType.LEFT,
-                        onColumn = LiveStreamToCategoryTable.categoryId,
-                        otherColumn = CategoryTable.id,
-                    )
-                    .select(LiveStreamToCategoryTable.categoryId)
-                    .where { CategoryTable.id.isNull() }
-                    .map { it[LiveStreamToCategoryTable.categoryId] }
-            }
-            LiveStreamToCategoryTable.deleteWhere {
-                LiveStreamToCategoryTable.externalStreamId inList LiveStreamToCategoryTable
-                    .join(
-                        LiveStreamTable,
-                        JoinType.LEFT,
-                        onColumn = LiveStreamToCategoryTable.externalStreamId,
-                        otherColumn = LiveStreamTable.externalStreamId,
-                    )
-                    .select(LiveStreamToCategoryTable.externalStreamId)
-                    .where { LiveStreamTable.externalStreamId.isNull() }
-                    .map { it[LiveStreamToCategoryTable.externalStreamId] }
+                notExists(
+                    LiveStreamTable
+                        .join(
+                            LiveStreamToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = LiveStreamTable.externalStreamId,
+                            otherColumn = LiveStreamToCategoryTable.externalStreamId,
+                        )
+                        .select(LiveStreamTable.externalStreamId, LiveStreamToCategoryTable.externalStreamId)
+                        .where {
+                            LiveStreamTable.externalStreamId eq LiveStreamToCategoryTable.externalStreamId
+                        }
+                )
             }
 
             MovieTable.deleteWhere {
                  MovieTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
-            CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
+            MovieToCategoryTable.deleteWhere {
+                notExists(
+                    CategoryTable
+                        .join(
+                            MovieToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = CategoryTable.id,
+                            otherColumn = MovieToCategoryTable.categoryId,
+                        )
+                        .select(CategoryTable.id, MovieToCategoryTable.categoryId)
+                        .where {
+                            CategoryTable.id eq MovieToCategoryTable.categoryId
+                        }
+                )
             }
             MovieToCategoryTable.deleteWhere {
-                MovieToCategoryTable.categoryId inList MovieToCategoryTable
-                    .join(
-                        CategoryTable,
-                        JoinType.LEFT,
-                        onColumn = MovieToCategoryTable.categoryId,
-                        otherColumn = CategoryTable.id,
-                    )
-                    .select(MovieToCategoryTable.categoryId)
-                    .where { CategoryTable.id.isNull() }
-                    .map { it[MovieToCategoryTable.categoryId] }
-            }
-            MovieToCategoryTable.deleteWhere {
-                MovieToCategoryTable.externalStreamId inList MovieToCategoryTable
-                    .join(
-                        MovieTable,
-                        JoinType.LEFT,
-                        onColumn = MovieToCategoryTable.externalStreamId,
-                        otherColumn = MovieTable.externalStreamId,
-                    )
-                    .select(MovieToCategoryTable.externalStreamId)
-                    .where { MovieTable.externalStreamId.isNull() }
-                    .map { it[MovieToCategoryTable.externalStreamId] }
+                notExists(
+                    MovieTable
+                        .join(
+                            MovieToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = MovieTable.externalStreamId,
+                            otherColumn = MovieToCategoryTable.externalStreamId,
+                        )
+                        .select(MovieTable.externalStreamId, MovieToCategoryTable.externalStreamId)
+                        .where {
+                            MovieTable.externalStreamId eq MovieToCategoryTable.externalStreamId
+                        }
+                )
             }
 
             SeriesTable.deleteWhere {
                  SeriesTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
             }
-            CategoryTable.deleteWhere {
-                 CategoryTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
+            SeriesToCategoryTable.deleteWhere {
+                notExists(
+                    CategoryTable
+                        .join(
+                            SeriesToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = CategoryTable.id,
+                            otherColumn = SeriesToCategoryTable.categoryId,
+                        )
+                        .select(CategoryTable.id, SeriesToCategoryTable.categoryId)
+                        .where {
+                            CategoryTable.id eq SeriesToCategoryTable.categoryId
+                        }
+                )
             }
             SeriesToCategoryTable.deleteWhere {
-                SeriesToCategoryTable.categoryId inList SeriesToCategoryTable
-                    .join(
-                        CategoryTable,
-                        JoinType.LEFT,
-                        onColumn = SeriesToCategoryTable.categoryId,
-                        otherColumn = CategoryTable.id,
-                    )
-                    .select(SeriesToCategoryTable.categoryId)
-                    .where { CategoryTable.id.isNull() }
-                    .map { it[SeriesToCategoryTable.categoryId] }
-            }
-            SeriesToCategoryTable.deleteWhere {
-                SeriesToCategoryTable.externalSeriesId inList SeriesToCategoryTable
-                    .join(
-                        SeriesTable,
-                        JoinType.LEFT,
-                        onColumn = SeriesToCategoryTable.externalSeriesId,
-                        otherColumn = SeriesTable.externalSeriesId,
-                    )
-                    .select(SeriesToCategoryTable.externalSeriesId)
-                    .where { SeriesTable.externalSeriesId.isNull() }
-                    .map { it[SeriesToCategoryTable.externalSeriesId] }
+                notExists(
+                    SeriesTable
+                        .join(
+                            SeriesToCategoryTable,
+                            JoinType.INNER,
+                            onColumn = SeriesTable.externalSeriesId,
+                            otherColumn = SeriesToCategoryTable.externalSeriesId,
+                        )
+                        .select(SeriesTable.externalSeriesId, SeriesToCategoryTable.externalSeriesId)
+                        .where {
+                            SeriesTable.externalSeriesId eq SeriesToCategoryTable.externalSeriesId
+                        }
+                )
             }
         }
     }
