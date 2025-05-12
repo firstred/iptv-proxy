@@ -594,7 +594,8 @@ class EpgRepository {
             if (!it.seriesEnabled) channelQuery.andWhere { ChannelTable.type neq IptvChannelType.series }
         }
         channelQuery
-            .withDistinct(true).mapNotNull { it[ChannelTable.epgChannelId]?.ifBlank { null } }
+            .withDistinct(true)
+            .mapNotNull { it[ChannelTable.epgChannelId]?.ifBlank { null } }
             .distinct()
     }
 
@@ -624,7 +625,8 @@ class EpgRepository {
                         .select(EpgChannelTable.epgChannelId, EpgProgrammeTable.epgChannelId)
                         .where {
                             EpgChannelTable.epgChannelId eq EpgProgrammeTable.epgChannelId
-                        })
+                        }
+                )
             }
 
             // Clear programmes that are too old for any server
@@ -645,7 +647,8 @@ class EpgRepository {
                         .select(EpgChannelTable.epgChannelId, EpgProgrammeTable.epgChannelId)
                         .where {
                             EpgChannelTable.epgChannelId eq EpgProgrammeTable.epgChannelId
-                        })
+                        }
+                )
             }
         }
     }
