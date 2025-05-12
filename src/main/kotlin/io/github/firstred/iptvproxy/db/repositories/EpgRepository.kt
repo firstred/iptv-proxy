@@ -247,11 +247,15 @@ class EpgRepository {
     ) {
         var offset = 0L
 
+        val userEpgIds: List<String>? = if (null != forUser && trimEpg) {
+            findAllUsedEpgChannelIds(forUser)
+        } else null
+
         do {
             val epgChannelQuery = EpgChannelTable
                 .selectAll()
                 .groupBy(EpgChannelTable.epgChannelId)
-            forUser?.let { if (trimEpg) epgChannelQuery.andWhere { EpgChannelTable.epgChannelId inList findAllUsedEpgChannelIds(it) } }
+            userEpgIds?.let { epgChannelQuery.andWhere { EpgChannelTable.epgChannelId inList it } }
             if (sortedByName) {
                 epgChannelQuery.orderBy(EpgChannelTable.name to SortOrder.ASC)
             } else {
@@ -296,11 +300,14 @@ class EpgRepository {
     ) {
         var offset = 0L
 
+        val userEpgIds: List<String>? = if (null != forUser && trimEpg) {
+            findAllUsedEpgChannelIds(forUser)
+        } else null
+
         do {
             val programmeQuery = EpgProgrammeTable
                 .selectAll()
-
-            forUser?.let { if (trimEpg) programmeQuery.andWhere { EpgProgrammeTable.epgChannelId inList findAllUsedEpgChannelIds(it) } }
+            userEpgIds?.let { programmeQuery.andWhere { EpgProgrammeTable.epgChannelId inList it } }
             programmeQuery
                 .groupBy(EpgProgrammeTable.epgChannelId, EpgProgrammeTable.start)
                 .orderBy(EpgProgrammeTable.epgChannelId to SortOrder.ASC, EpgProgrammeTable.start to SortOrder.ASC)
