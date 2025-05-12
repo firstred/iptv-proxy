@@ -473,7 +473,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         if (null == serverConnection.config.account) throw IllegalArgumentException("Cannot load channels without an account")
 
-        return httpClient.prepareGet(serverConnection.config.account!!.getPlaylistUrl().toString()) {
+        return httpClient.prepareGet(serverConnection.config.account.getPlaylistUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
