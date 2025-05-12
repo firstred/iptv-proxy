@@ -362,7 +362,7 @@ fun Route.xtreamApi() {
                                 movieImage = movieInfo.info.movieImage.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 backdropPath = movieInfo.info.backdropPath.mapNotNull {
-                                    it.let {
+                                    it?.let {
                                         if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(
                                             baseUrl,
                                             encryptedAccount
@@ -407,7 +407,7 @@ fun Route.xtreamApi() {
                                 write(json.encodeToString(XtreamSeries.serializer(), it.copy(
                                     cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
                                     else it.cover,
-                                    backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath?.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
+                                    backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) } ?: emptyList()
                                     else it.backdropPath,
                                     server = null,
                                 )))
@@ -543,7 +543,7 @@ fun Route.xtreamApi() {
                             ) },
                             info = seriesInfo.info.copy(
                                 cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
-                                backdropPath = seriesInfo.info.backdropPath.map { (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  },
+                                backdropPath = seriesInfo.info.backdropPath.mapNotNull { (if (iptvServer.config.proxyStream) it?.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  },
                                 categoryId = externalCategoryIdToIdMap[seriesInfo.info.categoryId]?.toString() ?: "0",
                                 categoryIds = try { seriesInfo.info.categoryIds.map { externalCategoryIdToIdMap[it.toString()] ?: 0u } } catch (e: IllegalArgumentException) {
                                     captureException(e)

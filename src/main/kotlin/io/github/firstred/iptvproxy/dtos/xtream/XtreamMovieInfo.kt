@@ -28,7 +28,7 @@ data class XtreamMovieInfo(
     @SerialName("rating_count_kinopoisk") val ratingCountKinopoisk: Int = 0,
     val country: String = "",
     val genre: String? = null,
-    @SerialName("backdrop_path") val backdropPath: List<String> = emptyList(),
+    @SerialName("backdrop_path") val backdropPath: List<String?> = emptyList(),
     @SerialName("duration_secs") val durationSecs: Int = 0,
     val duration: String = "",
     val bitrate: Int = 0,

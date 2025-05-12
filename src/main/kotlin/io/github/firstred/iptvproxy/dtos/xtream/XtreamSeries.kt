@@ -25,7 +25,7 @@ data class XtreamSeries(
     @SerialName("last_modified") val lastModified: String,
     val rating: String,
     @SerialName("rating_5based") val rating5Based: String,
-    @SerialName("backdrop_path") val backdropPath: List<String?>? = null,
+    @SerialName("backdrop_path") val backdropPath: List<String?> = emptyList(),
     val trailer: String = "",
     @SerialName("youtube_trailer") val youtubeTrailer: String = "",
     val tmdb: String,

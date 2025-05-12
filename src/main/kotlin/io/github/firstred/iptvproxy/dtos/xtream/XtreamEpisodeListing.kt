@@ -22,7 +22,7 @@ data class XtreamEpisodeListing(
     @SerialName("last_modified") val lastModified: String? = null,
     val rating: String? = null,
     @SerialName("rating_5based") val rating5Based: Float? = null,
-    @SerialName("backdrop_path") val backdropPath: List<String> = emptyList(),
+    @SerialName("backdrop_path") val backdropPath: List<String?> = emptyList(),
     @SerialName("youtube_trailer") val youtubeTrailer: String? = null,
     @SerialName("episode_run_time") val episodeRunTime: String? = null,
     @SerialName("category_id") val categoryId: String = "",
