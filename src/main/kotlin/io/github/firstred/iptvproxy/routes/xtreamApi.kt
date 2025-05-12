@@ -407,7 +407,7 @@ fun Route.xtreamApi() {
                                 write(json.encodeToString(XtreamSeries.serializer(), it.copy(
                                     cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
                                     else it.cover,
-                                    backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) } ?: emptyList()
+                                    backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
                                     else it.backdropPath,
                                     server = null,
                                 )))
