@@ -172,9 +172,7 @@ fun Route.xtreamApi() {
                                 write(
                                     json.encodeToString(
                                         XtreamLiveStream.serializer(), it.copy(
-                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream
-                                                    ?: false
-                                            ) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
                                             else it.streamIcon,
                                             server = null,
                                             url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.').ifBlank {"m3u8"} }"
@@ -194,9 +192,7 @@ fun Route.xtreamApi() {
                                 write(
                                     json.encodeToString(
                                         XtreamLiveStream.serializer(), it.copy(
-                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream
-                                                    ?: false
-                                            ) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
+                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
                                             else it.streamIcon,
                                             server = null,
                                             url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
