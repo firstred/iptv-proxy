@@ -458,6 +458,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 response.bodyAsChannel().copyAndClose(buffer.asByteWriteChannel())
             } }
 
+            // Detect GZIP
             val inputStream = BufferedInputStream(buffer.asInputStream(), 32_000)
             inputStream.mark(2)
             val peekInputStream = PeekableInputStream(inputStream)
