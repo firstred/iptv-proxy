@@ -6,6 +6,7 @@ import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.cio.*
+import kotlinx.io.IOException
 import org.koin.ktor.ext.inject
 
 fun Route.healthcheck() {
@@ -37,7 +38,7 @@ private suspend fun RoutingContext.handleLive(health: HealthListener) {
         } else {
             call.respondText("NOT LIVE", status = HttpStatusCode.ServiceUnavailable)
         }
-    } catch (_: ChannelWriteException) {
+    } catch (_: IOException) {
         // Client closed connection
     }
 }
@@ -49,7 +50,7 @@ private suspend fun RoutingContext.handleReady(health: HealthListener) {
         } else {
             call.respondText("NOT READY", status = HttpStatusCode.ServiceUnavailable)
         }
-    } catch (_: ChannelWriteException) {
+    } catch (_: IOException) {
         // Client closed connection
     }
 }

@@ -42,6 +42,7 @@ import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.io.IOException
 import kotlinx.io.readByteArray
 import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
@@ -76,7 +77,7 @@ suspend fun RoutingContext.isReady(): Boolean {
     if (!health.isReady()) {
         try {
             call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
         return false
@@ -93,7 +94,7 @@ suspend fun RoutingContext.isLive(): Boolean {
     if (!health.isLive()) {
         try {
             call.respond(HttpStatusCode.ServiceUnavailable, "Service is not ready")
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
         return false
@@ -165,7 +166,7 @@ fun Route.proxyRemotePlaylist() {
         } catch (_: Throwable) {
             try {
                 call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -174,7 +175,7 @@ fun Route.proxyRemotePlaylist() {
         val channelId = (call.parameters["streamid"] ?: run {
             try {
                 call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -202,7 +203,7 @@ fun Route.proxyRemotePlaylist() {
                             .forEach { (key, value) -> value.forEach { call.response.headers.append(key, it) } }
                     }
                 )
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
         }
@@ -304,7 +305,7 @@ suspend fun Route.rewriteRemotePlaylist(
                 outputWriter.write("$infoLine\n")
                 outputWriter.flush()
             }
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
     }
@@ -324,7 +325,7 @@ fun Route.proxyRemoteVideo() {
         } catch (_: Throwable) {
             try {
                 call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -333,7 +334,7 @@ fun Route.proxyRemoteVideo() {
         val streamId = call.parameters["channelid"] ?: run {
             try {
                 call.respond(HttpStatusCode.BadRequest, "Missing Stream ID")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -341,7 +342,7 @@ fun Route.proxyRemoteVideo() {
         val channel = channelRepository.getChannelById(streamId.toUInt()) ?: run {
             try{
                 call.respond(HttpStatusCode.NotFound, "Channel not found")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -363,7 +364,7 @@ fun Route.proxyRemoteHlsStream() {
         if (channelId < 0) {
             try {
                 call.respond(HttpStatusCode.BadRequest, "Invalid channel ID")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -371,7 +372,7 @@ fun Route.proxyRemoteHlsStream() {
         val channel = channelRepository.getChannelById(channelId.toUInt()) ?: run {
             try {
                 call.respond(HttpStatusCode.NotFound, "Channel not found")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -380,7 +381,7 @@ fun Route.proxyRemoteHlsStream() {
         val remoteUrl = call.parameters["encryptedremoteurl"]?.aesDecryptFromHexString() ?: run {
             try {
                 call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -388,7 +389,7 @@ fun Route.proxyRemoteHlsStream() {
         if (!remoteUrl.hasSupportedScheme()) {
             try {
                 call.respond(HttpStatusCode.BadRequest, "Invalid remote URL")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -410,7 +411,7 @@ fun Route.proxyRemoteHlsStream() {
                         remoteURI,
                     )
                 }
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
         }
@@ -442,7 +443,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                     it.toByteReadChannel().copyAndClose(this)
                 }
             }
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
         return
@@ -539,7 +540,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                     } }
                                 }
                             }
-                        } catch (_: ChannelWriteException) {
+                        } catch (_: IOException) {
                             // Client closed connection
                         }
                     }

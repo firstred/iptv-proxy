@@ -5,6 +5,7 @@ import io.github.firstred.iptvproxy.plugins.isNotMetricsPort
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.cio.*
+import kotlinx.io.IOException
 
 fun Routing.metrics() {
     get("/metrics") {
@@ -12,7 +13,7 @@ fun Routing.metrics() {
 
         try {
             call.respond(appMicrometerRegistry.scrape())
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
     }

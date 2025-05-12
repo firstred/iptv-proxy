@@ -52,6 +52,7 @@ import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.io.IOException
 import kotlinx.serialization.ExperimentalSerializationApi
 import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
@@ -131,7 +132,7 @@ fun Route.xtreamApi() {
                 write("</tv>")
                 flush()
             }
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client connection closed
         }
     }
@@ -146,7 +147,7 @@ fun Route.xtreamApi() {
         } catch (_: Throwable) {
             try {
                 call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-            } catch(_: ChannelWriteException) {
+            } catch(_: IOException) {
                 // Client connection closed
             }
             return@get
@@ -206,7 +207,7 @@ fun Route.xtreamApi() {
 
                         write("]")
                     }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client connection closed
                 }
             }
@@ -214,7 +215,7 @@ fun Route.xtreamApi() {
             call.request.queryParameters["action"] == "get_live_categories" -> {
                 try {
                     call.respondTextWriter(contentType = ContentType.Application.Json) { writeLiveCategories() }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Connection closed
                 }
             }
@@ -370,7 +371,7 @@ fun Route.xtreamApi() {
                     } catch (e: IllegalArgumentException) {
                         captureException(e)
                         call.respond(movieInfo)
-                    } catch (_: ChannelWriteException) {
+                    } catch (_: IOException) {
                         // Client closed connection
                         return@get
                     }
@@ -382,7 +383,7 @@ fun Route.xtreamApi() {
                         ContentType.Application.Json,
                         HttpStatusCode.InternalServerError,
                     )
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
                 return@get
@@ -413,7 +414,7 @@ fun Route.xtreamApi() {
 
                         write("]")
                     }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -425,7 +426,7 @@ fun Route.xtreamApi() {
 
                 try {
                     call.respondTextWriter { writeSeriesCategories() }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -440,7 +441,7 @@ fun Route.xtreamApi() {
                             ContentType.Application.Json,
                             HttpStatusCode.BadRequest,
                         )
-                    } catch (_: ChannelWriteException) {
+                    } catch (_: IOException) {
                         // Client closed connection
                     }
                     return@get
@@ -455,7 +456,7 @@ fun Route.xtreamApi() {
                             ContentType.Application.Json,
                             HttpStatusCode.BadRequest,
                         )
-                    } catch (_: ChannelWriteException) {
+                    } catch (_: IOException) {
                         // Client closed connection
                     }
                     return@get
@@ -557,7 +558,7 @@ fun Route.xtreamApi() {
                                 }
                             }
                         ))
-                    } catch (_: ChannelWriteException) {
+                    } catch (_: IOException) {
                         // Client closed connection
                         return@get
                     }
@@ -569,7 +570,7 @@ fun Route.xtreamApi() {
                         ContentType.Application.Json,
                         HttpStatusCode.InternalServerError,
                     )
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
                 return@get
@@ -598,7 +599,7 @@ fun Route.xtreamApi() {
 
                 try {
                     call.respond(XtreamEpgList(programmes.map { it.toXtreamEpg().copy(streamId = channelId.toString()) }))
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -629,7 +630,7 @@ fun Route.xtreamApi() {
 
                 try {
                     call.respond(XtreamEpgList(programmes.map { it.toXtreamEpg().copy(streamId = channelId.toString()) }))
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -637,7 +638,7 @@ fun Route.xtreamApi() {
             call.request.queryParameters["action"].isNullOrBlank() -> {
                 try {
                     call.respond(XtreamProfile(userInfo(user), serverInfo(baseUrl)))
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -654,7 +655,7 @@ fun Route.xtreamApi() {
         } catch (_: Throwable) {
             try {
                 call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -668,7 +669,7 @@ fun Route.xtreamApi() {
             call.request.queryParameters["action"] == "get_epg" -> {
                 try {
                     call.respondText("[]", ContentType.Application.Json, HttpStatusCode.OK)
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -728,7 +729,7 @@ fun Route.xtreamApi() {
                         write("}")
                         flush()
                     }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
@@ -745,7 +746,7 @@ fun Route.xtreamApi() {
         } catch (_: Throwable) {
             try {
                 call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-            } catch (_: ChannelWriteException) {
+            } catch (_: IOException) {
                 // Client closed connection
             }
             return@get
@@ -765,7 +766,7 @@ fun Route.xtreamApi() {
                 )
                 output.flush()
             } }
-        } catch (_: ChannelWriteException) {
+        } catch (_: IOException) {
             // Client closed connection
         }
     }

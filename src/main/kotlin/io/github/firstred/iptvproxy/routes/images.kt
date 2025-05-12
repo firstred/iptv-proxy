@@ -17,6 +17,7 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
+import kotlinx.io.IOException
 import org.koin.core.qualifier.named
 import org.koin.ktor.ext.inject
 
@@ -33,7 +34,7 @@ fun Route.images() {
             } catch (_: Throwable) {
                 try {
                     call.respond(HttpStatusCode.Unauthorized, "Username and/or password incorrect")
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
                 return@get
@@ -47,7 +48,7 @@ fun Route.images() {
 
                 try {
                     call.respond(HttpStatusCode.NotFound)
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
                 return@get
@@ -74,7 +75,7 @@ fun Route.images() {
                         response.bodyAsChannel().copyAndClose(this)
                         flushAndClose()
                     }
-                } catch (_: ChannelWriteException) {
+                } catch (_: IOException) {
                     // Client closed connection
                 }
             }
