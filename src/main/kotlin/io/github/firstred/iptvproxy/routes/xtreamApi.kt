@@ -177,7 +177,7 @@ fun Route.xtreamApi() {
                                             ) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
                                             else it.streamIcon,
                                             server = null,
-                                            url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
+                                            url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.').ifBlank {"m3u8"} }"
                                             else it.url,
                                         )
                                     )
@@ -238,7 +238,7 @@ fun Route.xtreamApi() {
                                 streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
                                 else it.streamIcon,
                                 server = null,
-                                url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.')}"
+                                url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.').ifBlank { "m3u8" } }"
                                 else it.url,
                             )))
                             flush()
