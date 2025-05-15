@@ -437,6 +437,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 ) {
     val videoChunkCache: FileKache = getKoin().get(named("video-chunks"))
     val cacheCoroutineScope: CoroutineScope by getKoin().inject(named("cache"))
+    val cacheTimers: CacheTimers by getKoin().inject()
     var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
     val cachedResponseFile = videoChunkCache.get(responseURI.toString())
@@ -541,14 +542,14 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                             file.writeBytes(totalCache)
 
                                             responseURI.toString().let { uniqueKey ->
-                                                timer(initialDelay = config.cache.ttl.videoChunks.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                                    runBlocking {
+                                                cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.videoChunks.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                                    cacheCoroutineScope.launch {
                                                         val cache = KoinPlatform.getKoin().get<FileKache>(named("video-chunks"))
                                                         val cacheTimers = KoinPlatform.getKoin().get<CacheTimers>()
                                                         cache.remove(uniqueKey)
                                                         cacheTimers.cancel(uniqueKey)
                                                     }
-                                                }
+                                                })
                                             }
 
                                             true

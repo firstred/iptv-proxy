@@ -313,14 +313,14 @@ fun Route.xtreamApi() {
                                     file.writeText(text)
 
                                     uniqueKey.let { uniqueKey ->
-                                         timer(initialDelay = config.cache.ttl.movieInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                             runBlocking {
+                                         cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.movieInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                             cacheCoroutineScope.launch {
                                                  val cache = getKoin().get<FileKache>(named("movie-info"))
                                                  val cacheTimers = getKoin().get<CacheTimers>()
                                                  cache.remove(uniqueKey)
                                                  cacheTimers.cancel(uniqueKey)
                                              }
-                                         }
+                                         })
                                     }
 
                                     true
@@ -508,14 +508,14 @@ fun Route.xtreamApi() {
                                     file.writeText(text)
 
                                     uniqueKey.let { uniqueKey ->
-                                        timer(initialDelay = config.cache.ttl.seriesInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                            runBlocking {
+                                        cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.seriesInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                            cacheCoroutineScope.launch {
                                                 val cache = getKoin().get<FileKache>(named("series-info"))
                                                 val cacheTimers = getKoin().get<CacheTimers>()
                                                 cache.remove(uniqueKey)
                                                 cacheTimers.cancel(uniqueKey)
                                             }
-                                        }
+                                        })
                                     }
 
                                     true
