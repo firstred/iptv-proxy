@@ -30,7 +30,7 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
                         }
                     }
                 } catch (e: InterruptedException) {
-                    LOG.info("Scheduler interrupted while cleaning cache", e)
+                    LOG.warn("Scheduler interrupted while cleaning cache", e)
                 } catch (e: Exception) {
                     LOG.error("Error while cleaning cache", e)
                     runBlocking {
@@ -63,9 +63,9 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
     }
 
     override fun onApplicationStartHook() {
-        LOG.info("Http cache manager starting")
+        LOG.trace("Http cache manager starting")
         scheduleCleanups()
-        LOG.info("Http cache manager started")
+        LOG.trace("Http cache manager started")
     }
 
     companion object {

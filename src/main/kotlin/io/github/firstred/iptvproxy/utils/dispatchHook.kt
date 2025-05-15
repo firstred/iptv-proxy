@@ -16,7 +16,7 @@ fun dispatchHook(
     hook: KClass<out ApplicationHook>,
     vararg ts: Any,
 ) {
-    LOG.info("Dispatching hook $hook to listeners")
+    LOG.debug("Dispatching hook {} to listeners", hook)
 
     when (hook) {
         HasApplicationOnStartHook::class -> HasApplicationOnStartHook.dispatchHookToListeners()

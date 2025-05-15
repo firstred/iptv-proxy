@@ -120,7 +120,7 @@ private fun startServer() {
                 install(AutoHeadResponse)
                 install(CallLogging) {
                     logger = LOG
-                    level = Level.INFO
+                    level = Level.TRACE
 
                     defaultCallLoggingFormat()
                 }
@@ -210,7 +210,7 @@ fun loadConfig(configFile: String): IptvProxyConfig {
             password?.let { System.setProperty("java.net.socks.password", it) }
         } catch (e: SecurityException) {
             Sentry.captureException(e)
-            LOG.warn("Error setting SOCKS proxy username and password: ${e.message}")
+            LOG.error("Error setting SOCKS proxy username and password: ${e.message}")
         }
     }
 

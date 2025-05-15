@@ -104,7 +104,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             }
 
             if (null != server.config.epgUrl) {
-                LOG.info("Waiting for xmltv data to be downloaded")
+                LOG.trace("Waiting for xmltv data to be downloaded")
 
                 epgRepository.signalXmltvImportStartedForServer(server.name)
 
@@ -113,7 +113,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     server.config.accounts?.first(),
                 ) { serverConnection, _ ->
                     try {
-                        LOG.info("Parsing xmltv data")
+                        LOG.trace("Parsing xmltv data")
 
                         val startOf = Clock.System.now() - server.config.epgBefore
                         val endOf = Clock.System.now() + server.config.epgAfter
@@ -168,7 +168,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
             // All accounts should provide the same info, so we use the first one
             server.config.accounts?.firstOrNull()?.let { account ->
-                LOG.info("Parsing playlist: {}, url: {}", server.name, account.url)
+                LOG.trace("Parsing playlist: {}, url: {}", server.name, account.url)
                 val liveCategoriesToRemapByName: Map<String, Pair<String, XtreamCategory>> = if (server.config.liveCategoryRemapping.isNotEmpty()) {
                     val newCategories = xtreamRepository.getAndCreateMissingCategoriesByName(server.config.liveCategoryRemapping.values.toList().distinct(), server.name)
                     server.config.liveCategoryRemapping.map { (key, value) ->
@@ -595,7 +595,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         scheduleChannelCleanups(config.cleanupInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {
-                    LOG.info("Scheduler interrupted while cleaning channels", e)
+                    LOG.warn("Scheduler interrupted while cleaning channels", e)
                 } catch (e: Exception) {
                     LOG.error("Error while cleaning channels", e)
                     runBlocking {
@@ -622,7 +622,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         scheduleChannelUpdates(config.updateInterval.inWholeMinutes)
                     }
                 } catch (e: InterruptedException) {
-                    LOG.info("Scheduler interrupted while updating channels", e)
+                    LOG.warn("Scheduler interrupted while updating channels", e)
                 } catch (e: Exception) {
                     LOG.error("Error while updating channels", e)
                     runBlocking {
@@ -636,7 +636,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     }
 
     override fun onApplicationDatabaseInitializedHook() {
-        LOG.info("Channel manager starting")
+        LOG.trace("Channel manager starting")
         var nextUpdateRunInMinutes = 0L
         val channelCount = channelRepository.getIptvChannelCount()
 
@@ -650,7 +650,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         scheduleChannelUpdates(nextUpdateRunInMinutes)
         scheduleChannelCleanups(nextUpdateRunInMinutes + config.cleanupInterval.inWholeMinutes)
-        LOG.info("Channel manager started")
+        LOG.trace("Channel manager started")
 
         LOG.info("Channel count: $channelCount")
         if (channelCount > 0u) {
@@ -659,7 +659,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     }
 
     override fun onApplicationTerminateHook() {
-        LOG.info("Channel manager stopping")
+        LOG.trace("Channel manager stopping")
 
         try {
             scheduledExecutorService.shutdownNow()
@@ -671,7 +671,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             LOG.error("Interrupted while stopping scheduler")
         }
 
-        LOG.info("Channel manager stopped")
+        LOG.trace("Channel manager stopped")
     }
 
     companion object {

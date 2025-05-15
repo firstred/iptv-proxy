@@ -48,7 +48,7 @@ class IptvServer(
     private suspend fun acquire(specificAccount: IptvServerAccountConfig? = null): IptvServerConnection {
         do {
             tryAcquire(specificAccount)?.also { return it }
-            LOG.info("Trying to acquire server connection")
+            LOG.debug("Trying to acquire server connection")
             delay(100L)
         } while (true)
     }

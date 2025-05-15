@@ -11,13 +11,13 @@ import org.slf4j.LoggerFactory
 
 class DatabaseManager : KoinComponent, HasApplicationOnTerminateHook {
     override fun onApplicationTerminateHook() {
-        LOG.info("Closing database connection")
+        LOG.trace("Closing database connection")
         runBlocking {
             // Trigger in the last 20 seconds of the graceful shutdown period
             delay((config.gracefulShutdownPeriod.inWholeMilliseconds - 20000).coerceAtLeast(0))
             dataSource.close()
         }
-        LOG.info("Database connection closed")
+        LOG.trace("Database connection closed")
     }
 
     companion object {

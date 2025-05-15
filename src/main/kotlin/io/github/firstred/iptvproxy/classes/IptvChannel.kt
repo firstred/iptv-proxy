@@ -62,7 +62,7 @@ class IptvChannel(
         val outputWriter = outputStream.bufferedWriter(UTF_8)
 
         server.withConnection(server.config.timeouts.totalMilliseconds) { connection, _ ->
-            LOG.info("[{}] loading channel: {}, url: {}", user.username, name, url)
+            LOG.trace("[{}] loading channel: {}, url: {}", user.username, name, url)
 
             lateinit var response: HttpResponse
             response = connection.httpClient.get(

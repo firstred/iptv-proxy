@@ -156,7 +156,7 @@ fun OkHttpConfig.configureProxyConnection() {
 fun HttpClientConfig<OkHttpConfig>.defaults() {
     install(Logging) {
         logger = Logger.DEFAULT  // Default logger for JVM
-        level = if (arrayOf("debug", "trace", "info").contains((System.getProperty("log.level") ?: "").lowercase())) LogLevel.HEADERS else LogLevel.NONE // Log headers only
+        level = if (arrayOf("debug", "trace").contains((System.getProperty("log.level") ?: "").lowercase())) LogLevel.HEADERS else LogLevel.NONE // Log headers only
 
         // Hide authorization header from logs
         sanitizeHeader { header -> header == HttpHeaders.Authorization }
