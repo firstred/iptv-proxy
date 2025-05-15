@@ -3,19 +3,24 @@ package io.github.firstred.iptvproxy.di.modules
 import com.mayakapps.kache.FileKache
 import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.BuildConfig
+import io.github.firstred.iptvproxy.classes.CacheTimers
 import io.github.firstred.iptvproxy.config
+import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.utils.toInt
 import io.github.z4kn4fein.semver.toVersion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
+import org.koin.core.module.dsl.singleOf
 import org.koin.core.qualifier.named
+import org.koin.dsl.binds
 import org.koin.dsl.module
 
 val cacheModule = module {
     single(named("cache")) {
         CoroutineScope(Job())
     }
+    singleOf(::CacheTimers) binds hooksOf(CacheTimers::class)
 
     single(named("series-info")) {
         runBlocking { FileKache(

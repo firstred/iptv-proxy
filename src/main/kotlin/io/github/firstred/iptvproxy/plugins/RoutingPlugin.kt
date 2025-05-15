@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.plugins
 
 import com.mayakapps.kache.FileKache
+import io.github.firstred.iptvproxy.classes.CacheTimers
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -42,16 +43,19 @@ import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.io.IOException
 import kotlinx.io.readByteArray
 import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
+import org.koin.mp.KoinPlatform
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
+import kotlin.concurrent.timer
 import kotlin.text.Charsets.UTF_8
 
 private val LOG = LoggerFactory.getLogger("RoutingPlugin")
@@ -435,7 +439,8 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
     val cacheCoroutineScope: CoroutineScope by getKoin().inject(named("cache"))
     var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
-    val cachedResponseFile: String? = videoChunkCache.get(responseURI.toString())
+    val cachedResponseFile = videoChunkCache.get(responseURI.toString())
+
     if (null != cachedResponseFile) {
         try {
             call.respondBytesWriter {
@@ -534,6 +539,17 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                         cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
                                             val file = File(fileName)
                                             file.writeBytes(totalCache)
+
+                                            responseURI.toString().let { uniqueKey ->
+                                                timer(initialDelay = config.cache.ttl.videoChunks.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                                    runBlocking {
+                                                        val cache = KoinPlatform.getKoin().get<FileKache>(named("video-chunks"))
+                                                        val cacheTimers = KoinPlatform.getKoin().get<CacheTimers>()
+                                                        cache.remove(uniqueKey)
+                                                        cacheTimers.cancel(uniqueKey)
+                                                    }
+                                                }
+                                            }
 
                                             true
                                         } }

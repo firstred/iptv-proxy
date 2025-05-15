@@ -4,8 +4,6 @@ import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnStartHook
 import io.sentry.MonitorConfig
 import io.sentry.util.CheckInUtils
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -45,17 +43,13 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
         )
     }
 
-    fun cleanCache(): Unit {
+    fun cleanCache() {
         if (!config.cache.enabled) return
 
-        runBlocking {
-            awaitAll(
-                async { cleanDirectory(File(config.getHttpCacheDirectory("images")), config.cache.ttl.images.inWholeMilliseconds) },
-                async { cleanDirectory(File(config.getCacheDirectory("video_chunks/files")), config.cache.ttl.videoChunks.inWholeMilliseconds) },
-                async { cleanDirectory(File(config.getCacheDirectory("movie_info/files")), config.cache.ttl.movieInfo.inWholeMilliseconds) },
-                async { cleanDirectory(File(config.getCacheDirectory("series_info/files")), config.cache.ttl.seriesInfo.inWholeMilliseconds) },
-            )
-        }
+        cleanDirectory(
+            File(config.getHttpCacheDirectory("images")),
+            config.cache.ttl.images.inWholeMilliseconds,
+        )
     }
 
     fun cleanDirectory(directory: File, ttlInWholeMilliseconds: Long) {

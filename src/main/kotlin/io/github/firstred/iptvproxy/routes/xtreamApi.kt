@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
 import com.mayakapps.kache.FileKache
+import io.github.firstred.iptvproxy.classes.CacheTimers
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -46,6 +47,7 @@ import io.sentry.Sentry
 import io.sentry.Sentry.captureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.format
@@ -60,10 +62,10 @@ import org.koin.mp.KoinPlatform.getKoin
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import java.io.File
-import java.io.FileNotFoundException
 import java.io.Writer
 import java.net.URI
 import java.net.URISyntaxException
+import kotlin.concurrent.timer
 import kotlin.time.Duration
 
 val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
@@ -77,6 +79,7 @@ fun Route.xtreamApi() {
     val serversByName: IptvServersByName by inject()
     val movieInfoCache: FileKache by inject(named("movie-info"))
     val seriesInfoCache: FileKache by inject(named("series-info"))
+    val cacheTimers: CacheTimers by inject()
     val cacheCoroutineScope: CoroutineScope by inject(named("cache"))
 
     get("/xmltv.php") {
@@ -284,11 +287,7 @@ fun Route.xtreamApi() {
 
                     val uniqueKey = "baseUrl=$baseUrl|server=${iptvServer.name}|vod_id=$vodId"
 
-                    var movieInfoFile: String? = null
-                    try {
-                        movieInfoFile = movieInfoCache.get(uniqueKey)
-                    } catch (_: FileNotFoundException) {
-                    }
+                    val movieInfoFile = movieInfoCache.get(uniqueKey)
 
                     if (null == movieInfoFile) {
                         lateinit var response: HttpResponse
@@ -312,6 +311,17 @@ fun Route.xtreamApi() {
                                     val file = File(fileName)
                                     val text = json.encodeToString(XtreamMovieInfoEndpoint.serializer(), it)
                                     file.writeText(text)
+
+                                    uniqueKey.let { uniqueKey ->
+                                         timer(initialDelay = config.cache.ttl.movieInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                             runBlocking {
+                                                 val cache = getKoin().get<FileKache>(named("movie-info"))
+                                                 val cacheTimers = getKoin().get<CacheTimers>()
+                                                 cache.remove(uniqueKey)
+                                                 cacheTimers.cancel(uniqueKey)
+                                             }
+                                         }
+                                    }
 
                                     true
                                 } }
@@ -474,11 +484,7 @@ fun Route.xtreamApi() {
 
                     val uniqueKey = "baseUrl=$baseUrl|server=$serverName|series_id=$seriesId"
 
-                    var seriesInfoFile: String? = null
-                    try {
-                        seriesInfoFile = seriesInfoCache.get(uniqueKey)
-                    } catch (_: FileNotFoundException) {
-                    }
+                    val seriesInfoFile = seriesInfoCache.get(uniqueKey)
 
                     if (null == seriesInfoFile) {
                         lateinit var response: HttpResponse
@@ -500,6 +506,17 @@ fun Route.xtreamApi() {
                                     val file = File(fileName)
                                     val text = json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), it)
                                     file.writeText(text)
+
+                                    uniqueKey.let { uniqueKey ->
+                                        timer(initialDelay = config.cache.ttl.seriesInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+                                            runBlocking {
+                                                val cache = getKoin().get<FileKache>(named("series-info"))
+                                                val cacheTimers = getKoin().get<CacheTimers>()
+                                                cache.remove(uniqueKey)
+                                                cacheTimers.cancel(uniqueKey)
+                                            }
+                                        }
+                                    }
 
                                     true
                                 } }
