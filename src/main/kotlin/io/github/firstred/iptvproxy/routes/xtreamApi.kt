@@ -47,7 +47,6 @@ import io.sentry.Sentry
 import io.sentry.Sentry.captureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.datetime.format
@@ -65,7 +64,6 @@ import java.io.File
 import java.io.Writer
 import java.net.URI
 import java.net.URISyntaxException
-import kotlin.concurrent.timer
 import kotlin.time.Duration
 
 val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
@@ -312,16 +310,11 @@ fun Route.xtreamApi() {
                                     val text = json.encodeToString(XtreamMovieInfoEndpoint.serializer(), it)
                                     file.writeText(text)
 
-                                    uniqueKey.let { uniqueKey ->
-                                         cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.movieInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                             cacheCoroutineScope.launch {
-                                                 val cache = getKoin().get<FileKache>(named("movie-info"))
-                                                 val cacheTimers = getKoin().get<CacheTimers>()
-                                                 cache.remove(uniqueKey)
-                                                 cacheTimers.cancel(uniqueKey)
-                                             }
-                                         })
-                                    }
+                                    cacheTimers.add(
+                                        uniqueKey,
+                                        "movie-info",
+                                        config.cache.ttl.movieInfo.inWholeMilliseconds,
+                                    )
 
                                     true
                                 } }
@@ -507,16 +500,11 @@ fun Route.xtreamApi() {
                                     val text = json.encodeToString(XtreamSeriesInfoEndpoint.serializer(), it)
                                     file.writeText(text)
 
-                                    uniqueKey.let { uniqueKey ->
-                                        cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.seriesInfo.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                            cacheCoroutineScope.launch {
-                                                val cache = getKoin().get<FileKache>(named("series-info"))
-                                                val cacheTimers = getKoin().get<CacheTimers>()
-                                                cache.remove(uniqueKey)
-                                                cacheTimers.cancel(uniqueKey)
-                                            }
-                                        })
-                                    }
+                                    cacheTimers.add(
+                                        uniqueKey,
+                                        "series-info",
+                                        config.cache.ttl.seriesInfo.inWholeMilliseconds,
+                                    )
 
                                     true
                                 } }

@@ -1,33 +1,45 @@
 package io.github.firstred.iptvproxy.classes
 
+import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.listeners.hooks.lifecycle.HasApplicationOnTerminateHook
-import java.util.Timer
+import kotlinx.coroutines.runBlocking
+import org.koin.core.qualifier.named
+import org.koin.mp.KoinPlatform.getKoin
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.concurrent.timer
 
 class CacheTimers : ConcurrentHashMap<String, Timer>(), HasApplicationOnTerminateHook {
-    fun add(key: String, timer: Timer) {
-        this[key]?.cancel()
-        this[key] = timer
+    fun add(key: String, cacheName: String, delayInMilliseconds: Long) {
+        this["$cacheName|$key"]?.cancel()
+        this["$cacheName|$key"] = timer(initialDelay = delayInMilliseconds, period = Long.MAX_VALUE, daemon = true) {
+            val cache: FileKache = getKoin().get(named(cacheName))
+            runBlocking {
+                cache.remove(key)
+            }
+            this@CacheTimers[key]?.cancel()
+            this@CacheTimers.remove(key)
+        }
     }
 
-    fun cancel(key: String) {
-        this[key]?.cancel()
-        remove(key)
+    fun cancel(key: String, cacheName: String) {
+        this["$cacheName|$key"]?.cancel()
+        this.remove("$cacheName|$key")
     }
 
     fun cancelAll() {
         forEach { (_, timer) ->
             timer.cancel()
         }
-        clear()
+        this.clear()
     }
 
-    fun cancelAndRemove(key: String) {
-        this[key]?.cancel()
-        remove(key)
+    fun cancelAndRemove(key: String, cacheName: String) {
+        this["$cacheName|$key"]?.cancel()
+        this.remove("$cacheName|$key")
     }
 
     override fun onApplicationTerminateHook() {
-        cancelAll()
+        this.cancelAll()
     }
 }

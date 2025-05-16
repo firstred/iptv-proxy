@@ -43,19 +43,16 @@ import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.io.IOException
 import kotlinx.io.readByteArray
 import org.koin.core.qualifier.named
 import org.koin.java.KoinJavaComponent.getKoin
 import org.koin.ktor.ext.inject
-import org.koin.mp.KoinPlatform
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
-import kotlin.concurrent.timer
 import kotlin.text.Charsets.UTF_8
 
 private val LOG = LoggerFactory.getLogger("RoutingPlugin")
@@ -541,16 +538,11 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                             val file = File(fileName)
                                             file.writeBytes(totalCache)
 
-                                            responseURI.toString().let { uniqueKey ->
-                                                cacheTimers.add(uniqueKey, timer(initialDelay = config.cache.ttl.videoChunks.inWholeMilliseconds, period = Long.MAX_VALUE, daemon = true) {
-                                                    cacheCoroutineScope.launch {
-                                                        val cache = KoinPlatform.getKoin().get<FileKache>(named("video-chunks"))
-                                                        val cacheTimers = KoinPlatform.getKoin().get<CacheTimers>()
-                                                        cache.remove(uniqueKey)
-                                                        cacheTimers.cancel(uniqueKey)
-                                                    }
-                                                })
-                                            }
+                                            cacheTimers.add(
+                                                responseURI.toString(),
+                                                "video-chunks",
+                                                config.cache.ttl.videoChunks.inWholeMilliseconds,
+                                            )
 
                                             true
                                         } }
