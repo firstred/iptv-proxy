@@ -9,16 +9,16 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.concurrent.timer
 
-class CacheTimers : ConcurrentHashMap<String, Timer>(), HasApplicationOnTerminateHook {
+class CacheExpiryTimers : ConcurrentHashMap<String, Timer>(), HasApplicationOnTerminateHook {
     fun add(key: String, cacheName: String, delayInMilliseconds: Long) {
         this["$cacheName|$key"]?.cancel()
         this["$cacheName|$key"] = timer(initialDelay = delayInMilliseconds, period = Long.MAX_VALUE, daemon = true) {
             val cache: FileKache = getKoin().get(named(cacheName))
             runBlocking {
-                cache.remove(key)
+                cache.remove("$cacheName|$key")
             }
-            this@CacheTimers[key]?.cancel()
-            this@CacheTimers.remove(key)
+            this@CacheExpiryTimers["$cacheName|$key"]?.cancel()
+            this@CacheExpiryTimers.remove("$cacheName|$key")
         }
     }
 

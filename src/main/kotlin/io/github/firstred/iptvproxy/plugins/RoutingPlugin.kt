@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.plugins
 
 import com.mayakapps.kache.FileKache
-import io.github.firstred.iptvproxy.classes.CacheTimers
+import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -434,7 +434,7 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
 ) {
     val videoChunkCache: FileKache = getKoin().get(named("video-chunks"))
     val cacheCoroutineScope: CoroutineScope by getKoin().inject(named("cache"))
-    val cacheTimers: CacheTimers by getKoin().inject()
+    val cacheTimers: CacheExpiryTimers by getKoin().inject()
     var responseURI = remoteUrl.appendQueryParameters(call.request.queryParameters)
 
     val cachedResponseFile = videoChunkCache.get(responseURI.toString())
@@ -527,7 +527,6 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                                 // Flush any remaining data in the buffer
                                 output.flush()
 
-                                val remoteContentLength = response.contentLength() ?: 0L
                                 if (
                                     totalCache.size < maxCacheableVideoChunkSize
                                     && "video/mp2t" == response.headers["Content-Type"]?.lowercase()

@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.routes
 
 import com.mayakapps.kache.FileKache
-import io.github.firstred.iptvproxy.classes.CacheTimers
+import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -77,7 +77,7 @@ fun Route.xtreamApi() {
     val serversByName: IptvServersByName by inject()
     val movieInfoCache: FileKache by inject(named("movie-info"))
     val seriesInfoCache: FileKache by inject(named("series-info"))
-    val cacheTimers: CacheTimers by inject()
+    val cacheTimers: CacheExpiryTimers by inject()
     val cacheCoroutineScope: CoroutineScope by inject(named("cache"))
 
     get("/xmltv.php") {

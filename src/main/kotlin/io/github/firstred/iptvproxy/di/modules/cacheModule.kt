@@ -3,7 +3,7 @@ package io.github.firstred.iptvproxy.di.modules
 import com.mayakapps.kache.FileKache
 import com.mayakapps.kache.KacheStrategy
 import io.github.firstred.iptvproxy.BuildConfig
-import io.github.firstred.iptvproxy.classes.CacheTimers
+import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
 import io.github.firstred.iptvproxy.utils.toInt
@@ -20,7 +20,7 @@ val cacheModule = module {
     single(named("cache")) {
         CoroutineScope(Job())
     }
-    singleOf(::CacheTimers) binds hooksOf(CacheTimers::class)
+    singleOf(::CacheExpiryTimers) binds hooksOf(CacheExpiryTimers::class)
 
     single(named("series-info")) {
         runBlocking { FileKache(
