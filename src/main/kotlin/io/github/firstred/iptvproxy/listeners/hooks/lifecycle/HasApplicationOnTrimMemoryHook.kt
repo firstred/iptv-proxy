@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.listeners.hooks.lifecycle
 
 import io.github.firstred.iptvproxy.listeners.hooks.ApplicationHook
-import org.koin.java.KoinJavaComponent.getKoin
+import org.koin.mp.KoinPlatform.getKoin
 
 interface HasApplicationOnTrimMemoryHook : ApplicationHook {
     fun onApplicationTrimMemoryHook()

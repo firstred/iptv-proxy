@@ -5,7 +5,6 @@ import io.github.firstred.iptvproxy.plugins.isNotHealthcheckPort
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.cio.*
 import kotlinx.io.IOException
 import org.koin.ktor.ext.inject
 

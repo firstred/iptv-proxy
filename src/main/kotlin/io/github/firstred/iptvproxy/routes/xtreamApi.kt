@@ -364,10 +364,10 @@ fun Route.xtreamApi() {
                                 }
                             ),
                             info = movieInfo.info.copy(
-                                cover = movieInfo.info.cover?.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                cover = movieInfo.info.cover?.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 coverBig = movieInfo.info.coverBig.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 movieImage = movieInfo.info.movieImage.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
-                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (!it.isNullOrBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
+                                kinopoiskUrl = movieInfo.info.kinopoiskUrl.let { if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it) else "" },
                                 backdropPath = movieInfo.info.backdropPath.mapNotNull {
                                     it?.let {
                                         if (it.isNotBlank()) (if (channel.server.config.proxyStream) it.toProxiedIconUrl(

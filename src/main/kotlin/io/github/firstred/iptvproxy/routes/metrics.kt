@@ -4,7 +4,6 @@ import io.github.firstred.iptvproxy.plugins.appMicrometerRegistry
 import io.github.firstred.iptvproxy.plugins.isNotMetricsPort
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.cio.*
 import kotlinx.io.IOException
 
 fun Routing.metrics() {
