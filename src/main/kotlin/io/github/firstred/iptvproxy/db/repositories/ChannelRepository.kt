@@ -222,7 +222,7 @@ class ChannelRepository : KoinComponent {
     fun findLastUpdateCompletedAt(): Instant = transaction {
         PlaylistSourceTable
             .select(PlaylistSourceTable.completedImportAt)
-            .orderBy(PlaylistSourceTable.completedImportAt, SortOrder.DESC)
+            .orderBy(PlaylistSourceTable.completedImportAt, SortOrder.ASC) // Worst-case scenario
             .limit(1)
             .map { it[PlaylistSourceTable.completedImportAt] }
             .firstOrNull() ?: Instant.DISTANT_PAST
