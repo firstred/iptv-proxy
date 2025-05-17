@@ -220,12 +220,15 @@ class ChannelRepository : KoinComponent {
     }
 
     fun findLastUpdateCompletedAt(): Instant = transaction {
-        PlaylistSourceTable
-            .select(PlaylistSourceTable.completedImportAt)
-            .orderBy(PlaylistSourceTable.completedImportAt, SortOrder.ASC) // Worst-case scenario
-            .limit(1)
-            .map { it[PlaylistSourceTable.completedImportAt] }
-            .firstOrNull() ?: Instant.DISTANT_PAST
+        val imports = PlaylistSourceTable
+            .select(PlaylistSourceTable.server, PlaylistSourceTable.completedImportAt)
+            .associateBy ({ it[PlaylistSourceTable.server] }, { it[PlaylistSourceTable.completedImportAt] })
+
+        for (server in config.servers) {
+           if (server.name !in imports.keys) return@transaction Instant.DISTANT_PAST
+        }
+
+        return@transaction imports.values.maxOrNull() ?: Instant.DISTANT_PAST
     }
 
     fun cleanup() {
