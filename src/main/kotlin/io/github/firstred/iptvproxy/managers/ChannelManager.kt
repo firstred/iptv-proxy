@@ -625,9 +625,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     LOG.warn("Scheduler interrupted while updating channels", e)
                 } catch (e: Exception) {
                     LOG.error("Error while updating channels", e)
-                    runBlocking {
-                        scheduleChannelUpdates(config.updateIntervalOnFailure.inWholeMinutes)
-                    }
+                    scheduleChannelUpdates(config.updateIntervalOnFailure.inWholeMinutes)
                 }
             },
             delay,
