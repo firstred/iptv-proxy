@@ -17,7 +17,8 @@ class M3uParser {
         private val LOG: Logger = LoggerFactory.getLogger(M3uParser::class.java)
 
         private val TAG_PATTERN: Pattern = Pattern.compile("#(\\w+)(?:[ :](.*))?")
-        private val PROP_PATTERN: Pattern = Pattern.compile("""(?<key>[^=\s]+)="(?<value>(?:(?!"\s+[^=\s]+=).)*)"""")
+        private val EXT_INF_PROP_PATTERN: Pattern = Pattern.compile("""(?<key>[^=\s]+)="(?<value>(?:(?!"\s+[^=\s]+=).)*)"""")
+        private val PROP_PATTERN: Pattern = Pattern.compile("""(?<key>[A-Za-z0-9\-]+)=(?<value>"(?:[^"\\]|\\.)*"|[^,]*)""")
         private val INFO_PATTERN: Pattern = Pattern.compile("([-+0-9]+) ?(.*)")
 
         fun forEachChannel(inputStream: InputStream, action: (M3uChannel) -> Unit) {
@@ -54,7 +55,7 @@ class M3uParser {
                                 val infoLine = matcher.group(2)
                                 matcher = INFO_PATTERN.matcher(infoLine)
                                 if (matcher.matches()) {
-                                    name = parseProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
+                                    name = parseExtInfProps(matcher.group(2), mutableMapOf<String, String>().also { props = it }).trim()
                                     if (name.startsWith(",")) name = name.substring(1).trim()
                                 } else {
                                     LOG.warn("malformed channel info: {}", infoLine)
@@ -92,9 +93,35 @@ class M3uParser {
             }
         }
 
-        private fun parseProps(line: String, props: MutableMap<String, String>): String {
+        /**
+         * Parses the properties from an EXTINF line in the M3U file.
+         *
+         * @param line The line containing properties, the part after `#<TAG>:`.
+         * @param props A mutable map to store the parsed properties.
+         * @return The display name extracted from the line.
+         */
+        fun parseExtInfProps(line: String, props: MutableMap<String, String>): String {
             val attrs = line.substringBeforeLast(',')
             val display = line.substringAfterLast(',')
+
+            val m = EXT_INF_PROP_PATTERN.matcher(attrs)
+
+            while (m.find()) {
+                props.put(m.group("key"), m.group("value"))
+            }
+
+            return display
+        }
+
+        /**
+         * Parses the properties from a line in the M3U file.
+         *
+         * @param line The line containing properties, the part after `#<TAG>:`.
+         * @return A mutable map containing the parsed properties.
+         */
+        fun parseProps(line: String): MutableMap<String, String> {
+            val attrs = line
+            val props = mutableMapOf<String, String>()
 
             val m = PROP_PATTERN.matcher(attrs)
 
@@ -102,7 +129,7 @@ class M3uParser {
                 props.put(m.group("key"), m.group("value"))
             }
 
-            return display
+            return props
         }
     }
 }

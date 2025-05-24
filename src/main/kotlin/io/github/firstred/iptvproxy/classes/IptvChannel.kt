@@ -1,6 +1,7 @@
 package io.github.firstred.iptvproxy.classes
 
 import io.github.firstred.iptvproxy.enums.IptvChannelType
+import io.github.firstred.iptvproxy.parsers.M3uParser
 import io.github.firstred.iptvproxy.utils.addHeadersFromPlaylistProps
 import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.aesEncryptToHexString
@@ -134,6 +135,37 @@ class IptvChannel(
                                 e.message,
                             )
                         }
+                    }
+
+                    arrayOf("#EXT-MEDIA-INFO", "#EXT-X-MEDIA", "#EXT-X-SESSION-DATA", "#EXT-X-STREAM-INF", "#EXT-X-I-FRAME-STREAM-INF").contains(infoLine.trim(' ').substringBefore(':').uppercase()) -> {
+                        val props = M3uParser.parseProps(infoLine.substringAfter(':'))
+
+                        // Rewrite the URI prop if it exists
+                        props["URI"]?.let {
+                            try {
+                                // Remove quotes from the URI if they exist
+                                val unquotedUrl = it.removeSurrounding("\"")
+                                val remoteUrl = if (!unquotedUrl.startsWith("http://") && !unquotedUrl.startsWith("https://")) {
+                                    Url(responseURI.resolve(unquotedUrl)).toEncodedJavaURI()
+                                } else {
+                                    Url(unquotedUrl).toEncodedJavaURI()
+                                }
+                                val fileName = remoteUrl.path.substringAfterLast('/', "").substringBeforeLast('.')
+                                val extension = remoteUrl.path.substringAfterLast('.', "")
+
+                                props["URI"] = "\"${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/$id/$fileName.$extension\""
+                            } catch (e: URISyntaxException) {
+                                LOG.warn(
+                                    "[{}] Error while parsing media info URI: {}, error: {}",
+                                    user.username,
+                                    it,
+                                    e.message,
+                                )
+                            }
+                        }
+
+                        val tag = infoLine.substringBefore(':').uppercase()
+                        infoLine = "$tag:${props.entries.joinToString(",") { "${it.key}=${it.value}" }}"
                     }
                 }
 
