@@ -39,8 +39,8 @@ val httpClientModule = module {
             followRedirects = true
 
             install(HttpRequestRetry) {
-                maxRetries = 5
                 defaultRetryHandler {
+                    maxRetries = 5
                     delayMillis { config.timeouts.playlist.retryDelayMilliseconds.toLong() }
                 }
             }
@@ -65,8 +65,8 @@ val httpClientModule = module {
                 publicStorage(FileStorage(File(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
-                maxRetries = 5
                 defaultRetryHandler {
+                    maxRetries = 5
                     delayMillis { config.timeouts.icon.retryDelayMilliseconds.toLong() }
                 }
             }
@@ -99,8 +99,8 @@ val httpClientModule = module {
             followRedirects = false
 
             install(HttpRequestRetry) {
-                maxRetries = 5
                 defaultRetryHandler {
+                    maxRetries = 5
                     delayMillis { flatServerConfig.timeouts.retryDelayMilliseconds.toLong() }
                 }
             }
@@ -170,10 +170,11 @@ fun HttpClientConfig<OkHttpConfig>.defaults() {
 
 // This is the default retry handler shared by all clients
 fun HttpRequestRetryConfig.defaultRetryHandler(additionalConfig: HttpRequestRetryConfig.() -> Unit = {}) {
-    retryOnExceptionIf { _, cause ->
-                cause is IOException                // Handle network errors and timeouts
-                || cause is ServerResponseException // Handle 5xx server errors
-                || cause is ClientRequestException  // Handle specific client errors
+    retryOnExceptionIf(99) { _, cause -> cause is SendCountExceedException } // Handle send count exceeded errors
+    retryOnExceptionIf(5) { _, cause ->
+                cause is IOException                 // Handle network errors and timeouts
+                || cause is ServerResponseException  // Handle 5xx server errors
+                || cause is ClientRequestException   // Handle specific client errors
                 && listOf(
                     HttpStatusCode.PayloadTooLarge.value,
                     HttpStatusCode.RequestTimeout.value,
