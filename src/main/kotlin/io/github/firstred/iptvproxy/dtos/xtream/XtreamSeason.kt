@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
+import io.github.firstred.iptvproxy.serialization.serializers.CoercedFloatSerializer
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
@@ -17,5 +18,5 @@ data class XtreamSeason(
     @SerialName("cover_big") val coverBig: String? = null,
     @SerialName("cover_tmdb") val coverTmdb: String? = null,
     val overview: String? = null,
-    @SerialName("vote_average") val voteAverage: Float = 0f,
+    @SerialName("vote_average") @Serializable(with = CoercedFloatSerializer::class) val voteAverage: Float = 0f,
 )

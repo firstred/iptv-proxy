@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
-import io.github.firstred.iptvproxy.serialization.serializers.NullableIntSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.CoercedNullableIntSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -10,7 +10,7 @@ data class XtreamUserInfo(
     val username: String,
     val password: String,
     val message: String? = null,
-    @Serializable(with = NullableIntSerializer::class) val auth: Int? = null,
+    @Serializable(with = CoercedNullableIntSerializer::class) val auth: Int? = null,
     val status: String? = null,
 
     @SerialName("exp_date") val expirationDate: String? = null,

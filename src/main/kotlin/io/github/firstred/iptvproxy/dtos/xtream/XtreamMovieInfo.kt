@@ -1,6 +1,8 @@
 package io.github.firstred.iptvproxy.dtos.xtream
 
-import io.github.firstred.iptvproxy.serialization.serializers.NullableIntSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.CoercedFloatSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.CoercedIntSerializer
+import io.github.firstred.iptvproxy.serialization.serializers.CoercedNullableIntSerializer
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -9,7 +11,7 @@ import kotlinx.serialization.Serializable
 @OptIn(ExperimentalSerializationApi::class)
 data class XtreamMovieInfo(
     @SerialName("kinopoisk_url") val kinopoiskUrl: String = "",
-    @SerialName("tmdb_id") @Serializable(with = NullableIntSerializer::class) val tmdbId: Int? = null,
+    @SerialName("tmdb_id") @Serializable(with = CoercedNullableIntSerializer::class) val tmdbId: Int? = null,
     val name: String = "",
     @SerialName("o_name") val oName: String = "",
     val cover: String? = null,
@@ -17,7 +19,7 @@ data class XtreamMovieInfo(
     @SerialName("movie_image") val movieImage: String? = null,
     @SerialName("release_date") val releaseDate: String? = null,
     @SerialName("releasedate") val releasedate: String? = null,
-    @SerialName("episode_run_time") @Serializable(with = NullableIntSerializer::class) val episodeRunTime: Int? = null,
+    @SerialName("episode_run_time") @Serializable(with = CoercedNullableIntSerializer::class) val episodeRunTime: Int? = null,
     @SerialName("youtube_trailer") val youtubeTrailer: String? = null,
     val director: String? = null,
     val actors: String? = null,
@@ -26,13 +28,13 @@ data class XtreamMovieInfo(
     @SerialName("plot") val plot: String? = null,
     val age: String = "",
     @SerialName("mpaa_rating") val mpaaRating: String = "",
-    @SerialName("rating_count_kinopoisk") val ratingCountKinopoisk: Int = 0,
+    @SerialName("rating_count_kinopoisk") @Serializable(with = CoercedIntSerializer::class) val ratingCountKinopoisk: Int = 0,
     val country: String = "",
     val genre: String? = null,
     @SerialName("backdrop_path") val backdropPath: List<String?> = emptyList(),
-    @SerialName("duration_secs") val durationSecs: Int = 0,
+    @SerialName("duration_secs") @Serializable(with = CoercedIntSerializer::class) val durationSecs: Int = 0,
     val duration: String = "",
-    val bitrate: Int = 0,
+    @Serializable(with = CoercedIntSerializer::class) val bitrate: Int = 0,
     val subtitles: List<String> = emptyList(),
-    val rating: Float = 0f,
+    @Serializable(with = CoercedFloatSerializer::class) val rating: Float = 0f,
 )
