@@ -17,7 +17,7 @@ val localProperties = Properties()
 localProperties.load(FileInputStream(rootProject.file("local.properties")))
 
 group = "io.github.firstred"
-version = "0.5.0"
+version = "0.5.1"
 
 application {
     mainClass.set("$group.iptvproxy.ApplicationKt")
