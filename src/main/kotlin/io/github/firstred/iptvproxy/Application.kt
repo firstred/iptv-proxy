@@ -64,7 +64,7 @@ fun main(args: Array<String>) {
 
         if (sentryDsn.isNotEmpty()) Sentry.init { options ->
             options.dsn = sentryDsn
-            options.release = config.sentry?.release ?: dotenv.get("SENTRY_RELEASE")
+            options.release = config.sentry?.release ?: "${BuildConfig.APP_PACKAGE_NAME}@${BuildConfig.APP_VERSION}"
             options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
         }
 
