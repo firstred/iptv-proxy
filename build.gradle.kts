@@ -8,7 +8,6 @@ plugins {
     alias(libs.plugins.kotlin)
     alias(libs.plugins.kotlinx.serialization)
     alias(libs.plugins.sentry)
-    alias(libs.plugins.shadow)
     alias(libs.plugins.jib)
     alias(libs.plugins.buildconfig)
 }
@@ -17,7 +16,7 @@ val localProperties = Properties()
 localProperties.load(FileInputStream(rootProject.file("local.properties")))
 
 group = "io.github.firstred"
-version = "0.5.5"
+version = "0.5.6"
 
 application {
     mainClass.set("$group.iptvproxy.ApplicationKt")
@@ -27,7 +26,7 @@ application {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.14"
+    gradleVersion = "9.2.1"
     distributionType = Wrapper.DistributionType.ALL
 }
 

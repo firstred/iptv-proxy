@@ -1,17 +1,16 @@
 [versions]
-kotlin = "2.1.20"
+kotlin = "2.3.0"
 kotlin-coroutines = "1.10.2"
 kotlinx-datetime = "0.4.0"
 kotlinx-serialization-json = "1.8.0"
 kotlinx-serialization-yaml = "0.77.0"
 kotlinx-serialization-xml = "0.91.0"
 kotlinx-io = "0.7.0"
-sentry = "5.4.0"
-shadow = "8.1.1"
+sentry = "5.12.2"
 prometheus = "1.14.6"
-jib = "3.4.5"
-ktor = "3.1.2"
-koin-bom = "4.1.0-Beta11"
+jib = "3.5.2"
+ktor = "3.3.3"
+koin-bom = "4.1.1"
 buildconfig = "5.6.4"
 kache = "2.1.1"
 
@@ -41,7 +40,6 @@ kotlinx-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", vers
 sentry = { id = "io.sentry.jvm.gradle", version.ref = "sentry" }
 buildconfig = { id = "com.github.gmazzo.buildconfig", version.ref = "buildconfig" }
 jib = { id = "com.google.cloud.tools.jib", version.ref = "jib" }
-shadow = { id = "com.github.johnrengelman.shadow", version.ref = "shadow" }
 
 
 [libraries]
