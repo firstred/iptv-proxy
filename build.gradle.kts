@@ -73,7 +73,7 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
         }
     }
     from {
-        image = "docker.io/bellsoft/liberica-runtime-container:jdk-21-musl"
+        image = "${localProperties["org.opencontainers.sourceimage.url"]}:${localProperties["org.opencontainers.sourceimage.version"]}"
 
         platforms {
             platform {
