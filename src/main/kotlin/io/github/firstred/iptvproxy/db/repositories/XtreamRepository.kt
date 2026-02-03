@@ -434,7 +434,7 @@ class XtreamRepository : KoinComponent {
         do {
             val liveStreamCategoryQuery = CategoryTable.selectAll()
                 .where { CategoryTable.type eq type }
-            server?.let { liveStreamCategoryQuery.where { CategoryTable.server eq it } }
+            server?.let { liveStreamCategoryQuery.andWhere { CategoryTable.server eq it } }
             if (sortedByName) {
                 liveStreamCategoryQuery.orderBy(CategoryTable.name to SortOrder.ASC)
             } else {

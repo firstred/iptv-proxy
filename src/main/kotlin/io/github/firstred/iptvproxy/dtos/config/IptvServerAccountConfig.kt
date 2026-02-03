@@ -143,6 +143,7 @@ data class IptvServerAccountConfig(
         !xtreamUsername.isNullOrBlank() && !xtreamPassword.isNullOrBlank() && !url.isNullOrBlank()
 
     override fun compareTo(other: IptvServerAccountConfig): Int {
+        // Compares account configurations based on properties
         return when {
             url != other.url -> url?.compareTo(other.url ?: "") ?: -1
             login != other.login -> login?.compareTo(other.login ?: "") ?: -1

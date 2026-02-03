@@ -330,6 +330,18 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.live)
                     }
 
+                    // Build a map of live category externalId -> name for grouping
+                    val liveCategoryNameByExternalId: Map<String, String> = run {
+                        val map = mutableMapOf<String, String>()
+                        xtreamRepository.forEachCategoryChunk(
+                            type = IptvChannelType.live,
+                            server = server.name,
+                        ) { chunk ->
+                            chunk.forEach { map[it.id] = it.name }
+                        }
+                        map
+                    }
+
                     // Loads and persists live streams for each server
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -350,10 +362,56 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         val liveStreams: MutableList<XtreamLiveStream> = mutableListOf()
                         json.decodeToSequence<XtreamLiveStream>(buffer.asInputStream()).forEach { liveStream ->
                             // Remap live stream categories if necessary
-                            liveStreams.add(liveStream.copy(
+                            val remapped = liveStream.copy(
                                 categoryId = liveStream.categoryId?.let { liveCategoriesToRemapByExternalId[it] }?.id ?: liveStream.categoryId,
                                 categoryIds = liveStream.categoryIds?.map { liveCategoriesToRemapByExternalId[it.toString()]?.id?.toUInt() ?: it },
-                            ))
+                            )
+                            liveStreams.add(remapped)
+
+                            // Also add this Xtream live stream as a channel
+                            run {
+                                val acct = serverConnection.config.account!!
+                                val baseUri = Url("${acct.url}").toEncodedJavaURI()
+                                val port = if (baseUri.port > 0) baseUri.port else (if ("https" == baseUri.scheme) 443 else 80)
+                                val base = "${baseUri.scheme}://${baseUri.host}:$port"
+                                val ext = acct.xtreamOutput?.type ?: "m3u8"
+                                val streamUrl = "$base/live/${acct.xtreamUsername}/${acct.xtreamPassword}/${remapped.streamId}.$ext"
+
+                                // Resolves group names from remapped or original category IDs
+                                val groupNames: List<String> = when {
+                                    remapped.categoryIds != null -> remapped.categoryIds!!.filterNotNull().mapNotNull { id ->
+                                        val extId = id.toString()
+                                        // If remapped in config, prefer remapped category name
+                                        liveCategoriesToRemapByExternalId[extId]?.name ?: liveCategoryNameByExternalId[extId]
+                                    }
+                                    !remapped.categoryId.isNullOrBlank() -> {
+                                        val extId = remapped.categoryId!!
+                                        listOfNotNull(liveCategoriesToRemapByExternalId[extId]?.name ?: liveCategoryNameByExternalId[extId])
+                                    }
+                                    else -> emptyList()
+                                }
+
+                                val epgId = server.config.remapEpgChannelId(remapped.epgChannelId ?: "")
+
+                                addNewChannel(
+                                    IptvChannel(
+                                        name = remapped.name,
+                                        externalPosition = remapped.num,
+                                        logo = remapped.streamIcon,
+                                        groups = groupNames,
+                                        epgId = epgId,
+                                        catchupDays = 0,
+                                        url = Url(streamUrl).toEncodedJavaURI(),
+                                        server = server,
+                                        type = IptvChannelType.live,
+                                        m3uProps = mapOf(
+                                            "tvg-id" to epgId,
+                                            "group-title" to (groupNames.firstOrNull() ?: "")
+                                        ).filterValues { it.isNotBlank() },
+                                        vlcOpts = emptyMap(),
+                                    )
+                                )
+                            }
 
                             if (liveStreams.size > config.database.chunkSize.toInt()) {
                                 xtreamRepository.upsertLiveStreams(liveStreams, server.name)
@@ -361,6 +419,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             }
                         }
                         xtreamRepository.upsertLiveStreams(liveStreams, server.name)
+                        flushChannels()
                     }
 
                     // Load movies
@@ -391,6 +450,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         }
                         xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.movie)
                     }
+
+                    // Build a map of movie category externalId -> name for grouping
+                    val movieCategoryNameByExternalId: Map<String, String> = run {
+                        val map = mutableMapOf<String, String>()
+                        xtreamRepository.forEachCategoryChunk(
+                            type = IptvChannelType.movie,
+                            server = server.name,
+                        ) { chunk ->
+                            chunk.forEach { map[it.id] = it.name }
+                        }
+                        map
+                    }
+
                     // Loads and persists movie data from Xtream API
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
@@ -412,12 +484,50 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         json.decodeToSequence<XtreamMovie>(buffer.asInputStream()).forEach { movie ->
                             movies.add(movie)
 
+                            // Also add this Xtream movie as a channel
+                            run {
+                                val acct = serverConnection.config.account!!
+                                val baseUri = Url("${acct.url}").toEncodedJavaURI()
+                                val port = if (baseUri.port > 0) baseUri.port else (if ("https" == baseUri.scheme) 443 else 80)
+                                val base = "${baseUri.scheme}://${baseUri.host}:$port"
+                                val streamUrl = "$base/movie/${acct.xtreamUsername}/${acct.xtreamPassword}/${movie.streamId}.${movie.containerExtension}"
+
+                                // Extracts group names from movie category IDs
+                                val groupNames: List<String> = when {
+                                    movie.categoryIds != null -> movie.categoryIds!!.filterNotNull().mapNotNull { id ->
+                                        movieCategoryNameByExternalId[id.toString()]
+                                    }
+                                    !movie.categoryId.isNullOrBlank() -> listOfNotNull(movieCategoryNameByExternalId[movie.categoryId!!])
+                                    else -> emptyList()
+                                }
+
+                                addNewChannel(
+                                    // Adds new movie channel with extracted properties
+                                    IptvChannel(
+                                        name = movie.name,
+                                        externalPosition = movie.num,
+                                        logo = movie.streamIcon,
+                                        groups = groupNames,
+                                        epgId = null,
+                                        catchupDays = 0,
+                                        url = Url(streamUrl).toEncodedJavaURI(),
+                                        server = server,
+                                        type = IptvChannelType.movie,
+                                        m3uProps = mapOf(
+                                            "group-title" to (groupNames.firstOrNull() ?: "")
+                                        ).filterValues { it.isNotBlank() },
+                                        vlcOpts = emptyMap(),
+                                    )
+                                )
+                            }
+
                             if (movies.size > config.database.chunkSize.toInt()) {
                                 xtreamRepository.upsertMovies(movies, server.name)
                                 movies.clear()
                             }
                         }
                         xtreamRepository.upsertMovies(movies, server.name)
+                        flushChannels()
                     }
 
                     // Load tv series
