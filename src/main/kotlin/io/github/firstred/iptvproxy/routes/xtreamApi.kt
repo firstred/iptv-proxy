@@ -68,6 +68,9 @@ import kotlin.time.Duration
 
 val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
 
+/**
+ * Registers xtream API routes and handlers
+ */
 @OptIn(FormatStringsInDatetimeFormats::class, ExperimentalSerializationApi::class)
 fun Route.xtreamApi() {
     val channelManager: ChannelManager by inject()
@@ -80,6 +83,7 @@ fun Route.xtreamApi() {
     val cacheTimers: CacheExpiryTimers by inject()
     val cacheCoroutineScope: CoroutineScope by inject(named("cache"))
 
+    // Responds with XMLTV data for authenticated user
     get("/xmltv.php") {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
@@ -138,6 +142,7 @@ fun Route.xtreamApi() {
         }
     }
 
+    // Handles player API requests; returns appropriate data
     get("/player_api.php") {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
@@ -400,10 +405,12 @@ fun Route.xtreamApi() {
                         write("[")
                         var first = true
                         xtreamRepository.forEachSeriesChunk(categoryId = categoryId, forUser = user) { list ->
+                            // Iterates series chunk; writes proxied series to output
                             list.forEachIndexed { idx, it ->
                                 if (!first) write(",")
                                 else first = false
 
+                                // Proxies series cover/backdrop if server configured to do so
                                 write(json.encodeToString(XtreamSeries.serializer(), it.copy(
                                     cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
                                     else it.cover,
@@ -467,6 +474,7 @@ fun Route.xtreamApi() {
 
                 val externalCategoryIdToIdMap = xtreamRepository.getExternalCategoryIdToIdMap()
 
+                // Responds with series info, remapping external IDs
                 serversByName[serverName]?.let { iptvServer ->
                     val account = iptvServer.config.accounts?.firstOrNull { null !== it.getXtreamSeriesInfoUrl() }
                     val targetUrl = account?.getXtreamSeriesInfoUrl()
@@ -650,6 +658,7 @@ fun Route.xtreamApi() {
         }
     }
 
+    // Handles panel API requests; returns appropriate data
     get("/panel_api.php") {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
@@ -681,6 +690,7 @@ fun Route.xtreamApi() {
 
             call.request.queryParameters["action"].isNullOrBlank() -> {
                 try {
+                    // Responds with user, server, category, and channel information
                     call.respondTextWriter(contentType = ContentType.Application.Json) {
                         write("{")
                             write("\"user_info\":")
@@ -703,6 +713,7 @@ fun Route.xtreamApi() {
                             write("\"available_channels\": {")
                                 var first = true
                                 xtreamRepository.forEachLiveStreamChunk { list ->
+                                    // Writes proxied live stream metadata to output stream
                                     list.forEachIndexed { idx, it ->
                                         if (!first) write(",")
                                         else first = false
@@ -741,6 +752,7 @@ fun Route.xtreamApi() {
         }
     }
 
+    // Responds with user playlist or unauthorized status
     get("/get.php") {
         if (isNotMainPort()) return@get
         if (isNotReady()) return@get
@@ -789,6 +801,7 @@ private suspend fun followRedirects(
     while (newLocation.isNotBlank() && redirects < maxRedirects) {
         // Follow redirects
         newResponse = connection.httpClient.get(newLocation) {
+            // Configures headers for redirect request
             headers {
                 headers.filterHttpRequestHeaders().entries().forEach { (key, value) -> value.forEach { append(key, it) } }
                 accept(ContentType.Application.Json)
@@ -818,6 +831,7 @@ private fun Writer.writeSeriesCategories() {
     write("[")
     var first = true
     xtreamRepository.forEachCategoryChunk(type = IptvChannelType.series) { list ->
+        // Writes series category as JSON; flushes writer
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
@@ -836,6 +850,7 @@ private fun Writer.writeMovieCategories() {
     write("[")
     var first = true
     xtreamRepository.forEachCategoryChunk(type = IptvChannelType.movie) { list ->
+        // Writes movie category as JSON; flushes writer
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
@@ -854,6 +869,7 @@ private fun Writer.writeLiveCategories() {
     write("[")
     var first = true
     xtreamRepository.forEachCategoryChunk(type = IptvChannelType.live) { list ->
+        // Writes category as JSON; flushes for each item
         list.forEachIndexed { idx, it ->
             if (!first) write(",")
             else first = false
@@ -866,7 +882,11 @@ private fun Writer.writeLiveCategories() {
     write("]")
 }
 
+
 @OptIn(FormatStringsInDatetimeFormats::class)
+/**
+ * Constructs server info from environment and current time
+ */
 private fun serverInfo(baseUrl: URI): XtreamServerInfo = XtreamServerInfo(
     timezone = dotenv.get("TZ") ?: "UTC",
     timeNow = Clock.System.now().format(DateTimeComponents.Format {
@@ -881,6 +901,9 @@ private fun serverInfo(baseUrl: URI): XtreamServerInfo = XtreamServerInfo(
     rtmpPort = "",
 )
 
+/**
+ * Constructs user data class from database record
+ */
 private fun userInfo(user: IptvUser): XtreamUserInfo = XtreamUserInfo(
     username = user.username,
     password = user.password,

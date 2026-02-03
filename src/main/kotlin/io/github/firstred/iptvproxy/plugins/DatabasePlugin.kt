@@ -28,6 +28,7 @@ import java.util.regex.Pattern
 
 private val LOG: Logger = LoggerFactory.getLogger("DatabasePlugin")
 
+// Configures and validates the HikariCP data source
 val dataSource = HikariDataSource(HikariConfig().apply {
     jdbcUrl = config.database.jdbcUrl
     if (!config.database.username.isNullOrBlank()) username = config.database.username
@@ -37,6 +38,7 @@ val dataSource = HikariDataSource(HikariConfig().apply {
     isReadOnly = false
     transactionIsolation = config.database.transactionIsolation
 
+    // Configures SQLite‑specific connection properties if applicable
     if (config.database.jdbcUrl.startsWith("jdbc:sqlite")) {
         val dataSourcePropertyKeys = config.database.dataSourceProperties.keys
 
@@ -66,6 +68,9 @@ val dataSource = HikariDataSource(HikariConfig().apply {
 
 @OptIn(ExperimentalDatabaseMigrationApi::class)
 @Suppress("UnusedReceiverParameter")
+/**
+ * Configures database connection; migrates schema; registers regexp
+ */
 fun Application.configureDatabase() {
     val databaseSystem = when {
         config.database.jdbcUrl.startsWith("jdbc:sqlite") -> "sqlite"

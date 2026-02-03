@@ -81,15 +81,55 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
     private val cleanupMonitorConfig: MonitorConfig by inject(named("cleanup-channels"))
     private val databaseMutex: Mutex by inject(named("large-database-transactions"))
 
+    /**
+     * Updates the IPTV channel repository and associated metadata by fetching and processing
+     * playlist and XMLTV data from configured servers. This method performs the following steps:
+     *
+     * - Signals to the repository that the import process has started for each configured server.
+     * - For servers with an XMLTV configuration:
+     *   - Downloads and parses XMLTV data.
+     *   - Extracts and maps channels and program metadata.
+     *   - Stores the parsed XMLTV channels and programs into the corresponding repository.
+     * - For servers with playlist URLs:
+     *   - Fetches playlist data and parses channels.
+     *   - Maps categories and enriches channel metadata based on server configuration.
+     *   - Persists the parsed channels in the repository.
+     * - Handles the flushing of parsed data to the database in chunks defined by the database configuration.
+     * - Signals the completion of the playlist and XMLTV import processes for each server.
+     *
+     * This method utilizes experimental APIs for serialization and XML utility processing and is
+     * subject to runtime exceptions if no servers are configured or if parsing or connection issues occur.
+     *
+     * Notes:
+     * - XMLTV and M3U parsing is performed iteratively, with data being flushed to the database in
+     *   chunks for optimized batch processing.
+     * - Categories for live channels can be remapped based on server-specific configurations.
+     * - The process accounts for the presence of multiple server accounts but primarily uses data
+     *   from the first account when available.
+     * - EPG and playlist data retrieval respects the configured timeouts and retry mechanisms.
+     *
+     * Exceptions:
+     * - Throws a RuntimeException if no servers are configured.
+     *
+     * Logging:
+     * - Logs provide trace, info, and warning messages to facilitate debugging and monitoring
+     *   of the update process, including details on parsing success or failure.
+     *
+     * Concurrency:
+     * - The method is marked as `suspend` to support asynchronous execution, allowing efficient
+     *   handling of network and file I/O operations.
+     */
     @OptIn(ExperimentalSerializationApi::class, ExperimentalXmlUtilApi::class)
     private suspend fun updateChannels()
     {
         LOG.info("Updating channels")
 
         if (serversByName.isEmpty()) throw RuntimeException("No servers configured")
+        // Iterates servers; updates channels; signals completion
 
         serversByName.keys.forEach { channelRepository.signalPlaylistImportStartedForServer(it) }
 
+        // Iterates servers; updates channels; signals completion
         for (server in serversByName.values) {
             val newChannels: MutableList<IptvChannel> = mutableListOf()
             fun flushChannels() {
@@ -109,10 +149,12 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                 epgRepository.signalXmltvImportStartedForServer(server.name)
 
+                // Parses XMLTV data; handles parsing exceptions
                 server.withConnection(
                     config.timeouts.playlist.totalMilliseconds,
                     server.config.accounts?.first(),
                 ) { serverConnection, _ ->
+                    // Parses XMLTV data; persists channels and programmes
                     try {
                         LOG.trace("Parsing xmltv data")
 
@@ -170,7 +212,9 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             // All accounts should provide the same info, so we use the first one
             server.config.accounts?.firstOrNull()?.let { account ->
                 LOG.trace("Parsing playlist: {}, url: {}", server.name, account.url)
+                // Maps live categories for server configuration
                 val liveCategoriesToRemapByName: Map<String, Pair<String, XtreamCategory>> =
+                    // Maps live categories for server configuration
                     if (server.config.liveCategoryRemapping.isNotEmpty()) {
                         val newCategories = xtreamRepository.getAndCreateMissingCategoriesByName(
                             server.config.liveCategoryRemapping.values.toList().distinct(), server.name
@@ -185,6 +229,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                     liveCategoriesToRemapByName.values.associateBy({ it.first }, { it.second })
 
                     if (!account.isXtream()) {
+                        // Loads channels from M3U playlist and adds them
                         server.withConnection(
                             config.timeouts.playlist.totalMilliseconds,
                             account,
@@ -195,6 +240,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
                             try {
                                 M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
+                                    // Adds new channel from M3U data to database
                                     addNewChannel(run {
                                         val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
                                         val tvgId: String =
@@ -217,6 +263,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                                         }
 
                                         val channelType = m3uChannel.url.toChannelType()
+                                        // Creates IPTV channel with remapped category and EPG
                                         IptvChannel(
                                             name = m3uChannel.name,
                                             externalPosition = ++externalIndex,
@@ -283,6 +330,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.live)
                     }
 
+                    // Loads and persists live streams for each server
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -343,6 +391,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         }
                         xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.movie)
                     }
+                    // Loads and persists movie data from Xtream API
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -399,6 +448,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         }
                         xtreamRepository.upsertCategories(categories, server.name, IptvChannelType.series)
                     }
+                    // Loads and persists series categories from Xtream API
                     server.withConnection(
                         config.timeouts.playlist.totalMilliseconds,
                         account,
@@ -454,11 +504,25 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         LOG.info("{} channels available", channelCount)
     }
 
+    /**
+     * Loads XMLTV data from the specified IPTV server connection.
+     *
+     * This method sends an HTTP GET request to the EPG URL defined in the server connection's
+     * configuration. It ensures that default client headers are added during the request and handles
+     * the response to provide an InputStream. The method also detects if the response is GZIP-compressed
+     * and decompresses it accordingly.
+     *
+     * @param serverConnection The IPTV server connection used to fetch the XMLTV data. This connection
+     *                         must have a valid configuration with a proper EPG URL defined.
+     * @return An InputStream containing the XMLTV data. If the response is GZIP-compressed, the stream
+     *         will provide decompressed data.
+     */
     private suspend fun loadXmltv(serverConnection: IptvServerConnection): InputStream {
         return httpClient.prepareGet(serverConnection.config.getEpgUrl().toString()) {
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
+        // Loads XMLTV data, handling GZIP compression if needed
         }.execute { response ->
             val buffer = Buffer()
 
@@ -478,6 +542,18 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         }
     }
 
+    /**
+     * Loads the channel playlist from the given IPTV server connection.
+     *
+     * This method retrieves the playlist data as an InputStream by making an HTTP GET request
+     * to the server connection's playlist URL. The request uses default client headers and ensures
+     * the response body is copied into a buffer for InputStream conversion.
+     *
+     * @param serverConnection The IPTV server connection from which to load the channels.
+     *                         Must contain a valid account configuration.
+     * @return An InputStream containing the playlist data for the channels.
+     * @throws IllegalArgumentException If the server connection does not have a valid account configuration.
+     */
     private suspend fun loadChannels(serverConnection: IptvServerConnection): InputStream {
         if (null == serverConnection.config.account) throw IllegalArgumentException("Cannot load channels without an account")
 
@@ -485,6 +561,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             headers {
                 addDefaultClientHeaders(serverConnection.config)
             }
+        // Loads channels from server connection into buffer
         }.execute { response ->
             val buffer = Buffer()
 
@@ -496,6 +573,18 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         }
     }
 
+    /**
+     * Retrieves the playlist for a specific channel.
+     *
+     * @param channelId The ID of the channel whose playlist is to be retrieved.
+     * @param user The IPTV user requesting the playlist.
+     * @param baseUrl The base URL used to construct the playlist's stream URLs.
+     * @param additionalHeaders Optional additional headers to include in the request.
+     * @param additionalQueryParameters Optional additional query parameters to include in the playlist URLs.
+     * @param headersCallback Optional callback invoked with the headers for further customization.
+     * @return A string representation of the channel's playlist.
+     * @throws RuntimeException If the channel with the given ID is not found.
+     */
     suspend fun getChannelPlaylist(
         channelId: UInt,
         user: IptvUser,
@@ -518,6 +607,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
 
         outputWriter.write("#EXTM3U\n")
         channelRepository.forEachIptvChannelChunk(forUser = user) { chunk ->
+            // Writes channel metadata and proxied URL to output
             chunk.filterNot { null == it.id }.forEach { channel: IptvChannel ->
                 outputWriter.write("#EXTINF:-1")
                 outputWriter.write(" tvg-id=\"")
@@ -573,6 +663,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 }
 
                 if (channel.server.config.proxyStream) {
+                    // Writes proxied HLS or other stream URL
                     if (channel.url.isHlsPlaylist()) {
                         outputWriter.write(baseUrl.resolve("${channel.type.urlType()}/${user.username}/${user.password}/${channel.id}.m3u8").toString())
                     } else {
@@ -587,9 +678,19 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         }
     }
 
+    /**
+     * Schedules periodic cleanup tasks for various channel-related resources, ensuring
+     * proper management and data integrity. The cleanups are executed in a separate thread
+     * with support for retrying in case of exceptions. This method uses a delayed executor
+     * for scheduling the tasks.
+     *
+     * @param delay The initial delay before the first execution of the scheduled cleanup task. Default is 0.
+     * @param unit The time unit for the delay parameter. Default is TimeUnit.MINUTES.
+     */
     private fun scheduleChannelCleanups(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
+                // Performs auditable channel cleanup; reschedules on error
                 try {
                     CheckInUtils.withCheckIn("cleanup-channels", cleanupMonitorConfig) {
                         runBlocking {
@@ -615,9 +716,18 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         )
     }
 
+    /**
+     * Schedules periodic tasks for updating channel information and handling associated cleanups.
+     * This method ensures that channels are updated transactionally, cleanups are scheduled,
+     * and retries are handled in case of failure. The scheduling is done using a delayed executor.
+     *
+     * @param delay The initial delay before the first execution of the scheduled update task. Default is 0.
+     * @param unit The time unit for the delay parameter. Default is TimeUnit.MINUTES.
+     */
     private fun scheduleChannelUpdates(delay: Long = 0, unit: TimeUnit = TimeUnit.MINUTES) {
         scheduledExecutorService.schedule(
             Thread {
+                // Updates channels transactionally; schedules cleanups; retries on failure
                 try {
                     CheckInUtils.withCheckIn("update-channels", updateMonitorConfig) {
                         runBlocking {
@@ -640,11 +750,15 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         )
     }
 
+    /**
+     * Schedules channel updates/cleanups based on configuration and existing channels
+     */
     override fun onApplicationDatabaseInitializedHook() {
         LOG.trace("Channel manager starting")
         var nextUpdateRunInMinutes = 0L
         val channelCount = channelRepository.getIptvChannelCount()
 
+        // Computes delay until next scheduled channel update
         if (!config.updateOnStartup && channelCount > 0u) {
             val lastCompletedRun = channelRepository.findLastUpdateCompletedAt()
             // Find next run
@@ -663,6 +777,29 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         }
     }
 
+    /**
+     * Handles the termination logic for the `ChannelManager` class.
+     *
+     * This method is invoked when the application is shutting down. It performs cleanup and resource
+     * deallocation tasks such as stopping the scheduled executor service to ensure a graceful
+     * termination of background tasks. Specifically:
+     *
+     * - Attempts to shut down the `scheduledExecutorService` immediately.
+     * - Awaits the termination of the executor service for up to 1 minute.
+     * - Logs a warning if the executor service fails to terminate within the allotted time.
+     * - Logs an error if interrupted during the shutdown process.
+     *
+     * Logging:
+     * - Emits trace logs to notify the start and completion of the channel manager termination process.
+     * - Logs warning messages for potential delays in shutdown.
+     * - Logs errors if termination is interrupted.
+     *
+     * Thread Safety:
+     * - Ensures proper handling of multithreading concerns during the shutdown procedure.
+     *
+     * Exceptions:
+     * - Catches and suppresses `InterruptedException` to prevent unexpected termination behavior.
+     */
     override fun onApplicationTerminateHook() {
         LOG.trace("Channel manager stopping")
 

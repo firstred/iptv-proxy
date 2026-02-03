@@ -8,6 +8,9 @@ import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import org.koin.core.context.GlobalContext.get as getKoin
 
+/**
+ * Authenticates user; responds unauthorized on failure
+ */
 suspend fun RoutingContext.isAuthenticated(username: String?, password: String? = null): Boolean {
     val userManager: UserManager by getKoin().inject()
 

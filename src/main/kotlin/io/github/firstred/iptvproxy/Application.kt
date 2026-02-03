@@ -55,6 +55,7 @@ lateinit var dotenv: Dotenv
 private val LOG: Logger = LoggerFactory.getLogger(Application::class.java)
 
 fun main(args: Array<String>) {
+    // Executes application as KtArrow SuspendApp with graceful shutdown support
     try {
         argv = args
         dotenv = dotenv { ignoreIfMissing = true }
@@ -62,6 +63,7 @@ fun main(args: Array<String>) {
 
         TimeZone.setDefault(TimeZone.getTimeZone(dotenv.get("TZ") ?: "UTC"))
 
+        // Initializes Sentry with configured options
         if (sentryDsn.isNotEmpty()) Sentry.init { options ->
             options.dsn = sentryDsn
             options.release = config.sentry?.release ?: "${BuildConfig.APP_PACKAGE_NAME}@${BuildConfig.APP_VERSION}"
@@ -76,6 +78,7 @@ fun main(args: Array<String>) {
             )
 
             override fun run() {
+                // Loads configuration; exits on parsing errors
                 try {
                     LOG.info("Loading config...")
                     config = loadConfig(File(configFile ?: "config.yml"))
@@ -106,6 +109,7 @@ fun main(args: Array<String>) {
 }
 
 private fun startServer() {
+    // Starts embedded server with configured modules and connectors
     embeddedServer(
         CIO,
         serverConfig {
@@ -131,6 +135,7 @@ private fun startServer() {
                     gzip { priority = .5 }
                     deflate { priority = .3 }
                 }
+                // Configures cross-origin resource sharing based on config
                 if (config.cors.enabled) install(CORS) {
                     allowCredentials = config.cors.allowCredentials
                     allowNonSimpleContentTypes = true
@@ -176,6 +181,9 @@ fun loadConfig(configFile: File): IptvProxyConfig {
     // Read the entire config file in memory
     return loadConfig(configFile.readText())
 }
+/**
+ * Loads configuration; validates users; configures proxy authentication
+ */
 fun loadConfig(configFile: String): IptvProxyConfig {
     var configContent = configFile
     // Add env variables to the config
@@ -217,10 +225,14 @@ fun loadConfig(configFile: String): IptvProxyConfig {
     return deserializedConfig
 }
 
+/**
+ * Validates username/password against empty or unsafe characters
+ */
 private fun validateUsernameOrPassword(usernameOrPassword: String) {
     if (usernameOrPassword.isEmpty()) {
         throw IllegalArgumentException("Username or password cannot be empty")
     }
+    // Enforces username/password restrictions against unsafe characters
     if (usernameOrPassword.contains("_") || usernameOrPassword.contains(";") || usernameOrPassword.contains(":") || usernameOrPassword.contains("/")) {
         throw IllegalArgumentException("Password/username cannot contain _ , ; : /")
     }
@@ -230,6 +242,7 @@ private fun validateUsernameOrPassword(usernameOrPassword: String) {
 }
 
 private fun setProxyAuthenticator(username: String?, password: String?) {
+    // Sets global authenticator using provided credentials
     Authenticator.setDefault(object : Authenticator() {
         @Override
         override fun getPasswordAuthentication(): PasswordAuthentication? {
