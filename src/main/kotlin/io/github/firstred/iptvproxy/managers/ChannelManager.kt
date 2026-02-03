@@ -31,6 +31,7 @@ import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
 import io.ktor.client.call.*
+import io.ktor.client.plugins.ResponseException
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -169,80 +170,86 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
             // All accounts should provide the same info, so we use the first one
             server.config.accounts?.firstOrNull()?.let { account ->
                 LOG.trace("Parsing playlist: {}, url: {}", server.name, account.url)
-                val liveCategoriesToRemapByName: Map<String, Pair<String, XtreamCategory>> = if (server.config.liveCategoryRemapping.isNotEmpty()) {
-                    val newCategories = xtreamRepository.getAndCreateMissingCategoriesByName(server.config.liveCategoryRemapping.values.toList().distinct(), server.name)
-                    server.config.liveCategoryRemapping.map { (key, value) ->
-                        Pair(key, newCategories[value]!!)
-                    }.associateBy({ it.first }, { it.second })
-                } else {
-                    mapOf()
-                }
-                val liveCategoriesToRemapByExternalId: Map<String, XtreamCategory> = liveCategoriesToRemapByName.values.associateBy({ it.first }, { it.second })
-
-                server.withConnection(
-                    config.timeouts.playlist.totalMilliseconds,
-                    account,
-                ) { serverConnection, _ ->
-                    loadChannels(serverConnection).use { channelsInputStream ->
-
-                        var externalIndex = 0u
-
-                        try {
-                            M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
-                                addNewChannel(run {
-                                    val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
-                                    val tvgId: String =
-                                        server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
-
-                                    var days = 0
-                                    var daysStr = m3uChannel.props["tvg-rec"] ?: ""
-                                    if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
-                                    if (daysStr.isNotBlank()) {
-                                        try {
-                                            days = daysStr.toInt()
-                                        } catch (e: NumberFormatException) {
-                                            Sentry.captureException(e)
-                                            LOG.warn(
-                                                "Error parsing catchup days: {}, channel: {}",
-                                                daysStr,
-                                                m3uChannel.name
-                                            )
-                                        }
-                                    }
-
-                                    val channelType = m3uChannel.url.toChannelType()
-                                    IptvChannel(
-                                        name = m3uChannel.name,
-                                        externalPosition = ++externalIndex,
-                                        logo = m3uChannel.props["tvg-logo"],
-                                        groups = m3uChannel.groups.map {
-                                            if (IptvChannelType.live == channelType) (liveCategoriesToRemapByName[it]?.second?.name
-                                                ?: it) else it
-                                        },
-                                        epgId = tvgId,
-                                        catchupDays = days,
-                                        url = Url(m3uChannel.url).toEncodedJavaURI(),
-                                        server = server,
-                                        type = m3uChannel.url.toChannelType(),
-                                        m3uProps = m3uChannel.props + mapOf(
-                                            "tvg-id" to tvgId,
-                                            "tvg-name" to tvgName,
-                                        ) + mapOf(
-                                            "group-title" to (liveCategoriesToRemapByName[m3uChannel.props["group-title"]]?.second?.name
-                                                ?: m3uChannel.props["group-title"] ?: "")
-                                        ).filterValues { it.isNotBlank() },
-                                        vlcOpts = m3uChannel.vlcOpts,
-                                    )
-                                })
-                            }
-                        } catch (_: IOException) {
-                            LOG.warn("Unable to parse m3u data: ${server.name} - skipping m3u import for server ${server.name}")
-                        }
-                        flushChannels()
+                val liveCategoriesToRemapByName: Map<String, Pair<String, XtreamCategory>> =
+                    if (server.config.liveCategoryRemapping.isNotEmpty()) {
+                        val newCategories = xtreamRepository.getAndCreateMissingCategoriesByName(
+                            server.config.liveCategoryRemapping.values.toList().distinct(), server.name
+                        )
+                        server.config.liveCategoryRemapping.map { (key, value) ->
+                            Pair(key, newCategories[value]!!)
+                        }.associateBy({ it.first }, { it.second })
+                    } else {
+                        mapOf()
                     }
-                }
+                val liveCategoriesToRemapByExternalId: Map<String, XtreamCategory> =
+                    liveCategoriesToRemapByName.values.associateBy({ it.first }, { it.second })
 
-                if (account.isXtream()) {
+                    if (!account.isXtream()) {
+                        server.withConnection(
+                            config.timeouts.playlist.totalMilliseconds,
+                            account,
+                        ) { serverConnection, _ ->
+                        loadChannels(serverConnection).use { channelsInputStream ->
+
+                            var externalIndex = 0u
+
+                            try {
+                                M3uParser.forEachChannel(channelsInputStream) { m3uChannel: M3uChannel ->
+                                    addNewChannel(run {
+                                        val tvgName: String = m3uChannel.props["tvg-name"] ?: ""
+                                        val tvgId: String =
+                                            server.config.remapEpgChannelId(m3uChannel.props["tvg-id"] ?: "")
+
+                                        var days = 0
+                                        var daysStr = m3uChannel.props["tvg-rec"] ?: ""
+                                        if (daysStr.isBlank()) daysStr = m3uChannel.props["catchup-days"] ?: ""
+                                        if (daysStr.isNotBlank()) {
+                                            try {
+                                                days = daysStr.toInt()
+                                            } catch (e: NumberFormatException) {
+                                                Sentry.captureException(e)
+                                                LOG.warn(
+                                                    "Error parsing catchup days: {}, channel: {}",
+                                                    daysStr,
+                                                    m3uChannel.name
+                                                )
+                                            }
+                                        }
+
+                                        val channelType = m3uChannel.url.toChannelType()
+                                        IptvChannel(
+                                            name = m3uChannel.name,
+                                            externalPosition = ++externalIndex,
+                                            logo = m3uChannel.props["tvg-logo"],
+                                            groups = m3uChannel.groups.map {
+                                                if (IptvChannelType.live == channelType) (liveCategoriesToRemapByName[it]?.second?.name
+                                                    ?: it) else it
+                                            },
+                                            epgId = tvgId,
+                                            catchupDays = days,
+                                            url = Url(m3uChannel.url).toEncodedJavaURI(),
+                                            server = server,
+                                            type = m3uChannel.url.toChannelType(),
+                                            m3uProps = m3uChannel.props + mapOf(
+                                                "tvg-id" to tvgId,
+                                                "tvg-name" to tvgName,
+                                            ) + mapOf(
+                                                "group-title" to (liveCategoriesToRemapByName[m3uChannel.props["group-title"]]?.second?.name
+                                                    ?: m3uChannel.props["group-title"] ?: "")
+                                            ).filterValues { it.isNotBlank() },
+                                            vlcOpts = m3uChannel.vlcOpts,
+                                        )
+                                    })
+                                }
+                            } catch (_: IOException) {
+                                LOG.warn("Unable to parse m3u data: ${server.name} - skipping m3u import for server ${server.name}")
+                            } catch (_: ResponseException) {
+                                LOG.warn("Unable to parse m3u data: ${server.name} - skipping m3u import for server ${server.name}")
+                            }
+                            flushChannels()
+                        }
+                    }
+                } else {
                     xtreamRepository.signalXtreamImportStartedForServer(server.name)
 
                     // Load live streams
