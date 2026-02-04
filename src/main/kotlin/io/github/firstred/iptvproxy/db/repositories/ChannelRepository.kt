@@ -111,6 +111,8 @@ class ChannelRepository : KoinComponent {
     fun forEachIptvChannelChunk(
         server: String? = null,
         forUser: IptvUser? = null,
+        includeTypes: Set<IptvChannelType>? = null,
+        excludeTypes: Set<IptvChannelType>? = null,
         sortedByName: Boolean = config.sortChannelsByName,
         chunkSize: Int = config.database.chunkSize.toInt(),
         action: (List<IptvChannel>) -> Unit,
@@ -122,6 +124,8 @@ class ChannelRepository : KoinComponent {
             transaction {
                 val channelQuery = ChannelTable.selectAll()
                 server?.let { channelQuery.andWhere { ChannelTable.server eq it } }
+                includeTypes?.let { channelQuery.andWhere { ChannelTable.type inList it } }
+                excludeTypes?.let { channelQuery.andWhere { ChannelTable.type notInList it } }
                 if (sortedByName) {
                     channelQuery.orderBy(ChannelTable.name to SortOrder.ASC)
                 } else {

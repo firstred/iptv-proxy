@@ -775,11 +775,23 @@ fun Route.xtreamApi() {
         }
 
         try {
+            val include = call.request.queryParameters["include"]?.split(",")?.mapNotNull {
+                val type = it.trim().lowercase()
+                if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
+            }?.toSet()
+
+            val exclude = call.request.queryParameters["exclude"]?.split(",")?.mapNotNull {
+                val type = it.trim().lowercase()
+                if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
+            }?.toSet()
+
             call.respondOutputStream { use { output ->
                 channelManager.getAllChannelsPlaylist(
                     output,
                     user,
                     config.getActualBaseUrl(call.request),
+                    includeTypes = include,
+                    excludeTypes = exclude,
                 )
                 output.flush()
             } }

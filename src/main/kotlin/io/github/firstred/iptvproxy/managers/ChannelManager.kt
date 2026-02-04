@@ -711,12 +711,18 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         outputStream: OutputStream,
         user: IptvUser,
         baseUrl: URI,
+        includeTypes: Set<IptvChannelType>? = null,
+        excludeTypes: Set<IptvChannelType>? = null,
     ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
         val encryptedAccount = user.toEncryptedAccountHexString()
 
         outputWriter.write("#EXTM3U\n")
-        channelRepository.forEachIptvChannelChunk(forUser = user) { chunk ->
+        channelRepository.forEachIptvChannelChunk(
+            forUser = user,
+            includeTypes = includeTypes,
+            excludeTypes = excludeTypes,
+        ) { chunk ->
             // Writes channel metadata and proxied URL to output
             chunk.filterNot { null == it.id }.forEach { channel: IptvChannel ->
                 outputWriter.write("#EXTINF:-1")
