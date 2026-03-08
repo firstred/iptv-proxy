@@ -103,6 +103,7 @@ class IptvChannel(
                 try {
                     responseURI = responseURI.resolve(location)
                 } catch (_: URISyntaxException) {
+                } catch (_: IllegalArgumentException) {
                 }
 
                 redirects++
@@ -134,6 +135,13 @@ class IptvChannel(
                                 infoLine,
                                 e.message,
                             )
+                        } catch (e: IllegalArgumentException) {
+                            LOG.warn(
+                                "[{}] Error while parsing stream URL: {}, error: {}",
+                                user.username,
+                                infoLine,
+                                e.message,
+                            )
                         }
                     }
 
@@ -155,6 +163,13 @@ class IptvChannel(
 
                                 props["URI"] = "\"${baseUrl}hls/${user.toEncryptedAccountHexString()}/${remoteUrl.aesEncryptToHexString()}/$id/$fileName.$extension\""
                             } catch (e: URISyntaxException) {
+                                LOG.warn(
+                                    "[{}] Error while parsing media info URI: {}, error: {}",
+                                    user.username,
+                                    it,
+                                    e.message,
+                                )
+                            } catch (e: IllegalArgumentException) {
                                 LOG.warn(
                                     "[{}] Error while parsing media info URI: {}, error: {}",
                                     user.username,

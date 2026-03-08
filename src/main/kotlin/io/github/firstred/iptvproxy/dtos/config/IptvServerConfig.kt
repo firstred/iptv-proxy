@@ -21,6 +21,7 @@ data class IptvServerConfig(
     val accounts: List<IptvServerAccountConfig>? = null,
 
     override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
+    override val ignoreEpgErrors: Boolean? = null,
 
     override val userAgent: String? = null,
 
@@ -37,6 +38,7 @@ data class IptvServerConfig(
         proxyStream = proxyStream,
         account = accounts?.let { it[accountIndex.toInt()] },
         timeouts = timeouts,
+        ignoreEpgErrors = ignoreEpgErrors,
         userAgent = userAgent,
         epgRemapping = epgRemapping,
         liveCategoryRemapping = liveCategoryRemapping,

@@ -20,6 +20,7 @@ data class IptvFlatServerConfig(
     override val proxyForwardedPassword: String? = null,
 
     override val timeouts: IptvConnectionTimeoutsConfig = IptvConnectionTimeoutsConfig(),
+    override val ignoreEpgErrors: Boolean? = null,
 
     override val userAgent: String? = null,
 
@@ -36,6 +37,7 @@ data class IptvFlatServerConfig(
         proxyStream = proxyStream,
         accounts = account?.let { listOf(if (idx == 0u) it else throw IllegalStateException("Only the first account is supported in flat config")) } ?: emptyList(),
         timeouts = timeouts,
+        ignoreEpgErrors = ignoreEpgErrors,
         userAgent = userAgent,
         epgRemapping = epgRemapping,
         liveCategoryRemapping = liveCategoryRemapping,

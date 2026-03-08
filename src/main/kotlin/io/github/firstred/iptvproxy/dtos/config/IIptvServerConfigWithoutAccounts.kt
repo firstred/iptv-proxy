@@ -15,6 +15,7 @@ interface IIptvServerConfigWithoutAccounts {
     val proxyForwardedPassword: String?
 
     val timeouts: IptvConnectionTimeoutsConfig
+    val ignoreEpgErrors: Boolean?
 
     val userAgent: String?
 
