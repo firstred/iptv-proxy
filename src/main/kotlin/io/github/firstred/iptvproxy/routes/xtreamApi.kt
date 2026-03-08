@@ -487,8 +487,10 @@ fun Route.xtreamApi() {
 
                     val seriesInfoFile = seriesInfoCache.get(uniqueKey)
 
+                    // Loads or retrieves series info from cache; persists on miss
                     if (null == seriesInfoFile) {
                         lateinit var response: HttpResponse
+                        // Fetches series info via authenticated HTTP request with redirects
                         iptvServer.withConnection(iptvServer.config.timeouts.totalMilliseconds) { connection, releaseConnectionEarly ->
                             response = connection.httpClient.get("$targetUrl&series_id=$seriesId") {
                                 headers {
@@ -502,6 +504,7 @@ fun Route.xtreamApi() {
 
                         try {
                             seriesInfo = response.body<XtreamSeriesInfoEndpoint>()
+                            // Deserializes response to series info; caches on success; defaults on JSON error
                             seriesInfo.let {
                                 cacheCoroutineScope.launch { seriesInfoCache.putAsync(uniqueKey) { fileName ->
                                     val file = File(fileName)
@@ -524,6 +527,7 @@ fun Route.xtreamApi() {
                     }
 
                     if (null == seriesInfo) {
+                        // Loads series info from cache file if response fails
                         if (null != seriesInfoFile) {
                             seriesInfo = File(seriesInfoFile).readText().let {
                                 json.decodeFromString(XtreamSeriesInfoEndpoint.serializer(), it)
@@ -551,6 +555,7 @@ fun Route.xtreamApi() {
                                 overview = it.overview.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
                                 coverTmdb = it.coverTmdb.let { if (!it.isNullOrBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
                             ) },
+                            // Rewrites series info images and remaps category IDs safely
                             info = seriesInfo.info.copy(
                                 cover = seriesInfo.info.cover?.let { if (it.isNotBlank()) (if (iptvServer.config.proxyStream) it.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  else "" },
                                 backdropPath = seriesInfo.info.backdropPath.mapNotNull { (if (iptvServer.config.proxyStream) it?.toProxiedIconUrl(baseUrl, encryptedAccount) else it)  },
@@ -561,6 +566,7 @@ fun Route.xtreamApi() {
                                 }
                             ),
                             episodes = seriesInfo.episodes.mapValues { (_, episodes) ->
+                                // Transforms episodes with mapped IDs and proxied images
                                 episodes.map { episode ->
                                     episode.copy(
                                         id = streamIdMapping[episode.id.toUInt()]?.toString() ?: "0",
