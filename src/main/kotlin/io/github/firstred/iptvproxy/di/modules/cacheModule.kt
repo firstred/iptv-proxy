@@ -6,6 +6,7 @@ import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
+import io.github.firstred.iptvproxy.utils.appVersionToInt
 import io.github.firstred.iptvproxy.utils.toInt
 import io.github.z4kn4fein.semver.toVersion
 import kotlinx.coroutines.CoroutineScope
@@ -28,7 +29,7 @@ val cacheModule = module {
             maxSize = if (config.cache.enabled) config.cache.size.seriesInfo.toLong() else 1L,
         ) {
             strategy = KacheStrategy.FIFO
-            cacheVersion = BuildConfig.APP_VERSION.toVersion().toInt()
+            cacheVersion = appVersionToInt(BuildConfig.APP_VERSION)
         } }
     }
     single(named("movie-info")) {
@@ -37,7 +38,7 @@ val cacheModule = module {
             maxSize = if (config.cache.enabled) config.cache.size.movieInfo.toLong() else 1L,
         ) {
             strategy = KacheStrategy.FIFO
-            cacheVersion = BuildConfig.APP_VERSION.toVersion().toInt()
+            cacheVersion = appVersionToInt(BuildConfig.APP_VERSION)
         } }
     }
     single(named("video-chunks")) {
