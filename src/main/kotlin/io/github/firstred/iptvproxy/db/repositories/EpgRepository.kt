@@ -133,8 +133,8 @@ class EpgRepository {
         val periods: Map<String, Pair<Instant, Instant>> = programmes.groupBy { it.channel }
             .mapValues { (_, programmes) ->
                 val earliestStart = programmes.minByOrNull { it.start }?.start ?: Clock.System.now()
-                val latestStop = programmes.maxByOrNull { it.stop }?.stop ?: Clock.System.now()
-                Pair(earliestStart, latestStop)
+                val latestStart = programmes.maxByOrNull { it.start }?.start ?: Clock.System.now()
+                Pair(earliestStart, latestStart)
             }
         wipeProgrammes(periods)
 
@@ -710,8 +710,7 @@ class EpgRepository {
             // Delete programmes with the given channel IDs that are within the range [clearAfter, clearBefore]
             EpgProgrammeTable.deleteWhere {
                 EpgProgrammeTable.epgChannelId eq channelId and
-                        ((EpgProgrammeTable.start greaterEq clearAfter and (EpgProgrammeTable.start lessEq clearBefore)) or
-                                (EpgProgrammeTable.stop greaterEq clearAfter and (EpgProgrammeTable.stop lessEq clearBefore)))
+                        ((EpgProgrammeTable.start greaterEq clearAfter and (EpgProgrammeTable.start lessEq clearBefore)))
             }
             EpgProgrammeAudioTable.deleteWhere {
                 EpgProgrammeAudioTable.epgChannelId eq channelId and
