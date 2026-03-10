@@ -14,11 +14,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.flywaydb.core.Flyway
-import org.jetbrains.exposed.sql.Database
-import org.jetbrains.exposed.sql.DatabaseConfig
-import org.jetbrains.exposed.sql.ExperimentalDatabaseMigrationApi
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.upsert
+import org.jetbrains.exposed.v1.core.DatabaseApi
+import org.jetbrains.exposed.v1.jdbc.Database
+import org.jetbrains.exposed.v1.core.DatabaseConfig
+import org.jetbrains.exposed.v1.core.ExperimentalDatabaseMigrationApi
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.sqlite.Function
@@ -84,7 +85,7 @@ fun Application.configureDatabase() {
         .load().migrate()
 
     // Override sqlite regexp functionality
-    Database.registerDialect(SQLiteWithRegexpDialect.dialectName) { SQLiteWithRegexpDialect() }
+    DatabaseApi.registerDialect(SQLiteWithRegexpDialect.dialectName) { SQLiteWithRegexpDialect() }
     Database.connect(
         databaseConfig = DatabaseConfig {
             defaultMaxAttempts = 10

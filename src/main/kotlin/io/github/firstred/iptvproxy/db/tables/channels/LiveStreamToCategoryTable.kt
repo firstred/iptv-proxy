@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object LiveStreamToCategoryTable : Table("live_stream_to_category") {
     val server = varchar("server", maxServerNameLength)

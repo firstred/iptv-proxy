@@ -22,25 +22,27 @@ import io.github.firstred.iptvproxy.utils.databaseExpressionTreeLimit
 import io.github.firstred.iptvproxy.utils.toBoolean
 import io.github.firstred.iptvproxy.utils.toListFilters
 import io.github.firstred.iptvproxy.utils.toUInt
-import kotlinx.datetime.Clock
-import kotlinx.datetime.Instant
-import org.jetbrains.exposed.sql.CustomFunction
-import org.jetbrains.exposed.sql.JoinType
-import org.jetbrains.exposed.sql.ResultRow
-import org.jetbrains.exposed.sql.SortOrder
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
-import org.jetbrains.exposed.sql.TextColumnType
-import org.jetbrains.exposed.sql.andWhere
-import org.jetbrains.exposed.sql.batchInsert
-import org.jetbrains.exposed.sql.batchUpsert
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.notExists
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.stringLiteral
-import org.jetbrains.exposed.sql.transactions.transaction
-import org.jetbrains.exposed.sql.upsert
+import kotlin.time.Clock
+import kotlin.time.Instant
+import org.jetbrains.exposed.v1.core.CustomFunction
+import org.jetbrains.exposed.v1.core.JoinType
+import org.jetbrains.exposed.v1.core.ResultRow
+import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.TextColumnType
+import org.jetbrains.exposed.v1.core.eq
+import org.jetbrains.exposed.v1.core.inList
+import org.jetbrains.exposed.v1.core.less
+import org.jetbrains.exposed.v1.core.notExists
+import org.jetbrains.exposed.v1.core.notInList
+import org.jetbrains.exposed.v1.core.stringLiteral
+import org.jetbrains.exposed.v1.jdbc.andWhere
+import org.jetbrains.exposed.v1.jdbc.batchInsert
+import org.jetbrains.exposed.v1.jdbc.batchUpsert
+import org.jetbrains.exposed.v1.jdbc.deleteWhere
+import org.jetbrains.exposed.v1.jdbc.select
+import org.jetbrains.exposed.v1.jdbc.selectAll
+import org.jetbrains.exposed.v1.jdbc.transactions.transaction
+import org.jetbrains.exposed.v1.jdbc.upsert
 import org.koin.core.component.KoinComponent
 import kotlin.math.floor
 import kotlin.uuid.ExperimentalUuidApi
@@ -108,7 +110,6 @@ class XtreamRepository : KoinComponent {
             val internalCategoryIds = getAllLiveStreamCategoryIds(server).values.associateBy { it.externalId }
 
             liveStreams.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
-                // Find internal category IDs by external category IDs
                 LiveStreamTable.batchUpsert(
                     data = chunk,
                     shouldReturnGeneratedValues = false,
@@ -132,11 +133,13 @@ class XtreamRepository : KoinComponent {
 
                 @Suppress("UNCHECKED_CAST")
                 val liveStreamsAndCategoryIds = chunk
+                    // Builds stream-category triples from external IDs
                     .flatMap { liveStream -> listOf(Triple(internalCategoryIds[liveStream.categoryId]?.id, server, liveStream.streamId)) + (liveStream.categoryIds?.filterNotNull()?.map { Triple(internalCategoryIds[it.toString()]?.id, server, liveStream.streamId) } ?: emptyList()) }
                     .filter { null != it.first }
                     .distinctBy { Triple(it.first, it.second, it.third) }
                         as List<Triple<UInt, String, UInt>>
 
+                // Clears then upserts live stream-category links
                 if (liveStreamsAndCategoryIds.isNotEmpty()) {
                     liveStreamsAndCategoryIds
                         .map { Pair(it.third, server) }
@@ -161,6 +164,9 @@ class XtreamRepository : KoinComponent {
         }
     }
 
+        /**
+         * Upserts movies and category associations transactionally
+         */
     fun upsertMovies(movies: List<XtreamMovie>, server: String) {
         transaction {
             val internalCategoryIds = getAllMovieCategoryIds(server).values.associateBy { it.externalId }

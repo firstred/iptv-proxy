@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
-import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.v1.core.Table
 
 object EpgChannelDisplayNameTable : Table("epg_display_name") {
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
