@@ -84,6 +84,7 @@ class EpgRepository {
     }
 
     fun upsertXmltvChannels(channels: List<XmltvChannel>, clearBefore: Instant? = null) {
+        // Upserts channels with display names and clears old programmes transactionally
         transaction {
             channels.filter { null != it.id }.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
                 val epgChannelDisplayNames = mutableMapOf<String, List<XmltvText>>()
@@ -102,6 +103,7 @@ class EpgRepository {
                     }
                 }
 
+                // Upserts channels with display names in batches
                 EpgChannelTable.batchUpsert(
                     data = chunk,
                     shouldReturnGeneratedValues = false,
@@ -130,6 +132,7 @@ class EpgRepository {
     }
 
     fun upsertXmltvProgrammes(programmes: List<XmltvProgramme>) {
+        // Transactionally upserts programmes and all nested attributes in chunks
         transaction {
             programmes.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
                 val programmeCategories = mutableMapOf<XmltvProgramme, List<XmltvText>>()
@@ -139,6 +142,7 @@ class EpgRepository {
                 val programmeAudio = mutableMapOf<XmltvProgramme, List<XmltvAudioStereo>>()
                 val programmeSubtitles = mutableMapOf<XmltvProgramme, List<XmltvSubtitleLanguage>>()
 
+                // Upserts main programme records; captures nested attributes for batching
                 EpgProgrammeTable.batchUpsert(
                     data = chunk,
                     shouldReturnGeneratedValues = false,
@@ -223,6 +227,7 @@ class EpgRepository {
                     this[EpgProgrammeAudioTable.value] = audio.value
                 }
 
+                // Batches upserts programme subtitles with channel and start keys
                 EpgProgrammeSubtitlesTable.batchUpsert(
                     data = programmeSubtitles.flatMap { (programme, subtitles) ->
                         subtitles.map { subtitle -> Triple(programme.channel, programme.start, subtitle) }
@@ -251,6 +256,7 @@ class EpgRepository {
             findAllUsedEpgChannelIds(forUser)
         } else null
 
+        // Processes EPG channels in sorted paginated chunks invoking action
         do {
             val epgChannelQuery = EpgChannelTable
                 .selectAll()
@@ -270,11 +276,13 @@ class EpgRepository {
 
             if (channels.isEmpty()) break
 
+            // Enriches channels with display names from related table
             transaction {
                 val channelDisplayNameQuery = EpgChannelDisplayNameTable
                     .selectAll()
                     .where { EpgChannelDisplayNameTable.epgChannelId inList channels.filter { null != it.id}.map { it.id!! } }
                 channelDisplayNameQuery.forEach { row ->
+                    // Updates channel display name with new language text
                     channels.indexOfFirst { it.id == row[EpgChannelDisplayNameTable.epgChannelId] }.let { idx ->
                         val it = channels[idx]
                         channels[idx] = it.copy(
@@ -304,6 +312,7 @@ class EpgRepository {
             findAllUsedEpgChannelIds(forUser)
         } else null
 
+        // Processes EPG programmes in paginated chunks with full enrichments invoking action
         do {
             val programmeQuery = EpgProgrammeTable
                 .selectAll()
@@ -425,6 +434,7 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeEpisodeNumberTableQuery.forEach { row ->
+                    // Appends episode numbers to matching programmes by channel and start time
                     programmes[Pair(row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])]?.let { programme ->
                         programmes[Pair(row[EpgProgrammeEpisodeNumberTable.epgChannelId], row[EpgProgrammeEpisodeNumberTable.programmeStart])] = programme.copy(
                             episodeNumbers = (programme.episodeNumbers ?: listOf()) + XmltvEpisodeNum(
@@ -460,6 +470,7 @@ class EpgRepository {
                     .offset(offset)
 
                 programmePreviouslyShownTableQuery.forEach { row ->
+                    // Appends previously-shown records to matching programmes
                     programmes[Pair(row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])]?.let { programme ->
                         programmes[Pair(row[EpgProgrammePreviouslyShownTable.epgChannelId], row[EpgProgrammePreviouslyShownTable.programmeStart])] = programme.copy(
                             previouslyShown = (programme.previouslyShown ?: listOf()) + XmltvProgrammePreviouslyShown(
@@ -495,6 +506,7 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeRatingTableQuery.forEach { row ->
+                    // Appends ratings to matching programmes
                     programmes[Pair(row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])]?.let { programme ->
                         programmes[Pair(row[EpgProgrammeRatingTable.epgChannelId], row[EpgProgrammeRatingTable.programmeStart])] = programme.copy(
                             rating = (programme.rating ?: listOf()) + XmltvRating(
@@ -531,6 +543,7 @@ class EpgRepository {
                     .offset(offset)
 
                 programmeSubtitleTableQuery.forEach { row ->
+                    // Enriches programmes with subtitles from query rows
                     programmes[Pair(row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])]?.let { programme ->
                         programmes[Pair( row[EpgProgrammeSubtitlesTable.epgChannelId], row[EpgProgrammeSubtitlesTable.programmeStart])] = programme.copy(
                             subtitles = (programme.subtitles ?: listOf()) + XmltvSubtitle(
@@ -552,6 +565,9 @@ class EpgRepository {
         } while (programmes.isNotEmpty())
     }
 
+    /**
+     * Retrieves EPG ID for channel if present
+     */
     fun getEpgIdForChannelId(channelId: UInt): String? = transaction {
         ChannelTable
             .select(ChannelTable.epgChannelId)
