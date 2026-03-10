@@ -33,8 +33,12 @@ import kotlinx.datetime.Instant
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.greaterEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.lessEq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
@@ -48,7 +52,7 @@ import org.jetbrains.exposed.sql.upsert
 import kotlin.math.floor
 
 class EpgRepository {
-    fun upsertXmltvSourceForServer(doc: XmltvDoc, server: String) {
+    fun upsertXmltvSourceForServer(doc: XmltvDoc, server: String, clearBefore: Instant? = null, clearAfter: Instant? = null) {
         transaction {
             // Upsert the XMLTV source
             XmltvSourceTable.upsert {
@@ -60,7 +64,7 @@ class EpgRepository {
                 it[XmltvSourceTable.sourceInfoLogo] = doc.sourceInfoLogo
             }
 
-            doc.channels?.let { upsertXmltvChannels(it) }
+            doc.channels?.let { upsertXmltvChannels(it, clearBefore, clearAfter) }
 
             doc.programmes?.let { upsertXmltvProgrammes(it) }
         }
@@ -83,7 +87,7 @@ class EpgRepository {
         }
     }
 
-    fun upsertXmltvChannels(channels: List<XmltvChannel>, clearBefore: Instant? = null) {
+    fun upsertXmltvChannels(channels: List<XmltvChannel>, clearBefore: Instant? = null, clearAfter: Instant? = null) {
         // Upserts channels with display names and clears old programmes transactionally
         transaction {
             channels.filter { null != it.id }.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
@@ -93,15 +97,8 @@ class EpgRepository {
                 EpgChannelDisplayNameTable.deleteWhere {
                     EpgChannelDisplayNameTable.epgChannelId inList chunk.map { it.id!! }
                 }
-                if (null != clearBefore) {
-                    chunk.chunked(floor(databaseExpressionTreeLimit / 2f).toInt()).forEach { chunk ->
-                        // Delete programmes with the given channel IDs that are older than the clearBefore date
-                        EpgProgrammeTable.deleteWhere {
-                            EpgProgrammeTable.epgChannelId inList chunk.map { it.id!! } and
-                                (EpgProgrammeTable.updatedAt less clearBefore)
-                        }
-                    }
-                }
+
+                cleanupProgrammes(channels, clearBefore, clearAfter)
 
                 // Upserts channels with display names in batches
                 EpgChannelTable.batchUpsert(
@@ -132,6 +129,15 @@ class EpgRepository {
     }
 
     fun upsertXmltvProgrammes(programmes: List<XmltvProgramme>) {
+        // Determine the earliest start and the latest start for every EPG channel ID
+        val periods: Map<String, Pair<Instant, Instant>> = programmes.groupBy { it.channel }
+            .mapValues { (_, programmes) ->
+                val earliestStart = programmes.minByOrNull { it.start }?.start ?: Clock.System.now()
+                val latestStop = programmes.maxByOrNull { it.stop }?.stop ?: Clock.System.now()
+                Pair(earliestStart, latestStop)
+            }
+        wipeProgrammes(periods)
+
         // Transactionally upserts programmes and all nested attributes in chunks
         transaction {
             programmes.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
@@ -618,6 +624,120 @@ class EpgRepository {
             .withDistinct(true)
             .mapNotNull { it[ChannelTable.epgChannelId]?.ifBlank { null } }
             .distinct()
+    }
+
+    /**
+     * This cleans the programmes that start before clearBefore or after clearAfter
+     */
+    fun cleanupProgrammes(channels: List<XmltvChannel>, clearBefore: Instant? = null, clearAfter: Instant? = null) {
+        channels.filter { null != it.id }.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
+            if (null != clearBefore) { transaction {
+                chunk.chunked(floor(databaseExpressionTreeLimit / 2f).toInt()).forEach { chunk ->
+                    val channelIds = chunk.map { it.id!! }
+                    // Delete programmes with the given channel IDs that are older than the clearBefore date
+                    EpgProgrammeTable.deleteWhere {
+                        EpgProgrammeTable.epgChannelId inList channelIds and
+                                (EpgProgrammeTable.start less clearBefore)
+                    }
+                    EpgProgrammeAudioTable.deleteWhere {
+                        EpgProgrammeAudioTable.epgChannelId inList channelIds and
+                                (EpgProgrammeAudioTable.programmeStart less clearBefore)
+                    }
+                    EpgProgrammeCategoryTable.deleteWhere {
+                        EpgProgrammeCategoryTable.epgChannelId inList channelIds and
+                                (EpgProgrammeCategoryTable.programmeStart less clearBefore)
+                    }
+                    EpgProgrammeEpisodeNumberTable.deleteWhere {
+                        EpgProgrammeEpisodeNumberTable.epgChannelId inList channelIds and
+                                (EpgProgrammeEpisodeNumberTable.programmeStart less clearBefore)
+                    }
+                    EpgProgrammePreviouslyShownTable.deleteWhere {
+                        EpgProgrammePreviouslyShownTable.epgChannelId inList channelIds and
+                                (EpgProgrammePreviouslyShownTable.programmeStart less clearBefore)
+                    }
+                    EpgProgrammeRatingTable.deleteWhere {
+                        EpgProgrammeRatingTable.epgChannelId inList channelIds and
+                                (EpgProgrammeRatingTable.programmeStart less clearBefore)
+                    }
+                    EpgProgrammeSubtitlesTable.deleteWhere {
+                        EpgProgrammeSubtitlesTable.epgChannelId inList channelIds and
+                                (EpgProgrammeSubtitlesTable.programmeStart less clearBefore)
+                    }
+                }
+            } }
+            if (null != clearAfter) { transaction {
+                chunk.chunked(floor(databaseExpressionTreeLimit / 2f).toInt()).forEach { chunk ->
+                    val channelIds = chunk.map { it.id!! }
+                    // Delete programmes with the given channel IDs that are further in the future than the clearAfter date
+                    EpgProgrammeTable.deleteWhere {
+                        EpgProgrammeTable.epgChannelId inList channelIds and
+                                (EpgProgrammeTable.start greater clearAfter)
+                    }
+                    EpgProgrammeAudioTable.deleteWhere {
+                        EpgProgrammeAudioTable.epgChannelId inList channelIds and
+                                (EpgProgrammeAudioTable.programmeStart greater clearAfter)
+                    }
+                    EpgProgrammeCategoryTable.deleteWhere {
+                        EpgProgrammeCategoryTable.epgChannelId inList channelIds and
+                                (EpgProgrammeCategoryTable.programmeStart greater clearAfter)
+                    }
+                    EpgProgrammeEpisodeNumberTable.deleteWhere {
+                        EpgProgrammeEpisodeNumberTable.epgChannelId inList channelIds and
+                                (EpgProgrammeEpisodeNumberTable.programmeStart greater clearAfter)
+                    }
+                    EpgProgrammePreviouslyShownTable.deleteWhere {
+                        EpgProgrammePreviouslyShownTable.epgChannelId inList channelIds and
+                                (EpgProgrammePreviouslyShownTable.programmeStart greater clearAfter)
+                    }
+                    EpgProgrammeRatingTable.deleteWhere {
+                        EpgProgrammeRatingTable.epgChannelId inList channelIds and
+                                (EpgProgrammeRatingTable.programmeStart greater clearAfter)
+                    }
+                    EpgProgrammeSubtitlesTable.deleteWhere {
+                        EpgProgrammeSubtitlesTable.epgChannelId inList channelIds and
+                                (EpgProgrammeSubtitlesTable.programmeStart greater clearAfter)
+                    }
+                }
+            } }
+        }
+    }
+
+    /**
+     * This wipes all the programmes that start or end within the given periods (per channel ID)
+     */
+    fun wipeProgrammes(periods: Map<String, Pair<Instant, Instant>>) {
+        periods.forEach { channelId, (clearAfter, clearBefore) -> transaction {
+            // Delete programmes with the given channel IDs that are within the range [clearAfter, clearBefore]
+            EpgProgrammeTable.deleteWhere {
+                EpgProgrammeTable.epgChannelId eq channelId and
+                        ((EpgProgrammeTable.start greaterEq clearAfter and (EpgProgrammeTable.start lessEq clearBefore)) or
+                                (EpgProgrammeTable.stop greaterEq clearAfter and (EpgProgrammeTable.stop lessEq clearBefore)))
+            }
+            EpgProgrammeAudioTable.deleteWhere {
+                EpgProgrammeAudioTable.epgChannelId eq channelId and
+                        (EpgProgrammeAudioTable.programmeStart greaterEq clearAfter and (EpgProgrammeAudioTable.programmeStart lessEq clearBefore))
+            }
+            EpgProgrammeCategoryTable.deleteWhere {
+                EpgProgrammeCategoryTable.epgChannelId eq channelId and
+                        (EpgProgrammeCategoryTable.programmeStart greaterEq clearAfter and (EpgProgrammeCategoryTable.programmeStart lessEq clearBefore))
+            }
+            EpgProgrammeEpisodeNumberTable.deleteWhere {
+                EpgProgrammeEpisodeNumberTable.epgChannelId eq channelId and
+                        (EpgProgrammeEpisodeNumberTable.programmeStart greaterEq clearAfter and (EpgProgrammeEpisodeNumberTable.programmeStart lessEq clearBefore))
+            }
+            EpgProgrammePreviouslyShownTable.deleteWhere {
+                EpgProgrammePreviouslyShownTable.epgChannelId eq channelId and
+                        (EpgProgrammePreviouslyShownTable.programmeStart greaterEq clearAfter and (EpgProgrammePreviouslyShownTable.programmeStart lessEq clearBefore))
+            }
+            EpgProgrammeRatingTable.deleteWhere {
+                EpgProgrammeRatingTable.epgChannelId eq channelId and
+                        (EpgProgrammeRatingTable.programmeStart greaterEq clearAfter and (EpgProgrammeRatingTable.programmeStart lessEq clearBefore))
+            }
+            EpgProgrammeSubtitlesTable.deleteWhere {
+                EpgProgrammeSubtitlesTable.epgChannelId eq channelId and
+                        (EpgProgrammeSubtitlesTable.programmeStart greaterEq clearAfter and (EpgProgrammeSubtitlesTable.programmeStart lessEq clearBefore))
+            }
+        } }
     }
 
     fun cleanup() {
