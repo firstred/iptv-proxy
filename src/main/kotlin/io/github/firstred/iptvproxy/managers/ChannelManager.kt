@@ -372,6 +372,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                             val remapped = liveStream.copy(
                                 categoryId = liveStream.categoryId?.let { liveCategoriesToRemapByExternalId[it] }?.id ?: liveStream.categoryId,
                                 categoryIds = liveStream.categoryIds?.map { liveCategoriesToRemapByExternalId[it.toString()]?.id?.toUInt() ?: it },
+                                epgChannelId = server.config.remapEpgChannelId(liveStream.epgChannelId ?: ""),
                             )
                             liveStreams.add(remapped)
 
