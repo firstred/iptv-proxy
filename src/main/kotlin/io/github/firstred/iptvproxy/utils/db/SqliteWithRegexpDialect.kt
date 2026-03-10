@@ -1,23 +1,23 @@
 package io.github.firstred.iptvproxy.utils.db
 
-import org.jetbrains.exposed.v1.core.Column
-import org.jetbrains.exposed.v1.core.Expression
-import org.jetbrains.exposed.v1.core.GroupConcat
-import org.jetbrains.exposed.v1.core.IColumnType
-import org.jetbrains.exposed.v1.core.Index
-import org.jetbrains.exposed.v1.core.Op
-import org.jetbrains.exposed.v1.core.QueryBuilder
-import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.core.Transaction
-import org.jetbrains.exposed.v1.core.append
-import org.jetbrains.exposed.v1.core.appendTo
-import org.jetbrains.exposed.v1.core.exposedLogger
-import org.jetbrains.exposed.v1.core.vendors.DataTypeProvider
-import org.jetbrains.exposed.v1.core.vendors.FunctionProvider
-import org.jetbrains.exposed.v1.core.vendors.VendorDialect
-import org.jetbrains.exposed.v1.core.vendors.currentDialect
-import org.jetbrains.exposed.v1.exceptions.UnsupportedByDialectException
-import org.jetbrains.exposed.v1.jdbc.transactions.TransactionManager
+import org.jetbrains.exposed.exceptions.UnsupportedByDialectException
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Expression
+import org.jetbrains.exposed.sql.GroupConcat
+import org.jetbrains.exposed.sql.IColumnType
+import org.jetbrains.exposed.sql.Index
+import org.jetbrains.exposed.sql.Op
+import org.jetbrains.exposed.sql.QueryBuilder
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.Transaction
+import org.jetbrains.exposed.sql.append
+import org.jetbrains.exposed.sql.appendTo
+import org.jetbrains.exposed.sql.exposedLogger
+import org.jetbrains.exposed.sql.transactions.TransactionManager
+import org.jetbrains.exposed.sql.vendors.DataTypeProvider
+import org.jetbrains.exposed.sql.vendors.FunctionProvider
+import org.jetbrains.exposed.sql.vendors.VendorDialect
+import org.jetbrains.exposed.sql.vendors.currentDialect
 
 internal fun Transaction.throwUnsupportedException(message: String): Nothing = throw UnsupportedByDialectException(
     message,
@@ -312,7 +312,7 @@ open class SQLiteWithRegexpDialect : VendorDialect(dialectName, SQLiteDataTypePr
 
     override val supportsWindowFrameGroupsMode: Boolean = true
 
-    fun supportsLimitWithUpdateOrDelete(): Boolean = false
+    override fun supportsLimitWithUpdateOrDelete(): Boolean = false
 
     override fun isAllowedAsColumnDefault(e: Expression<*>): Boolean = true
 

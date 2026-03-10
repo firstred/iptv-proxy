@@ -1,11 +1,11 @@
 package io.github.firstred.iptvproxy.db.tables.epg
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
-import kotlin.time.Clock
-import kotlin.time.Instant
-import org.jetbrains.exposed.v1.core.Column
-import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.datetime.timestamp
+import kotlinx.datetime.Clock
+import kotlinx.datetime.Instant
+import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object EpgProgrammeTable : Table("epg_programme") {
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength)
