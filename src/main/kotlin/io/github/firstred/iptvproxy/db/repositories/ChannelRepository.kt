@@ -21,12 +21,15 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SortOrder
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.neq
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.notInList
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.andWhere
 import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.min
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
@@ -195,6 +198,9 @@ class ChannelRepository : KoinComponent {
         } while (channels.isNotEmpty())
     }
 
+    /**
+     * Maps external IDs to internal channel IDs by server
+     */
     fun findInternalIdsByExternalIds(externalIds: List<UInt>, server: String) = transaction {
         ChannelTable
             .select(ChannelTable.xtreamStreamId, ChannelTable.id)
@@ -203,6 +209,9 @@ class ChannelRepository : KoinComponent {
             .associateBy({ it[ChannelTable.xtreamStreamId] }, { it[ChannelTable.id].value })
     }
 
+    /**
+     * Identifies channels lacking matching group categories
+     */
     fun findChannelsWithMissingGroups(): Map<UInt, Pair<String, String>> = transaction {
         ChannelTable
             .join(
@@ -223,6 +232,9 @@ class ChannelRepository : KoinComponent {
         ChannelTable.selectAll().count().toUInt()
     }
 
+    /**
+     * Determines latest import completion across all servers
+     */
     fun findLastUpdateCompletedAt(): Instant = transaction {
         val imports = PlaylistSourceTable
             .select(PlaylistSourceTable.server, PlaylistSourceTable.completedImportAt)
@@ -238,13 +250,18 @@ class ChannelRepository : KoinComponent {
     fun cleanup() {
         val now = Clock.System.now()
 
+        // Performs cleanup of stale channels and duplicates
         transaction {
             PlaylistSourceTable.deleteWhere {
                 PlaylistSourceTable.server notInList config.servers.map { it.name }
             }
 
             ChannelTable.deleteWhere {
-                ChannelTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))
+                (ChannelTable.updatedAt less ((now - config.channelMaxStalePeriod).coerceAtLeast(Instant.DISTANT_PAST))) and
+                        (ChannelTable.type neq IptvChannelType.series)
+            }
+            ChannelTable.deleteWhere {
+                ChannelTable.server notInList config.servers.map { it.name }
             }
 
             // In case of duplicate xtream stream IDs, remove the oldest ones

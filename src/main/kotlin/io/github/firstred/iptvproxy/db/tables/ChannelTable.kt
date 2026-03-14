@@ -10,7 +10,7 @@ import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 import io.github.firstred.iptvproxy.serialization.json as jsonSerializer
 
 object ChannelTable : UIntIdTable("channel") {
-    // id = streamId   // Internal stream ID, used for HLS URLs
+    // id = streamId --- Internal stream ID, used for HLS URLs
     val externalPosition = uinteger("external_position") // External playlist position
     val epgChannelId = varchar("epg_channel_id", defaultVarcharLength).nullable() // Link with EPG
     val url = text("url")
