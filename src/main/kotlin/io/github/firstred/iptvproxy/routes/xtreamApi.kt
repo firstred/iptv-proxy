@@ -2,6 +2,7 @@ package io.github.firstred.iptvproxy.routes
 
 import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
+import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.config
@@ -34,6 +35,7 @@ import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
 import io.github.firstred.iptvproxy.utils.maxRedirects
+import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.call.*
 import io.ktor.client.request.*
@@ -544,7 +546,51 @@ fun Route.xtreamApi() {
                         foundEpisodeStreamIds.add(episode.id.toUInt())
                     }
 
-                    val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName)
+                    val streamIdMapping = channelRepository.findInternalIdsByExternalIds(foundEpisodeStreamIds, serverName).toMutableMap()
+
+                    // Create new IptvChannel objects for the channels that cannot be found by the external IDs
+                    val missingEpisodes = seriesInfo.episodes.flatMap { it.value }.filter { !streamIdMapping.containsKey(it.id.toUInt()) }
+
+                    if (missingEpisodes.isNotEmpty()) {
+                        val newChannels = missingEpisodes.mapNotNull { episode ->
+                            val seasonNum = episode.season?.toInt() ?: 0
+                            val episodeNum = episode.episodeNum?.toIntOrNull() ?: 0
+                            val seasonStr = seasonNum.toString().padStart(2, '0')
+                            val episodeStr = episodeNum.toString().padStart(2, '0')
+
+                            val account = iptvServer.config.accounts?.firstOrNull { it.isXtream() } ?: return@mapNotNull null
+                            val remoteUrl = account.url?.let {
+                                try {
+                                    val uri = Url(it).toEncodedJavaURI()
+                                    URI("${uri.scheme}://${uri.host}:${if (uri.port > 0) uri.port else (if ("https" == uri.scheme) 443 else 80)}/series/${account.xtreamUsername}/${account.xtreamPassword}/${episode.id}.${episode.containerExtension ?: "mp4"}")
+                                } catch (_: URISyntaxException) {
+                                    null
+                                }
+                            } ?: return@mapNotNull null
+
+                            IptvChannel(
+                                name = "${seriesInfo.info.name} S${seasonStr}E${episodeStr}",
+                                externalPosition = (seasonNum * 1000 + episodeNum).toUInt(),
+                                logo = episode.info.movieImage,
+                                groups = listOf(),
+                                epgId = "",
+                                catchupDays = 0,
+                                url = remoteUrl,
+                                server = iptvServer,
+                                type = IptvChannelType.series,
+                                m3uProps = emptyMap(),
+                                vlcOpts = emptyMap(),
+                            )
+                        }
+
+                        val upsertedChannels = channelRepository.upsertChannels(newChannels)
+                        upsertedChannels.forEach { channel ->
+                            val externalId = channel.url.path.substringAfterLast('/').substringBefore('.').toUIntOrNull()
+                            if (externalId != null) {
+                                streamIdMapping[externalId] = channel.id!!
+                            }
+                        }
+                    }
 
                     try {
                         // Rewrite images and remap external IDs to internal IDs

@@ -29,7 +29,6 @@ import org.jetbrains.exposed.sql.batchUpsert
 import org.jetbrains.exposed.sql.count
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.min
-import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.upsert
@@ -60,7 +59,7 @@ class ChannelRepository : KoinComponent {
         }
     }
 
-    fun upsertChannels(channels: List<IptvChannel>) {
+    fun batchUpsertChannels(channels: List<IptvChannel>) {
         channels.chunked(config.database.chunkSize.toInt()).forEach { chunk ->
             transaction {
                 ChannelTable.batchUpsert(
@@ -84,6 +83,31 @@ class ChannelRepository : KoinComponent {
                     this[ChannelTable.updatedAt] = Clock.System.now()
                 }
             }
+        }
+    }
+
+    fun upsertChannels(channels: List<IptvChannel>): List<IptvChannel> {
+        return transaction {
+            channels.map { channel ->
+                ChannelTable.upsert(
+                    keys = arrayOf(ChannelTable.server, ChannelTable.xtreamStreamId, ChannelTable.url),
+                ) {
+                    it[ChannelTable.server] = channel.server.name
+                    it[ChannelTable.name] = channel.name
+                    it[ChannelTable.url] = channel.url.toString()
+                    it[ChannelTable.mainGroup] = channel.groups.firstOrNull() ?: ""
+                    it[ChannelTable.groups] = channel.groups.toTypedArray()
+                    it[ChannelTable.type] = channel.type
+                    it[ChannelTable.epgChannelId] = channel.epgId ?: ""
+                    it[ChannelTable.xtreamStreamId] = channel.url.extractStreamId().toUIntOrNull() ?: 0u
+                    it[ChannelTable.icon] = channel.logo
+                    it[ChannelTable.catchupDays] = channel.catchupDays.toUInt()
+                    it[ChannelTable.m3uProps] = channel.m3uProps
+                    it[ChannelTable.vlcOpts] = channel.vlcOpts
+                    it[ChannelTable.externalPosition] = channel.externalPosition!!
+                    it[ChannelTable.updatedAt] = Clock.System.now()
+                }.resultedValues?.single()?.toIptvChannel()
+            }.filterNotNull()
         }
     }
 

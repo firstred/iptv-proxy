@@ -133,7 +133,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         for (server in serversByName.values) {
             val newChannels: MutableList<IptvChannel> = mutableListOf()
             fun flushChannels() {
-                channelRepository.upsertChannels(newChannels)
+                channelRepository.batchUpsertChannels(newChannels)
                 newChannels.clear()
             }
 
