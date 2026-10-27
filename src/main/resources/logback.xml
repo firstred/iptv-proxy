@@ -2,7 +2,10 @@
 <configuration debug="false">
     <statusListener class="ch.qos.logback.core.status.NopStatusListener" />
 
-    <if condition='isDefined("log.dir")'>
+    <condition class="ch.qos.logback.core.boolex.ExpressionPropertyCondition">
+        <expression>isDefined("log.dir")</expression>
+    </condition>
+    <if>
         <then>
             <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
                 <file>${log.dir:-.}/iptv-proxy.log</file>
