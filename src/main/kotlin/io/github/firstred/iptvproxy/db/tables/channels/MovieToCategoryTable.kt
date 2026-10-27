@@ -1,7 +1,7 @@
 package io.github.firstred.iptvproxy.db.tables.channels
 
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import org.jetbrains.exposed.v1.core.Table
+import org.jetbrains.exposed.sql.Table
 
 object MovieToCategoryTable : Table("movie_to_category") {
     val server = varchar("server", maxServerNameLength)

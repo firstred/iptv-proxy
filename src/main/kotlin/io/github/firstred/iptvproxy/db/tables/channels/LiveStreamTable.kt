@@ -2,9 +2,9 @@ package io.github.firstred.iptvproxy.db.tables.channels
 
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import kotlin.time.Clock
-import org.jetbrains.exposed.v1.core.Table
-import org.jetbrains.exposed.v1.datetime.timestamp
+import kotlinx.datetime.Clock
+import org.jetbrains.exposed.sql.Table
+import org.jetbrains.exposed.sql.kotlin.datetime.timestamp
 
 object LiveStreamTable : Table("live_stream") {
     val num = uinteger("num").default(0u)
