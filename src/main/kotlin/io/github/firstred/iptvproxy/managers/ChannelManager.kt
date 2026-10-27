@@ -46,7 +46,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Clock
+import kotlinx.datetime.Clock
 import kotlinx.io.Buffer
 import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi

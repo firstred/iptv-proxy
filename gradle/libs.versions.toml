@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.21"
 kotlin-coroutines = "1.11.0"
-kotlinx-datetime = "0.8.0"
+kotlinx-datetime = "0.6.2"
 kotlinx-serialization-json = "1.12.0"
 kotlinx-serialization-yaml = "0.104.0"
 kotlinx-serialization-xml = "1.0.2.1"
@@ -14,7 +14,7 @@ koin-bom = "4.2.2"
 buildconfig = "6.1.2"
 kache = "2.1.1"
 
-exposed = "1.6.0"
+exposed = "0.61.0"
 hikaricp = "7.1.0"
 database-sqlite = "3.53.4.0"
 flyway = "13.11.1"
@@ -82,7 +82,7 @@ micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed" }
-exposed-migration = { module = "org.jetbrains.exposed:exposed-migration-jdbc", version.ref = "exposed" }
+exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", version.ref = "exposed" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 database-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "database-sqlite" }
