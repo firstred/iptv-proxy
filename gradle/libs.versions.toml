@@ -1,37 +1,37 @@
 [versions]
-kotlin = "2.3.0"
-kotlin-coroutines = "1.10.2"
-kotlinx-datetime = "0.4.0"
-kotlinx-serialization-json = "1.8.0"
-kotlinx-serialization-yaml = "0.80.0"
-kotlinx-serialization-xml = "0.91.0"
-kotlinx-io = "0.7.0"
-sentry = "5.12.2"
-prometheus = "1.14.6"
-jib = "3.5.2"
-ktor = "3.3.3"
-koin-bom = "4.1.1"
-buildconfig = "5.6.4"
+kotlin = "2.4.21"
+kotlin-coroutines = "1.11.0"
+kotlinx-datetime = "0.8.0"
+kotlinx-serialization-json = "1.12.0"
+kotlinx-serialization-yaml = "0.104.0"
+kotlinx-serialization-xml = "1.0.2.1"
+kotlinx-io = "0.9.1"
+sentry = "6.24.0"
+prometheus = "1.17.2"
+jib = "3.5.4"
+ktor = "3.6.0"
+koin-bom = "4.2.2"
+buildconfig = "6.1.2"
 kache = "2.1.1"
 
-exposed = "0.61.0"
-hikaricp = "6.3.0"
-database-sqlite = "3.49.1.0"
-flyway = "11.8.0"
+exposed = "1.6.0"
+hikaricp = "7.1.0"
+database-sqlite = "3.53.4.0"
+flyway = "13.11.1"
 
-slf4j = "2.0.16"
-logback = "1.5.18"
+slf4j = "2.0.20"
+logback = "1.6.6"
 janino = "3.1.12"
 
-apache-commons-codec = "1.18.0"
-apache-commons-io = "2.19.0"
-apache-commons-text = "1.13.1"
+apache-commons-codec = "1.23.0"
+apache-commons-io = "2.22.0"
+apache-commons-text = "1.15.0"
 
 dotenv = "6.5.1"
-clikt = "4.3.0"
-cryptography = "0.4.0"
-semver = "3.0.0"
-arrow = "2.1.1"
+clikt = "5.1.0"
+cryptography = "0.6.0"
+semver = "3.1.0"
+arrow = "2.3.0.1"
 
 
 [plugins]
@@ -82,7 +82,7 @@ micrometer-prometheus = { module = "io.micrometer:micrometer-registry-prometheus
 exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 exposed-json = { module = "org.jetbrains.exposed:exposed-json", version.ref = "exposed" }
-exposed-migration = { module = "org.jetbrains.exposed:exposed-migration", version.ref = "exposed" }
+exposed-migration = { module = "org.jetbrains.exposed:exposed-migration-jdbc", version.ref = "exposed" }
 exposed-kotlin-datetime = { module = "org.jetbrains.exposed:exposed-kotlin-datetime", version.ref = "exposed" }
 hikaricp = { module = "com.zaxxer:HikariCP", version.ref = "hikaricp" }
 database-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "database-sqlite" }
@@ -90,7 +90,7 @@ flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
 
 koin-bom = { module = "io.insert-koin:koin-bom", version.ref = "koin-bom" }
 koin-core = { module = "io.insert-koin:koin-core" }
-koin-ktor = { module = "io.insert-koin:koin-ktor3", version = "4.1.0-Beta8" }
+koin-ktor = { module = "io.insert-koin:koin-ktor" }
 koin-logger = { module = "io.insert-koin:koin-logger-slf4j" }
 
 dotenv = { module = "io.github.cdimascio:dotenv-kotlin", version.ref = "dotenv" }

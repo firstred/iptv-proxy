@@ -5,6 +5,7 @@ import arrow.fx.coroutines.resourceScope
 import com.charleskorn.kaml.InvalidPropertyValueException
 import com.charleskorn.kaml.YamlException
 import com.github.ajalt.clikt.core.CliktCommand
+import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.parameters.options.option
 import io.github.cdimascio.dotenv.Dotenv
 import io.github.cdimascio.dotenv.dotenv
@@ -70,7 +71,7 @@ fun main(args: Array<String>) {
             options.isDebug = config.sentry?.debug ?: dotenv.get("SENTRY_DEBUG").toBoolean()
         }
 
-        object : CliktCommand(printHelpOnEmptyArgs = false) {
+        object : CliktCommand() {
             private val configFile: String? by option(
                 "--config",
                 "-c",

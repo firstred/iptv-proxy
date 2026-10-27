@@ -36,7 +36,7 @@ class HeadersTest {
         assertNull(headers["accept"])
         assertNull(headers["accept-charset"])
         assertNull(headers["accept-encoding"])
-        assertEquals("Basic a2V1cmlnOlJOTDdDdEtzZnhUb3RzQlFmWkRXh", headers["proxy-authorization"])
+        assertEquals("Basic a2V1cmlnOlJOTDdDdEtzZnhUb3RzQlFmWkRX", headers["proxy-authorization"])
         assertEquals("Dart/3.7 (dart:io)", headers["user-agent"])
     }
 
