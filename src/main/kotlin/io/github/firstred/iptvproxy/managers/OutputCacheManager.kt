@@ -25,7 +25,11 @@ import io.ktor.server.application.*
 import io.ktor.server.response.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -41,6 +45,7 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Clock
 import kotlin.time.Instant
+import kotlin.time.TimeSource
 
 class OutputCacheManager(
     private val playlistCache: FileKache,
@@ -53,7 +58,8 @@ class OutputCacheManager(
     private val serversByName: IptvServersByName,
 ) : HasOnApplicationEventHook {
     private val refreshMutex = Mutex()
-    private val pendingKeys = ConcurrentHashMap.newKeySet<String>()
+    private val warmUpMutex = Mutex()
+    private val pendingRefreshes = ConcurrentHashMap<String, Deferred<Boolean>>()
     private val lastRequested = ConcurrentHashMap<String, RegisteredOutput>()
     private val configFingerprint = sha256(yaml.encodeToString(config))
 
@@ -125,20 +131,35 @@ class OutputCacheManager(
         cacheCoroutineScope.launch(Dispatchers.IO) {
             try {
                 lastDataUpdateAt = channelRepository.findLastUpdateCompletedAt()
-                val now = Clock.System.now()
 
-                // Warm the default outputs of every configured user first, they are the most likely to be requested
-                val defaultOutputs = defaultOutputs(config.users.map { it.toIptvUser() })
-                defaultOutputs.forEach { enqueueIfStale(it) }
-                val defaultKeys = defaultOutputs.map { it.cacheKey(configFingerprint) }.toSet()
+                warmUpMutex.withLock {
+                    val now = Clock.System.now()
 
-                lastRequested.entries.toList().forEach { (key, registered) ->
-                    if (now - registered.lastRequestedAt > config.cache.ttl.playlists) {
-                        lastRequested.remove(key, registered)
-                        if (key !in defaultKeys) playlistCache.remove(key)
-                    } else {
-                        enqueueIfStale(registered.output)
+                    // Default outputs of every configured user are the most likely to be requested
+                    val defaultOutputs = defaultOutputs(config.users.map { it.toIptvUser() })
+                    val defaultKeys = defaultOutputs.map { it.cacheKey(configFingerprint) }.toSet()
+
+                    // Other variants are refreshed as long as they have been requested within the retention period
+                    val requestedOutputs = lastRequested.entries.toList().mapNotNull { (key, registered) ->
+                        if (now - registered.lastRequestedAt > config.cache.ttl.playlists) {
+                            lastRequested.remove(key, registered)
+                            if (key !in defaultKeys) playlistCache.remove(key)
+                            null
+                        } else {
+                            registered.output
+                        }
                     }
+
+                    val started = TimeSource.Monotonic.markNow()
+                    val outputsByUser = (defaultOutputs + requestedOutputs)
+                        .distinctBy { it.cacheKey(configFingerprint) }
+                        .groupBy { it.user.username }
+                    outputsByUser.forEach { (username, outputs) -> warmUp(username, outputs) }
+                    LOG.info(
+                        "Output cache warm-up completed for {} user(s) in {}",
+                        outputsByUser.size,
+                        started.elapsedNow(),
+                    )
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -148,13 +169,41 @@ class OutputCacheManager(
         }
     }
 
-    private suspend fun enqueueIfStale(output: CachedOutput) {
-        val key = output.cacheKey(configFingerprint)
-        val cachedPath = getCachedPath(key)
-        val cachedFile = cachedPath?.let(::File)
-        if (null == cachedFile || !cachedFile.isFile || output.isStale(cachedFile.lastModified(), lastDataUpdateAt)) {
-            enqueueRefresh(output)
+    /**
+     * Refreshes the missing and stale outputs of a single user and logs once all of them have been refreshed
+     */
+    private suspend fun warmUp(username: String, outputs: List<CachedOutput>) {
+        val started = TimeSource.Monotonic.markNow()
+        val refreshes = outputs.filter { needsRefresh(it) }.map { enqueueRefresh(it) }
+        if (refreshes.isEmpty()) {
+            LOG.info("Output cache of user {} is already up to date ({} outputs)", username, outputs.size)
+            return
         }
+
+        LOG.debug("Warming up output cache of user {}: refreshing {} of {} outputs", username, refreshes.size, outputs.size)
+        val failed = refreshes.awaitAll().count { !it }
+        if (0 == failed) {
+            LOG.info(
+                "Output cache of user {} has been warmed up: refreshed {} of {} outputs in {}",
+                username,
+                refreshes.size,
+                outputs.size,
+                started.elapsedNow(),
+            )
+        } else {
+            LOG.warn(
+                "Output cache of user {} has been partially warmed up: {} of {} outputs failed to refresh in {}",
+                username,
+                failed,
+                refreshes.size,
+                started.elapsedNow(),
+            )
+        }
+    }
+
+    private suspend fun needsRefresh(output: CachedOutput): Boolean {
+        val cachedFile = getCachedPath(output.cacheKey(configFingerprint))?.let(::File)
+        return null == cachedFile || !cachedFile.isFile || output.isStale(cachedFile.lastModified(), lastDataUpdateAt)
     }
 
     private suspend fun getCachedPath(key: String): String? = try {
@@ -166,31 +215,46 @@ class OutputCacheManager(
         null
     }
 
-    private fun enqueueRefresh(output: CachedOutput) {
+    /**
+     * Schedules a rebuild of the output, an already scheduled rebuild of the same output is reused
+     *
+     * @return `true` once the output has been refreshed successfully, `false` when the refresh failed
+     */
+    private fun enqueueRefresh(output: CachedOutput): Deferred<Boolean> {
         val key = output.cacheKey(configFingerprint)
-        if (!pendingKeys.add(key)) return
 
-        cacheCoroutineScope.launch(Dispatchers.IO) {
-            try {
-                refreshMutex.withLock {
-                    databaseMutex.withLock {
-                        playlistCache.put(key) { fileName ->
-                            File(fileName).outputStream().use { outputStream ->
-                                writeOutput(output, CachedOutput.PLACEHOLDER_BASE_URL, outputStream)
-                                outputStream.flush()
+        return pendingRefreshes.computeIfAbsent(key) {
+            cacheCoroutineScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+                try {
+                    refreshMutex.withLock {
+                        databaseMutex.withLock {
+                            val started = TimeSource.Monotonic.markNow()
+                            playlistCache.put(key) { fileName ->
+                                File(fileName).outputStream().use { outputStream ->
+                                    writeOutput(output, CachedOutput.PLACEHOLDER_BASE_URL, outputStream)
+                                    outputStream.flush()
+                                }
+                                true
                             }
-                            true
+                            LOG.debug(
+                                "Refreshed cached {} output for user {} in {}",
+                                output.type,
+                                output.user.username,
+                                started.elapsedNow(),
+                            )
                         }
                     }
+                    true
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    LOG.warn("Unable to refresh cached ${output.type} output for user ${output.user.username}", e)
+                    false
+                } finally {
+                    pendingRefreshes.remove(key)
                 }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                LOG.warn("Unable to refresh cached ${output.type} output for user ${output.user.username}", e)
-            } finally {
-                pendingKeys.remove(key)
             }
-        }
+        }.also { it.start() }
     }
 
     private suspend fun respondLive(call: ApplicationCall, output: CachedOutput, baseUrl: URI) {

@@ -212,6 +212,7 @@ false means using direct URLs for data
 * `epg_url` - URL for xmltv data, epg for different servers will be reprocessed and combined to one file for all channels
 * `epg_after` - filter programmes after specified time (to reduce xmltv size), java duration format (`P1D` - one day), default - unlimited
 * `epg_before` - filter programmes before specified time (to reduce xmltv size), java duration format (`P5D` - five days), default - unlimited
+* `ignore_epg_errors` - broken XMLTV items are skipped individually; when no item in a feed can be parsed or the feed cannot be read, `true` logs and continues with the next feed, while `false` or unset fails the update
 * `timeouts` - timeouts for this server, see `timeouts[].*`
 * `group_filters` - list of regex channel filters
 * `epg_remapping` - allows to remap the server's EPG IDs to new ones
