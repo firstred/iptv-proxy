@@ -49,7 +49,6 @@ import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.json.decodeToSequence
 import nl.adaptivity.xmlutil.ExperimentalXmlUtilApi
-import nl.adaptivity.xmlutil.serialization.XmlParsingException
 import org.apache.commons.io.input.buffer.PeekableInputStream
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
@@ -154,61 +153,58 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                         server.config.accounts?.first(),
                     ) { serverConnection, _ ->
                         // Parses XMLTV data; persists channels and programmes
-                        try {
-                            LOG.trace("Parsing xmltv data")
+                        LOG.trace("Parsing xmltv data")
 
-                            val importStarted = Clock.System.now()
-                            val startOf = importStarted - server.config.epgBefore
-                            val endOf = importStarted + server.config.epgAfter
+                        val importStarted = Clock.System.now()
+                        val startOf = importStarted - server.config.epgBefore
+                        val endOf = importStarted + server.config.epgAfter
 
-                            val xmltvChannels = mutableListOf<XmltvChannel>()
-                            fun flushXmltvChannels() {
-                                epgRepository.upsertXmltvChannels(xmltvChannels, startOf, endOf)
-                                xmltvChannels.clear()
-                            }
-
-                            fun addXmltvChannel(xmltvChannel: XmltvChannel) {
-                                xmltvChannels.add(xmltvChannel)
-
-                                // Flush once db chunk size has been reached
-                                if (xmltvChannels.count() >= config.database.chunkSize.toInt()) flushXmltvChannels()
-                            }
-
-                            val xmltvProgrammes = mutableListOf<XmltvProgramme>()
-                            fun flushXmltvProgrammes() {
-                                epgRepository.upsertXmltvProgrammes(xmltvProgrammes)
-                                xmltvProgrammes.clear()
-                            }
-
-                            fun addXmltvProgramme(xmltvProgramme: XmltvProgramme) {
-                                if (xmltvProgramme.start > endOf || xmltvProgramme.stop < startOf) return
-
-                                xmltvProgrammes.add(xmltvProgramme)
-
-                                // Flush once db chunk size has been reached
-                                if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) flushXmltvProgrammes()
-                            }
-
-                            loadXmltv(serverConnection).use { xmltvInputStream ->
-                                XmltvParser.forEachXmltvItem(
-                                    xmltvInputStream,
-                                    onHeader = { xmltv ->
-                                        epgRepository.upsertXmltvSourceForServer(xmltv, server.name)
-                                    },
-                                    onChannel = { addXmltvChannel(it) },
-                                    onProgramme = { addXmltvProgramme(it) },
-                                )
-                            }
-
-                            flushXmltvChannels()
-                            flushXmltvProgrammes()
-                        } catch (e: XmlParsingException) {
-                            LOG.warn("Unable to parse xmltv data: ${e.message} - skipping xmltv import for server ${server.name}")
+                        val xmltvChannels = mutableListOf<XmltvChannel>()
+                        fun flushXmltvChannels() {
+                            epgRepository.upsertXmltvChannels(xmltvChannels, startOf, endOf)
+                            xmltvChannels.clear()
                         }
+
+                        fun addXmltvChannel(xmltvChannel: XmltvChannel) {
+                            xmltvChannels.add(xmltvChannel)
+
+                            // Flush once db chunk size has been reached
+                            if (xmltvChannels.count() >= config.database.chunkSize.toInt()) flushXmltvChannels()
+                        }
+
+                        val xmltvProgrammes = mutableListOf<XmltvProgramme>()
+                        fun flushXmltvProgrammes() {
+                            epgRepository.upsertXmltvProgrammes(xmltvProgrammes)
+                            xmltvProgrammes.clear()
+                        }
+
+                        fun addXmltvProgramme(xmltvProgramme: XmltvProgramme) {
+                            if (xmltvProgramme.start > endOf || xmltvProgramme.stop < startOf) return
+
+                            xmltvProgrammes.add(xmltvProgramme)
+
+                            // Flush once db chunk size has been reached
+                            if (xmltvProgrammes.count() >= config.database.chunkSize.toInt()) flushXmltvProgrammes()
+                        }
+
+                        loadXmltv(serverConnection).use { xmltvInputStream ->
+                            XmltvParser.forEachXmltvItem(
+                                xmltvInputStream,
+                                onHeader = { xmltv ->
+                                    epgRepository.upsertXmltvSourceForServer(xmltv, server.name)
+                                },
+                                onChannel = { addXmltvChannel(it) },
+                                onProgramme = { addXmltvProgramme(it) },
+                                sourceName = server.name,
+                            )
+                        }
+
+                        flushXmltvChannels()
+                        flushXmltvProgrammes()
                     }
                 } catch (t: Throwable) {
                     if (true != server.config.ignoreEpgErrors) throw t
-                    LOG.warn("Ignoring xmltv parsing error for server ${server.name}: ${t.message}")
+                    LOG.warn("Skipping broken xmltv feed for server ${server.name}: ${t.message}")
                 }
 
                 epgRepository.signalXmltvImportCompletedForServer(server.name)
