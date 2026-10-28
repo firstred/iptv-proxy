@@ -1,11 +1,10 @@
 package io.github.firstred.iptvproxy.serialization.serializers
 
-import kotlin.time.Instant
 import kotlinx.datetime.format
-import kotlinx.datetime.parse
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
 import kotlinx.datetime.format.byUnicodePattern
+import kotlinx.datetime.parse
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
@@ -14,6 +13,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
+import kotlin.time.Instant
 
 @OptIn(FormatStringsInDatetimeFormats::class)
 object XmltvInstantSerializer: KSerializer<Instant> {

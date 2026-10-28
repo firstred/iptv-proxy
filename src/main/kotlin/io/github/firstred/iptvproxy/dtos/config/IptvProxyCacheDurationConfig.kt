@@ -5,6 +5,7 @@ import kotlin.time.Duration
 
 @Serializable
 data class IptvProxyCacheDurationConfig(
+    val playlists: Duration = Duration.parse("P7D"),
     val videoChunks: Duration = Duration.parse("PT2M"),
     val movieInfo: Duration = Duration.parse("P1D"),
     val seriesInfo: Duration = Duration.parse("PT1H"),

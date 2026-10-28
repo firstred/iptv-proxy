@@ -178,14 +178,18 @@ users:
 ### Cache settings
 * `enabled` - enable cache (default is `true`)
 * `ttl` - time to live for cached data
+  * `playlists` - keep requested playlist/XMLTV/Xtream output variants eligible for background refresh (default is 7 days)
   * `video_chunks` - time to live for video chunks (default is 2 minutes)
   * `movie_info` - time to live for movie info (default is 1 day)
   * `series_info` - time to live for series info (default is 1 hour)
   * `images` - time to live for icons (default is 30 days)
 * `size` - size of the cache (cache is disabled by default)
+  * `playlists` - maximum size for cached playlist, XMLTV, and Xtream output files (default is 1GiB)
   * `video_chunks` - size of the cache for video chunks (default is 512MB)
   * `movie_info` - size of the cache for movie info (default is 50MB)
   * `series_info` - size of the cache for series info (default is 50MB)
+
+When enabled, playlist (`get.php`), XMLTV (`xmltv.php`) and Xtream list requests (`get_live_streams`, `get_vod_streams`, `get_series` and the category actions) are served from a per-user output cache when available. Cached files are independent of the base URL: they are written with a placeholder and the actual base URL of the request (`Forwarded` header, `base_url` or `host`/`port`) is injected while the file is streamed, so caching also works without a configured `base_url`. Right after every channel/EPG update the default outputs of all configured users are rebuilt one after another, followed by other requested variants (e.g. a `category_id` or `include`/`exclude` filter) that have been requested within `ttl.playlists`. Until a file has been rebuilt, the previous (stale) file is returned immediately; cache misses keep the existing live response while the file is built. The configured `size.playlists` should be large enough for each output file, as files exceeding the cache limit may be evicted.
 ### Timeout settings (`timeouts[]`)
 * `playlist` - timeouts for playlist requests
 * `icon` - timeouts for icon requests

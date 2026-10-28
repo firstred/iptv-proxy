@@ -2,6 +2,8 @@ package io.github.firstred.iptvproxy.routes
 
 import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
+import io.github.firstred.iptvproxy.classes.CachedOutput
+import io.github.firstred.iptvproxy.classes.CachedOutputType
 import io.github.firstred.iptvproxy.classes.IptvChannel
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.classes.IptvUser
@@ -11,7 +13,6 @@ import io.github.firstred.iptvproxy.db.repositories.EpgRepository
 import io.github.firstred.iptvproxy.db.repositories.XtreamRepository
 import io.github.firstred.iptvproxy.di.modules.IptvServersByName
 import io.github.firstred.iptvproxy.dotenv
-import io.github.firstred.iptvproxy.dtos.xmltv.XmltvChannel
 import io.github.firstred.iptvproxy.dtos.xmltv.XmltvProgramme
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamCategory
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamEpgList
@@ -19,18 +20,16 @@ import io.github.firstred.iptvproxy.dtos.xtream.XtreamLiveStream
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovie
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamMovieInfoEndpoint
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamProfile
-import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeries
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamSeriesInfoEndpoint
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamServerInfo
 import io.github.firstred.iptvproxy.dtos.xtream.XtreamUserInfo
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.enums.XtreamOutputFormat
-import io.github.firstred.iptvproxy.managers.ChannelManager
+import io.github.firstred.iptvproxy.managers.OutputCacheManager
 import io.github.firstred.iptvproxy.plugins.findUserFromXtreamAccountInRoutingContext
 import io.github.firstred.iptvproxy.plugins.isNotMainPort
 import io.github.firstred.iptvproxy.plugins.isNotReady
 import io.github.firstred.iptvproxy.serialization.json
-import io.github.firstred.iptvproxy.serialization.xml
 import io.github.firstred.iptvproxy.utils.addDefaultClientHeaders
 import io.github.firstred.iptvproxy.utils.addProxyAuthorizationHeaderIfNecessary
 import io.github.firstred.iptvproxy.utils.filterHttpRequestHeaders
@@ -44,13 +43,10 @@ import io.ktor.http.*
 import io.ktor.serialization.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import io.ktor.util.cio.*
 import io.sentry.Sentry
 import io.sentry.Sentry.captureException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import kotlin.time.Clock
-import kotlin.time.Instant
 import kotlinx.datetime.format
 import kotlinx.datetime.format.DateTimeComponents
 import kotlinx.datetime.format.FormatStringsInDatetimeFormats
@@ -66,7 +62,9 @@ import java.io.File
 import java.io.Writer
 import java.net.URI
 import java.net.URISyntaxException
+import kotlin.time.Clock
 import kotlin.time.Duration
+import kotlin.time.Instant
 
 val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
 
@@ -75,7 +73,6 @@ val LOG: Logger = LoggerFactory.getLogger("xtreamApi")
  */
 @OptIn(FormatStringsInDatetimeFormats::class, ExperimentalSerializationApi::class)
 fun Route.xtreamApi() {
-    val channelManager: ChannelManager by inject()
     val channelRepository: ChannelRepository by inject()
     val epgRepository: EpgRepository by inject()
     val xtreamRepository: XtreamRepository by inject()
@@ -84,6 +81,7 @@ fun Route.xtreamApi() {
     val seriesInfoCache: FileKache by inject(named("series-info"))
     val cacheTimers: CacheExpiryTimers by inject()
     val cacheCoroutineScope: CoroutineScope by inject(named("cache"))
+    val outputCacheManager: OutputCacheManager by inject()
 
     // Responds with XMLTV data for authenticated user
     get("/xmltv.php") {
@@ -103,45 +101,8 @@ fun Route.xtreamApi() {
             append(HttpHeaders.ContentDisposition, "attachment; filename=xmltv_${user.username}.xml")
         }
 
-        val baseUrl = config.getActualBaseUrl(call.request).toString()
-        val encryptedAccount = user.toEncryptedAccountHexString()
-
-        try {
-            call.respondTextWriter {
-                write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
-                epgRepository.forEachEpgChannelChunk(forUser = user) {
-                    it.forEach { row ->
-                        write(
-                            xml.encodeToString(
-                                XmltvChannel.serializer(), row.copy(
-                                    icon = row.icon?.copy(
-                                        src = row.icon.src?.let {
-                                            if (serversByName.values.any { it.config.proxyStream }) it.toProxiedIconUrl(
-                                                baseUrl,
-                                                encryptedAccount
-                                            )
-                                            else it
-                                        },
-                                    ),
-                                )
-                            )
-                        )
-                        flush()
-                    }
-                }
-                epgRepository.forEachEpgProgrammeChunk(forUser = user) {
-                    it.forEach { row ->
-                        write(xml.encodeToString(XmltvProgramme.serializer(), row))
-                        flush()
-                    }
-                }
-
-                write("</tv>")
-                flush()
-            }
-        } catch (_: IOException) {
-            // Client connection closed
-        }
+        val baseUrl = config.getActualBaseUrl(call.request)
+        outputCacheManager.respond(call, CachedOutput(CachedOutputType.XMLTV, user), baseUrl)
     }
 
     // Handles player API requests; returns appropriate data
@@ -167,95 +128,28 @@ fun Route.xtreamApi() {
         when {
             call.request.queryParameters["action"] == "get_live_streams" -> {
                 val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
-
-                try {
-                    call.respondTextWriter(contentType = ContentType.Application.Json) {
-                        write("[")
-
-                        var first = true
-                        xtreamRepository.forEachLiveStreamChunk(categoryId = categoryId, forUser = user) { list ->
-                            list.forEachIndexed { idx, it ->
-                                if (!first) write(",")
-                                else first = false
-
-                                write(
-                                    json.encodeToString(
-                                        XtreamLiveStream.serializer(), it.copy(
-                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                            else it.streamIcon,
-                                            server = null,
-                                            url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.').ifBlank {"m3u8"} }"
-                                            else it.url,
-                                        )
-                                    )
-                                )
-                                flush()
-                            }
-                        }
-
-                        channelRepository.forEachMissingIptvChannelAsLiveStreamChunk { list ->
-                            list.forEachIndexed { idx, it ->
-                                if (!first) write(",")
-                                else first = false
-
-                                write(
-                                    json.encodeToString(
-                                        XtreamLiveStream.serializer(), it.copy(
-                                            streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon?.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                            else it.streamIcon,
-                                            server = null,
-                                            url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.m3u8"
-                                            else it.url,
-                                        )
-                                    )
-                                )
-                                flush()
-                            }
-                        }
-
-                        write("]")
-                    }
-                } catch (_: IOException) {
-                    // Client connection closed
-                }
+                outputCacheManager.respond(
+                    call,
+                    CachedOutput(CachedOutputType.LIVE_STREAMS, user, categoryId = categoryId),
+                    baseUrl,
+                )
             }
 
             call.request.queryParameters["action"] == "get_live_categories" -> {
-                try {
-                    call.respondTextWriter(contentType = ContentType.Application.Json) { writeLiveCategories() }
-                } catch (_: IOException) {
-                    // Connection closed
-                }
+                outputCacheManager.respond(call, CachedOutput(CachedOutputType.LIVE_CATEGORIES, user), baseUrl)
             }
 
             listOf("get_vod_streams", "get_movie_streams", "get_movies_streams").contains(call.request.queryParameters["action"]) -> {
                 val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
-
-                call.respondTextWriter(contentType = ContentType.Application.Json) {
-                    write("[")
-                    var first = true
-                    xtreamRepository.forEachMovieChunk(categoryId = categoryId) { list ->
-                        list.forEachIndexed { idx, it ->
-                            if (!first) write(",")
-                            else first = false
-
-                            write(json.encodeToString(XtreamMovie.serializer(), it.copy(
-                                streamIcon = if (serversByName[it.server]?.config?.proxyStream ?: false) it.streamIcon.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                else it.streamIcon,
-                                server = null,
-                                url = if (serversByName[it.server]?.config?.proxyStream ?: false) "$baseUrl${it.streamType.urlType()}/${user.username}/${user.password}/${it.streamId}.${it.url.toString().substringAfterLast('.').ifBlank { "m3u8" } }"
-                                else it.url,
-                            )))
-                            flush()
-                        }
-                    }
-
-                    write("]")
-                }
+                outputCacheManager.respond(
+                    call,
+                    CachedOutput(CachedOutputType.MOVIES, user, categoryId = categoryId),
+                    baseUrl,
+                )
             }
 
             listOf("get_vod_categories", "get_movie_categories", "get_movies_categories").contains(call.request.queryParameters["action"]) -> {
-                call.respondTextWriter(contentType = ContentType.Application.Json) { writeMovieCategories() }
+                outputCacheManager.respond(call, CachedOutput(CachedOutputType.MOVIE_CATEGORIES, user), baseUrl)
             }
 
             listOf("get_vod_info", "get_movie_info", "get_movies_info").contains(call.request.queryParameters["action"]) -> {
@@ -401,46 +295,15 @@ fun Route.xtreamApi() {
 
             call.request.queryParameters["action"] == "get_series" -> {
                 val categoryId = call.request.queryParameters["category_id"]?.toUIntOrNull()
-
-                try {
-                    call.respondTextWriter(contentType = ContentType.Application.Json) {
-                        write("[")
-                        var first = true
-                        xtreamRepository.forEachSeriesChunk(categoryId = categoryId, forUser = user) { list ->
-                            // Iterates series chunk; writes proxied series to output
-                            list.forEachIndexed { idx, it ->
-                                if (!first) write(",")
-                                else first = false
-
-                                // Proxies series cover/backdrop if server configured to do so
-                                write(json.encodeToString(XtreamSeries.serializer(), it.copy(
-                                    cover = if (serversByName[it.server]?.config?.proxyStream ?: false) it.cover.toProxiedIconUrl(baseUrl, encryptedAccount)
-                                    else it.cover,
-                                    backdropPath = if (serversByName[it.server]?.config?.proxyStream ?: false) it.backdropPath.map { it?.toProxiedIconUrl(baseUrl, encryptedAccount) }
-                                    else it.backdropPath,
-                                    server = null,
-                                )))
-                                flush()
-                            }
-                        }
-
-                        write("]")
-                    }
-                } catch (_: IOException) {
-                    // Client closed connection
-                }
+                outputCacheManager.respond(
+                    call,
+                    CachedOutput(CachedOutputType.SERIES, user, categoryId = categoryId),
+                    baseUrl,
+                )
             }
 
             call.request.queryParameters["action"] == "get_series_categories" -> {
-                call.response.headers.apply {
-                    append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                }
-
-                try {
-                    call.respondTextWriter { writeSeriesCategories() }
-                } catch (_: IOException) {
-                    // Client closed connection
-                }
+                outputCacheManager.respond(call, CachedOutput(CachedOutputType.SERIES_CATEGORIES, user), baseUrl)
             }
 
             call.request.queryParameters["action"] == "get_series_info" -> {
@@ -826,30 +689,26 @@ fun Route.xtreamApi() {
             append(HttpHeaders.ContentDisposition, "attachment; filename=playlist_${user.username}.m3u8")
         }
 
-        try {
-            val include = call.request.queryParameters["include"]?.split(",")?.mapNotNull {
-                val type = it.trim().lowercase()
-                if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
-            }?.toSet()
+        val include = call.request.queryParameters["include"]?.split(",")?.mapNotNull {
+            val type = it.trim().lowercase()
+            if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
+        }?.toSet()
 
-            val exclude = call.request.queryParameters["exclude"]?.split(",")?.mapNotNull {
-                val type = it.trim().lowercase()
-                if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
-            }?.toSet()
+        val exclude = call.request.queryParameters["exclude"]?.split(",")?.mapNotNull {
+            val type = it.trim().lowercase()
+            if (type == "movies") IptvChannelType.movie else try { IptvChannelType.valueOf(type) } catch (_: IllegalArgumentException) { null }
+        }?.toSet()
 
-            call.respondOutputStream { use { output ->
-                channelManager.getAllChannelsPlaylist(
-                    output,
-                    user,
-                    config.getActualBaseUrl(call.request),
-                    includeTypes = include,
-                    excludeTypes = exclude,
-                )
-                output.flush()
-            } }
-        } catch (_: IOException) {
-            // Client closed connection
-        }
+        outputCacheManager.respond(
+            call,
+            CachedOutput(
+                CachedOutputType.PLAYLIST,
+                user,
+                includeTypes = include,
+                excludeTypes = exclude,
+            ),
+            config.getActualBaseUrl(call.request),
+        )
     }
 }
 

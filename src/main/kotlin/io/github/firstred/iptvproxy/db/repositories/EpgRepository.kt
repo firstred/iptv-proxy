@@ -28,11 +28,10 @@ import io.github.firstred.iptvproxy.dtos.xmltv.XmltvText
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.databaseExpressionTreeLimit
 import io.github.firstred.iptvproxy.utils.toListFilters
-import kotlin.time.Clock
-import kotlin.time.Instant
 import org.jetbrains.exposed.v1.core.JoinType
 import org.jetbrains.exposed.v1.core.ResultRow
 import org.jetbrains.exposed.v1.core.SortOrder
+import org.jetbrains.exposed.v1.core.and
 import org.jetbrains.exposed.v1.core.eq
 import org.jetbrains.exposed.v1.core.greater
 import org.jetbrains.exposed.v1.core.greaterEq
@@ -40,18 +39,19 @@ import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.less
 import org.jetbrains.exposed.v1.core.lessEq
 import org.jetbrains.exposed.v1.core.neq
+import org.jetbrains.exposed.v1.core.notExists
 import org.jetbrains.exposed.v1.core.notInList
-import org.jetbrains.exposed.v1.core.and
+import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.jdbc.batchUpsert
 import org.jetbrains.exposed.v1.jdbc.deleteWhere
-import org.jetbrains.exposed.v1.core.notExists
-import org.jetbrains.exposed.v1.core.or
 import org.jetbrains.exposed.v1.jdbc.select
 import org.jetbrains.exposed.v1.jdbc.selectAll
 import org.jetbrains.exposed.v1.jdbc.transactions.transaction
 import org.jetbrains.exposed.v1.jdbc.upsert
 import kotlin.math.floor
+import kotlin.time.Clock
+import kotlin.time.Instant
 
 class EpgRepository {
     fun upsertXmltvSourceForServer(doc: XmltvDoc, server: String, clearBefore: Instant? = null, clearAfter: Instant? = null) {

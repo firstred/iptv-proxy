@@ -1,9 +1,9 @@
 package io.github.firstred.iptvproxy.db.tables.sources
 
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import kotlin.time.Clock
 import org.jetbrains.exposed.v1.core.Table
 import org.jetbrains.exposed.v1.datetime.timestamp
+import kotlin.time.Clock
 
 object XmltvSourceTable : Table("xmltv_source") {
     val server = varchar("server", maxServerNameLength)

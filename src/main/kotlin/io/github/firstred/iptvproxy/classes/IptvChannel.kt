@@ -21,7 +21,6 @@ import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
-import java.util.*
 import kotlin.text.Charsets.UTF_8
 
 class IptvChannel(

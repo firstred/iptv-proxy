@@ -3,10 +3,10 @@ package io.github.firstred.iptvproxy.db.tables
 import io.github.firstred.iptvproxy.enums.IptvChannelType
 import io.github.firstred.iptvproxy.utils.defaultVarcharLength
 import io.github.firstred.iptvproxy.utils.maxServerNameLength
-import kotlin.time.Clock
 import org.jetbrains.exposed.v1.core.dao.id.UIntIdTable
-import org.jetbrains.exposed.v1.json.json
 import org.jetbrains.exposed.v1.datetime.timestamp
+import org.jetbrains.exposed.v1.json.json
+import kotlin.time.Clock
 import io.github.firstred.iptvproxy.serialization.json as jsonSerializer
 
 object ChannelTable : UIntIdTable("channel") {

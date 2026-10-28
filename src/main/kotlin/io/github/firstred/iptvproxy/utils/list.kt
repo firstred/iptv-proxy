@@ -3,12 +3,12 @@ package io.github.firstred.iptvproxy.utils
 import io.github.firstred.iptvproxy.classes.IptvUser
 import io.github.firstred.iptvproxy.dtos.config.IptvProxyUserConfig
 import org.jetbrains.exposed.v1.core.Column
-import org.jetbrains.exposed.v1.jdbc.Query
-import org.jetbrains.exposed.v1.jdbc.andWhere
 import org.jetbrains.exposed.v1.core.compoundOr
 import org.jetbrains.exposed.v1.core.inList
 import org.jetbrains.exposed.v1.core.notInList
 import org.jetbrains.exposed.v1.core.regexp
+import org.jetbrains.exposed.v1.jdbc.Query
+import org.jetbrains.exposed.v1.jdbc.andWhere
 
 fun List<String>.matchRegexpList(item: String): Boolean {
     return this.any {

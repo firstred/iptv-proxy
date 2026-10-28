@@ -6,9 +6,8 @@ import io.github.firstred.iptvproxy.BuildConfig
 import io.github.firstred.iptvproxy.classes.CacheExpiryTimers
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
+import io.github.firstred.iptvproxy.managers.OutputCacheManager
 import io.github.firstred.iptvproxy.utils.appVersionToInt
-import io.github.firstred.iptvproxy.utils.toInt
-import io.github.z4kn4fein.semver.toVersion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.runBlocking
@@ -22,6 +21,28 @@ val cacheModule = module {
         CoroutineScope(Job())
     }
     singleOf(::CacheExpiryTimers) binds hooksOf(CacheExpiryTimers::class)
+
+    single(named("playlists")) {
+        runBlocking { FileKache(
+            directory = config.getCacheDirectory("playlists"),
+            maxSize = if (config.cache.enabled) config.cache.size.playlists.toLong() else 1L,
+        ) {
+            strategy = KacheStrategy.LRU
+            cacheVersion = appVersionToInt(BuildConfig.APP_VERSION)
+        } }
+    }
+    single {
+        OutputCacheManager(
+            playlistCache = get(named("playlists")),
+            cacheCoroutineScope = get(named("cache")),
+            databaseMutex = get(named("large-database-transactions")),
+            channelManager = get(),
+            channelRepository = get(),
+            epgRepository = get(),
+            xtreamRepository = get(),
+            serversByName = get(),
+        )
+    } binds hooksOf(OutputCacheManager::class)
 
     single(named("series-info")) {
         runBlocking { FileKache(

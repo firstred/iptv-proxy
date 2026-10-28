@@ -30,13 +30,11 @@ import io.github.firstred.iptvproxy.utils.toChannelType
 import io.github.firstred.iptvproxy.utils.toEncodedJavaURI
 import io.github.firstred.iptvproxy.utils.toProxiedIconUrl
 import io.ktor.client.*
-import io.ktor.client.call.*
-import io.ktor.client.plugins.ResponseException
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.utils.io.*
-import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.MonitorConfig
 import io.sentry.Sentry
 import io.sentry.util.CheckInUtils
@@ -46,7 +44,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlin.time.Clock
 import kotlinx.io.Buffer
 import kotlinx.io.asInputStream
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -68,6 +65,7 @@ import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import java.util.zip.GZIPInputStream
 import kotlin.text.Charsets.UTF_8
+import kotlin.time.Clock
 
 @Suppress("UnstableApiUsage")
 class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicationOnDatabaseInitializedHook {
@@ -800,6 +798,7 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
                 outputWriter.flush()
             }
         }
+        outputWriter.flush()
     }
 
     /**

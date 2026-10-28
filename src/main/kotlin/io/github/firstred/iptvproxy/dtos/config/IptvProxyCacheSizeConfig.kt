@@ -5,6 +5,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class IptvProxyCacheSizeConfig(
+    @Serializable(with = ULongWithUnderscoreSerializer::class) val playlists: ULong = 1024UL * 1024UL * 1024UL,
     @Serializable(with = ULongWithUnderscoreSerializer::class) val videoChunks: ULong = 512UL * 1024UL * 1024UL,
     @Serializable(with = ULongWithUnderscoreSerializer::class) val movieInfo: ULong = 50UL * 1024UL * 1024UL,
     @Serializable(with = ULongWithUnderscoreSerializer::class) val seriesInfo: ULong = 50UL * 1024UL * 1024UL,
