@@ -12,11 +12,7 @@ import kotlin.time.Instant
 class CachedOutputTest {
     private val baseOutput = CachedOutput(
         type = CachedOutputType.PLAYLIST,
-        user = IptvUser(
-            username = "viewer",
-            password = "password-secret",
-            maxConnections = 2u,
-        ),
+        user = user(),
     )
 
     @Test
@@ -26,11 +22,48 @@ class CachedOutputTest {
     }
 
     @Test
-    fun `cache key differs for user settings`() {
-        assertNotEquals(baseOutput.cacheKey("config"), baseOutput.copy(user = baseOutput.user.copyForTest(password = "different")).cacheKey("config"))
+    fun `users with the same settings share the cache key`() {
+        val first = baseOutput.copy(
+            user = user(
+                username = "first",
+                password = "first-secret",
+                maxConnections = 1u,
+                channelBlacklist = listOf("B", "A", "A"),
+                categoryWhitelist = listOf("News", "Sports"),
+            )
+        )
+        val second = baseOutput.copy(
+            user = user(
+                username = "second",
+                password = "second-secret",
+                maxConnections = 5u,
+                channelBlacklist = listOf("A", "B"),
+                categoryWhitelist = listOf("Sports", "News"),
+            )
+        )
+
+        assertEquals(first.settings, second.settings)
+        assertEquals(first.cacheKey("config"), second.cacheKey("config"))
+    }
+
+    @Test
+    fun `cache key differs for settings that change or filter the output`() {
+        listOf(
+            user(channelBlacklist = listOf("Blocked")),
+            user(channelWhitelist = listOf("Allowed")),
+            user(categoryBlacklist = listOf("Blocked")),
+            user(categoryWhitelist = listOf("Allowed")),
+            user(moviesEnabled = false),
+            user(seriesEnabled = false),
+        ).forEach { user ->
+            assertNotEquals(baseOutput.settings, baseOutput.copy(user = user).settings)
+            assertNotEquals(baseOutput.cacheKey("config"), baseOutput.copy(user = user).cacheKey("config"))
+        }
+
+        // The same filter in a different list is a different setting
         assertNotEquals(
-            baseOutput.cacheKey("config"),
-            baseOutput.copy(user = baseOutput.user.copyForTest(channelBlacklist = listOf("Blocked"))).cacheKey("config"),
+            baseOutput.copy(user = user(channelBlacklist = listOf("Name"))).cacheKey("config"),
+            baseOutput.copy(user = user(categoryBlacklist = listOf("Name"))).cacheKey("config"),
         )
     }
 
@@ -63,32 +96,76 @@ class CachedOutputTest {
     }
 
     @Test
-    fun `cache key does not contain user password`() {
+    fun `cache key does not contain user credentials`() {
+        assertFalse(baseOutput.cacheKey("config").contains(baseOutput.user.username))
         assertFalse(baseOutput.cacheKey("config").contains(baseOutput.user.password))
     }
 
     @Test
-    fun `base url is encoded for the output format`() {
-        val baseUrl = URI("https://iptv.example/path/?a=1&b='2'")
+    fun `placeholder user keeps the settings without the credentials`() {
+        val settings = user(channelWhitelist = listOf("Allowed"), seriesEnabled = false).toCachedOutputSettings()
+        val placeholderUser = settings.toPlaceholderUser()
 
-        assertEquals("https://iptv.example/path/?a=1&b='2'", baseOutput.encodeBaseUrl(baseUrl).decodeToString())
+        assertEquals(CachedOutput.PLACEHOLDER_USERNAME, placeholderUser.username)
+        assertEquals(CachedOutput.PLACEHOLDER_PASSWORD, placeholderUser.password)
+        assertEquals(settings, placeholderUser.toCachedOutputSettings())
+    }
+
+    @Test
+    fun `values are encoded for the output format`() {
+        val value = "https://iptv.example/path/?a=1&b='2'"
+
+        assertEquals("https://iptv.example/path/?a=1&b='2'", baseOutput.encodeValue(value).decodeToString())
         assertEquals(
             "https://iptv.example/path/?a=1&amp;b=&apos;2&apos;",
-            baseOutput.copy(type = CachedOutputType.XMLTV).encodeBaseUrl(baseUrl).decodeToString(),
+            baseOutput.copy(type = CachedOutputType.XMLTV).encodeValue(value).decodeToString(),
         )
         assertEquals(
             "https://iptv.example/path/?a=1&b='2'",
-            baseOutput.copy(type = CachedOutputType.LIVE_STREAMS).encodeBaseUrl(baseUrl).decodeToString(),
+            baseOutput.copy(type = CachedOutputType.LIVE_STREAMS).encodeValue(value).decodeToString(),
+        )
+        assertEquals(
+            "a\\\"b",
+            baseOutput.copy(type = CachedOutputType.LIVE_STREAMS).encodeValue("a\"b").decodeToString(),
         )
     }
 
     @Test
-    fun `placeholder base url is identical in every output format`() {
-        val placeholder = CachedOutput.PLACEHOLDER_BASE_URL.toString()
+    fun `placeholders are identical in every output format`() {
+        val placeholders = listOf(
+            CachedOutput.PLACEHOLDER_BASE_URL.toString(),
+            CachedOutput.PLACEHOLDER_USERNAME,
+            CachedOutput.PLACEHOLDER_PASSWORD,
+            CachedOutput.PLACEHOLDER_ENCRYPTED_ACCOUNT,
+        )
 
         CachedOutputType.entries.forEach { type ->
-            assertEquals(placeholder, baseOutput.copy(type = type).encodeBaseUrl(CachedOutput.PLACEHOLDER_BASE_URL).decodeToString())
+            placeholders.forEach { placeholder ->
+                assertEquals(placeholder, baseOutput.copy(type = type).encodeValue(placeholder).decodeToString())
+            }
         }
+    }
+
+    @Test
+    fun `placeholder replacements use the values of the requesting user`() {
+        val baseUrl = URI("https://iptv.example/")
+        val replacements = baseOutput.placeholderReplacements(baseUrl, encryptedAccount = "0123abcd")
+            .map { (placeholder, value) -> placeholder.decodeToString() to value.decodeToString() }
+
+        assertEquals(
+            listOf(
+                CachedOutput.PLACEHOLDER_BASE_URL.toString() to baseUrl.toString(),
+                CachedOutput.PLACEHOLDER_USERNAME to baseOutput.user.username,
+                CachedOutput.PLACEHOLDER_PASSWORD to baseOutput.user.password,
+                CachedOutput.PLACEHOLDER_ENCRYPTED_ACCOUNT to "0123abcd",
+            ),
+            replacements,
+        )
+        assertTrue(
+            baseOutput.copy(type = CachedOutputType.LIVE_CATEGORIES)
+                .placeholderReplacements(baseUrl, encryptedAccount = "0123abcd")
+                .isEmpty()
+        )
     }
 
     @Test
@@ -101,9 +178,16 @@ class CachedOutputTest {
         assertFalse(baseOutput.isStale(0, null))
     }
 
-    private fun IptvUser.copyForTest(
-        password: String = this.password,
-        channelBlacklist: List<String> = this.channelBlacklist,
+    private fun user(
+        username: String = "viewer",
+        password: String = "password-secret",
+        maxConnections: UInt = 2u,
+        channelBlacklist: List<String> = emptyList(),
+        channelWhitelist: List<String> = emptyList(),
+        categoryBlacklist: List<String> = emptyList(),
+        categoryWhitelist: List<String> = emptyList(),
+        moviesEnabled: Boolean = true,
+        seriesEnabled: Boolean = true,
     ) = IptvUser(
         username = username,
         password = password,

@@ -7,7 +7,7 @@ import java.net.URI
 import java.security.MessageDigest
 import kotlin.time.Instant
 
-enum class CachedOutputType(val containsBaseUrl: Boolean) {
+enum class CachedOutputType(val containsPlaceholders: Boolean) {
     PLAYLIST(true),
     XMLTV(true),
     LIVE_STREAMS(true),
@@ -19,10 +19,49 @@ enum class CachedOutputType(val containsBaseUrl: Boolean) {
 }
 
 /**
- * Describes a single cacheable output variant.
+ * User settings that change or filter the outputs, users with equal settings share their cached outputs.
  *
- * Cached files are rendered with [PLACEHOLDER_BASE_URL] and the actual base URL of the client request is injected
- * while the file is streamed, which makes a cached file independent of the base URL used by the client.
+ * The filter lists are normalized, as neither their order nor duplicate entries affect the output.
+ */
+data class CachedOutputSettings(
+    val channelBlacklist: List<String> = emptyList(),
+    val channelWhitelist: List<String> = emptyList(),
+    val categoryBlacklist: List<String> = emptyList(),
+    val categoryWhitelist: List<String> = emptyList(),
+    val moviesEnabled: Boolean = true,
+    val seriesEnabled: Boolean = true,
+) {
+    /**
+     * User the shared outputs are rendered for, its credentials are replaced with those of the requesting user
+     */
+    fun toPlaceholderUser() = IptvUser(
+        username = CachedOutput.PLACEHOLDER_USERNAME,
+        password = CachedOutput.PLACEHOLDER_PASSWORD,
+        maxConnections = 1u,
+        channelBlacklist = channelBlacklist,
+        channelWhitelist = channelWhitelist,
+        categoryBlacklist = categoryBlacklist,
+        categoryWhitelist = categoryWhitelist,
+        moviesEnabled = moviesEnabled,
+        seriesEnabled = seriesEnabled,
+    )
+}
+
+fun IptvUser.toCachedOutputSettings() = CachedOutputSettings(
+    channelBlacklist = channelBlacklist.distinct().sorted(),
+    channelWhitelist = channelWhitelist.distinct().sorted(),
+    categoryBlacklist = categoryBlacklist.distinct().sorted(),
+    categoryWhitelist = categoryWhitelist.distinct().sorted(),
+    moviesEnabled = moviesEnabled,
+    seriesEnabled = seriesEnabled,
+)
+
+/**
+ * Describes a single cacheable output variant requested by [user].
+ *
+ * Cached files are shared by all users with the same [CachedOutputSettings]. They are rendered with
+ * [PLACEHOLDER_BASE_URL], [PLACEHOLDER_USERNAME], [PLACEHOLDER_PASSWORD] and [PLACEHOLDER_ENCRYPTED_ACCOUNT], which are
+ * replaced with the values of the actual request while the file is streamed.
  */
 data class CachedOutput(
     val type: CachedOutputType,
@@ -31,21 +70,24 @@ data class CachedOutput(
     val includeTypes: Set<IptvChannelType>? = null,
     val excludeTypes: Set<IptvChannelType>? = null,
 ) {
+    val settings: CachedOutputSettings
+        get() = user.toCachedOutputSettings()
+
     fun cacheKey(configFingerprint: String): String {
-        val userFingerprint = sha256(
-            encodeFields(
-                listOf(
-                    user.password,
-                    user.maxConnections.toString(),
-                    encodeFields(user.channelBlacklist.distinct().sorted()),
-                    encodeFields(user.channelWhitelist.distinct().sorted()),
-                    encodeFields(user.categoryBlacklist.distinct().sorted()),
-                    encodeFields(user.categoryWhitelist.distinct().sorted()),
-                    user.moviesEnabled.toString(),
-                    user.seriesEnabled.toString(),
+        val settingsFingerprint = settings.let {
+            sha256(
+                encodeFields(
+                    listOf(
+                        encodeFields(it.channelBlacklist),
+                        encodeFields(it.channelWhitelist),
+                        encodeFields(it.categoryBlacklist),
+                        encodeFields(it.categoryWhitelist),
+                        it.moviesEnabled.toString(),
+                        it.seriesEnabled.toString(),
+                    )
                 )
             )
-        )
+        }
         val normalizedParameters = encodeFields(
             listOf(
                 categoryId?.toString() ?: "null",
@@ -56,8 +98,7 @@ data class CachedOutput(
         val identity = encodeFields(
             listOf(
                 type.name,
-                user.username,
-                userFingerprint,
+                settingsFingerprint,
                 normalizedParameters,
                 configFingerprint,
             )
@@ -70,14 +111,27 @@ data class CachedOutput(
         null != lastDataUpdateAt && fileLastModifiedAtMillis < lastDataUpdateAt.toEpochMilliseconds()
 
     /**
-     * Encodes the base URL exactly as it appears inside the output format of this variant
+     * Maps the placeholders of a cached file to the values of the request of [user], encoded for the output format
      */
-    fun encodeBaseUrl(baseUrl: URI): ByteArray = baseUrl.toString().let { value ->
-        when (type) {
-            CachedOutputType.PLAYLIST -> value
-            CachedOutputType.XMLTV -> value.escapeXml()
-            else -> json.encodeToString(String.serializer(), value).removePrefix("\"").removeSuffix("\"")
-        }
+    fun placeholderReplacements(
+        baseUrl: URI,
+        encryptedAccount: String = user.toEncryptedAccountHexString(),
+    ): List<Pair<ByteArray, ByteArray>> = if (type.containsPlaceholders) {
+        listOf(
+            PLACEHOLDER_BASE_URL.toString() to baseUrl.toString(),
+            PLACEHOLDER_USERNAME to user.username,
+            PLACEHOLDER_PASSWORD to user.password,
+            PLACEHOLDER_ENCRYPTED_ACCOUNT to encryptedAccount,
+        ).map { (placeholder, value) -> encodeValue(placeholder) to encodeValue(value) }
+    } else emptyList()
+
+    /**
+     * Encodes the value exactly as it appears inside the output format of this variant
+     */
+    fun encodeValue(value: String): ByteArray = when (type) {
+        CachedOutputType.PLAYLIST -> value
+        CachedOutputType.XMLTV -> value.escapeXml()
+        else -> json.encodeToString(String.serializer(), value).removePrefix("\"").removeSuffix("\"")
     }.toByteArray(Charsets.UTF_8)
 
     private fun String.escapeXml(): String = buildString {
@@ -106,10 +160,13 @@ data class CachedOutput(
     }
 
     companion object {
-        /**
-         * Base URL written into cached files; uses the reserved `.invalid` TLD and only characters that are never
-         * escaped by the M3U, XML or JSON writers
+        /*
+         * Placeholders written into cached files; they use the reserved `.invalid` TLD or a distinctive name and only
+         * characters that are never escaped by the M3U, XML, JSON or URL writers
          */
         val PLACEHOLDER_BASE_URL: URI = URI("http://iptv-proxy-base-url-placeholder.invalid/")
+        const val PLACEHOLDER_USERNAME = "iptv-proxy-username-placeholder"
+        const val PLACEHOLDER_PASSWORD = "iptv-proxy-password-placeholder"
+        const val PLACEHOLDER_ENCRYPTED_ACCOUNT = "iptv-proxy-encrypted-account-placeholder"
     }
 }

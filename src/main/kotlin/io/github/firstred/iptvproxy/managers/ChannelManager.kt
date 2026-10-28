@@ -715,9 +715,9 @@ class ChannelManager : KoinComponent, HasApplicationOnTerminateHook, HasApplicat
         baseUrl: URI,
         includeTypes: Set<IptvChannelType>? = null,
         excludeTypes: Set<IptvChannelType>? = null,
+        encryptedAccount: String = user.toEncryptedAccountHexString(),
     ) {
         val outputWriter = outputStream.bufferedWriter(UTF_8)
-        val encryptedAccount = user.toEncryptedAccountHexString()
 
         outputWriter.write("#EXTM3U\n")
         channelRepository.forEachIptvChannelChunk(

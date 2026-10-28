@@ -232,6 +232,7 @@ class EpgRepository {
                 ) {(epgChannelId, start, audio) ->
                     this[EpgProgrammeAudioTable.epgChannelId] = epgChannelId
                     this[EpgProgrammeAudioTable.programmeStart] = start
+                    this[EpgProgrammeAudioTable.type] = "stereo"
                     this[EpgProgrammeAudioTable.value] = audio.value
                 }
 

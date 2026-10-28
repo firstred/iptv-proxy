@@ -22,9 +22,8 @@ fun Writer.writeXmltv(
     user: IptvUser,
     baseUrl: URI,
     serversByName: IptvServersByName,
+    encryptedAccount: String = user.toEncryptedAccountHexString(),
 ) {
-    val encryptedAccount = user.toEncryptedAccountHexString()
-
     write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><tv generator-info-name=\"iptv-proxy\">")
     epgRepository.forEachEpgChannelChunk(forUser = user) { channels ->
         channels.forEach { row ->
@@ -62,8 +61,8 @@ fun Writer.writeXtreamLiveStreams(
     baseUrl: URI,
     serversByName: IptvServersByName,
     categoryId: UInt? = null,
+    encryptedAccount: String = user.toEncryptedAccountHexString(),
 ) {
-    val encryptedAccount = user.toEncryptedAccountHexString()
     write("[")
     var first = true
 
@@ -116,8 +115,8 @@ fun Writer.writeXtreamMovies(
     baseUrl: URI,
     serversByName: IptvServersByName,
     categoryId: UInt? = null,
+    encryptedAccount: String = user.toEncryptedAccountHexString(),
 ) {
-    val encryptedAccount = user.toEncryptedAccountHexString()
     write("[")
     var first = true
 
@@ -151,8 +150,8 @@ fun Writer.writeXtreamSeries(
     baseUrl: URI,
     serversByName: IptvServersByName,
     categoryId: UInt? = null,
+    encryptedAccount: String = user.toEncryptedAccountHexString(),
 ) {
-    val encryptedAccount = user.toEncryptedAccountHexString()
     write("[")
     var first = true
 

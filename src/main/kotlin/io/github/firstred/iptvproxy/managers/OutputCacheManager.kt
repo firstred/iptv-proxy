@@ -2,8 +2,10 @@ package io.github.firstred.iptvproxy.managers
 
 import com.mayakapps.kache.FileKache
 import io.github.firstred.iptvproxy.classes.CachedOutput
+import io.github.firstred.iptvproxy.classes.CachedOutputSettings
 import io.github.firstred.iptvproxy.classes.CachedOutputType
 import io.github.firstred.iptvproxy.classes.IptvUser
+import io.github.firstred.iptvproxy.classes.toCachedOutputSettings
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.db.repositories.ChannelRepository
 import io.github.firstred.iptvproxy.db.repositories.EpgRepository
@@ -67,7 +69,8 @@ class OutputCacheManager(
     private var lastDataUpdateAt: Instant? = null
 
     /**
-     * Responds with the cached output when available, the actual [baseUrl] of the request is injected while streaming
+     * Responds with the cached output when available, the actual [baseUrl] and the credentials of the requesting user
+     * are injected while streaming
      */
     suspend fun respond(call: ApplicationCall, output: CachedOutput, baseUrl: URI) {
         if (!config.cache.enabled) {
@@ -91,21 +94,18 @@ class OutputCacheManager(
 
                 if (input != null) {
                     call.response.header("X-Cache", if (stale) "STALE" else "HIT")
-                    // Length of outputs containing the base URL changes once the actual base URL is injected
-                    if (!output.type.containsBaseUrl) {
+                    // Length of outputs containing placeholders changes once the actual values are injected
+                    if (!output.type.containsPlaceholders) {
                         call.response.header(HttpHeaders.ContentLength, input.channel.size().toString())
                     }
                     if (stale) enqueueRefresh(output)
                     try {
+                        val replacements = output.placeholderReplacements(baseUrl)
                         call.respondOutputStream(contentType = output.contentType) {
                             input.use {
-                                if (output.type.containsBaseUrl) {
+                                if (replacements.isNotEmpty()) {
                                     val outputStream = buffered()
-                                    it.copyReplacingTo(
-                                        outputStream,
-                                        output.encodeBaseUrl(CachedOutput.PLACEHOLDER_BASE_URL),
-                                        output.encodeBaseUrl(baseUrl),
-                                    )
+                                    it.copyReplacingTo(outputStream, replacements)
                                     outputStream.flush()
                                 } else {
                                     it.copyTo(this)
@@ -134,9 +134,11 @@ class OutputCacheManager(
 
                 warmUpMutex.withLock {
                     val now = Clock.System.now()
+                    val usernamesBySettings = configuredUsernamesBySettings()
 
-                    // Default outputs of every configured user are the most likely to be requested
-                    val defaultOutputs = defaultOutputs(config.users.map { it.toIptvUser() })
+                    // Default outputs of every configured user are the most likely to be requested, users with the
+                    // same settings share their outputs, which are therefore only built once per group
+                    val defaultOutputs = usernamesBySettings.keys.flatMap { defaultOutputs(it) }
                     val defaultKeys = defaultOutputs.map { it.cacheKey(configFingerprint) }.toSet()
 
                     // Other variants are refreshed as long as they have been requested within the retention period
@@ -151,13 +153,16 @@ class OutputCacheManager(
                     }
 
                     val started = TimeSource.Monotonic.markNow()
-                    val outputsByUser = (defaultOutputs + requestedOutputs)
+                    val outputsBySettings = (defaultOutputs + requestedOutputs)
                         .distinctBy { it.cacheKey(configFingerprint) }
-                        .groupBy { it.user.username }
-                    outputsByUser.forEach { (username, outputs) -> warmUp(username, outputs) }
+                        .groupBy { it.settings }
+                    outputsBySettings.forEach { (settings, outputs) ->
+                        warmUp(usernamesBySettings[settings] ?: outputs.map { it.user.username }.distinct(), outputs)
+                    }
                     LOG.info(
-                        "Output cache warm-up completed for {} user(s) in {}",
-                        outputsByUser.size,
+                        "Output cache warm-up completed for {} user(s) with {} distinct setting(s) in {}",
+                        usernamesBySettings.values.sumOf { it.size },
+                        outputsBySettings.size,
                         started.elapsedNow(),
                     )
                 }
@@ -170,30 +175,32 @@ class OutputCacheManager(
     }
 
     /**
-     * Refreshes the missing and stale outputs of a single user and logs once all of them have been refreshed
+     * Refreshes the missing and stale outputs shared by users with the same settings and logs once all of them have
+     * been refreshed
      */
-    private suspend fun warmUp(username: String, outputs: List<CachedOutput>) {
+    private suspend fun warmUp(usernames: List<String>, outputs: List<CachedOutput>) {
         val started = TimeSource.Monotonic.markNow()
+        val users = describeUsers(usernames)
         val refreshes = outputs.filter { needsRefresh(it) }.map { enqueueRefresh(it) }
         if (refreshes.isEmpty()) {
-            LOG.info("Output cache of user {} is already up to date ({} outputs)", username, outputs.size)
+            LOG.info("Output cache of {} is already up to date ({} outputs)", users, outputs.size)
             return
         }
 
-        LOG.debug("Warming up output cache of user {}: refreshing {} of {} outputs", username, refreshes.size, outputs.size)
+        LOG.debug("Warming up output cache of {}: refreshing {} of {} outputs", users, refreshes.size, outputs.size)
         val failed = refreshes.awaitAll().count { !it }
         if (0 == failed) {
             LOG.info(
-                "Output cache of user {} has been warmed up: refreshed {} of {} outputs in {}",
-                username,
+                "Output cache of {} has been warmed up: refreshed {} of {} outputs in {}",
+                users,
                 refreshes.size,
                 outputs.size,
                 started.elapsedNow(),
             )
         } else {
             LOG.warn(
-                "Output cache of user {} has been partially warmed up: {} of {} outputs failed to refresh in {}",
-                username,
+                "Output cache of {} has been partially warmed up: {} of {} outputs failed to refresh in {}",
+                users,
                 failed,
                 refreshes.size,
                 started.elapsedNow(),
@@ -216,7 +223,10 @@ class OutputCacheManager(
     }
 
     /**
-     * Schedules a rebuild of the output, an already scheduled rebuild of the same output is reused
+     * Schedules a rebuild of the output, an already scheduled rebuild of the same output is reused.
+     *
+     * The output is rendered with placeholders instead of the values of the requesting user, so the file can be shared
+     * by all users with the same settings.
      *
      * @return `true` once the output has been refreshed successfully, `false` when the refresh failed
      */
@@ -231,15 +241,21 @@ class OutputCacheManager(
                             val started = TimeSource.Monotonic.markNow()
                             playlistCache.put(key) { fileName ->
                                 File(fileName).outputStream().use { outputStream ->
-                                    writeOutput(output, CachedOutput.PLACEHOLDER_BASE_URL, outputStream)
+                                    writeOutput(
+                                        output,
+                                        output.settings.toPlaceholderUser(),
+                                        CachedOutput.PLACEHOLDER_BASE_URL,
+                                        CachedOutput.PLACEHOLDER_ENCRYPTED_ACCOUNT,
+                                        outputStream,
+                                    )
                                     outputStream.flush()
                                 }
                                 true
                             }
                             LOG.debug(
-                                "Refreshed cached {} output for user {} in {}",
+                                "Refreshed cached {} output for {} in {}",
                                 output.type,
-                                output.user.username,
+                                describeUsers(output),
                                 started.elapsedNow(),
                             )
                         }
@@ -248,7 +264,7 @@ class OutputCacheManager(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    LOG.warn("Unable to refresh cached ${output.type} output for user ${output.user.username}", e)
+                    LOG.warn("Unable to refresh cached ${output.type} output for ${describeUsers(output)}", e)
                     false
                 } finally {
                     pendingRefreshes.remove(key)
@@ -260,34 +276,41 @@ class OutputCacheManager(
     private suspend fun respondLive(call: ApplicationCall, output: CachedOutput, baseUrl: URI) {
         try {
             call.respondOutputStream(contentType = output.contentType) {
-                writeOutput(output, baseUrl, this)
+                writeOutput(output, output.user, baseUrl, output.user.toEncryptedAccountHexString(), this)
             }
         } catch (_: IOException) {
             // Client connection closed
         }
     }
 
-    private fun writeOutput(output: CachedOutput, baseUrl: URI, outputStream: OutputStream) {
+    private fun writeOutput(
+        output: CachedOutput,
+        user: IptvUser,
+        baseUrl: URI,
+        encryptedAccount: String,
+        outputStream: OutputStream,
+    ) {
         when (output.type) {
             CachedOutputType.PLAYLIST -> channelManager.getAllChannelsPlaylist(
                 outputStream,
-                output.user,
+                user,
                 baseUrl,
                 includeTypes = output.includeTypes,
                 excludeTypes = output.excludeTypes,
+                encryptedAccount = encryptedAccount,
             )
 
             else -> OutputStreamWriter(outputStream, UTF_8).apply {
                 when (output.type) {
-                    CachedOutputType.XMLTV -> writeXmltv(epgRepository, output.user, baseUrl, serversByName)
+                    CachedOutputType.XMLTV -> writeXmltv(epgRepository, user, baseUrl, serversByName, encryptedAccount)
                     CachedOutputType.LIVE_STREAMS -> writeXtreamLiveStreams(
-                        xtreamRepository, channelRepository, output.user, baseUrl, serversByName, output.categoryId
+                        xtreamRepository, channelRepository, user, baseUrl, serversByName, output.categoryId, encryptedAccount
                     )
                     CachedOutputType.MOVIES -> writeXtreamMovies(
-                        xtreamRepository, output.user, baseUrl, serversByName, output.categoryId
+                        xtreamRepository, user, baseUrl, serversByName, output.categoryId, encryptedAccount
                     )
                     CachedOutputType.SERIES -> writeXtreamSeries(
-                        xtreamRepository, output.user, baseUrl, serversByName, output.categoryId
+                        xtreamRepository, user, baseUrl, serversByName, output.categoryId, encryptedAccount
                     )
                     CachedOutputType.LIVE_CATEGORIES -> writeLiveCategories(xtreamRepository)
                     CachedOutputType.MOVIE_CATEGORIES -> writeMovieCategories(xtreamRepository)
@@ -300,7 +323,7 @@ class OutputCacheManager(
         outputStream.flush()
     }
 
-    private fun defaultOutputs(users: List<IptvUser>): List<CachedOutput> = users.flatMap { user ->
+    private fun defaultOutputs(settings: CachedOutputSettings): List<CachedOutput> = settings.toPlaceholderUser().let { user ->
         buildList {
             add(CachedOutput(CachedOutputType.PLAYLIST, user))
             add(CachedOutput(CachedOutputType.XMLTV, user))
@@ -311,6 +334,23 @@ class OutputCacheManager(
             add(CachedOutput(CachedOutputType.MOVIE_CATEGORIES, user))
             add(CachedOutput(CachedOutputType.SERIES_CATEGORIES, user))
         }
+    }
+
+    /**
+     * Groups the usernames of all configured users by the settings that affect their outputs
+     */
+    private fun configuredUsernamesBySettings(): Map<CachedOutputSettings, List<String>> = config.users
+        .map { it.toIptvUser() }
+        .groupBy({ it.toCachedOutputSettings() }, { it.username })
+
+    private fun describeUsers(output: CachedOutput): String = describeUsers(
+        configuredUsernamesBySettings()[output.settings] ?: listOf(output.user.username)
+    )
+
+    private fun describeUsers(usernames: List<String>): String = if (1 == usernames.size) {
+        "user ${usernames.first()}"
+    } else {
+        "users ${usernames.joinToString(", ")} (identical settings)"
     }
 
     private val CachedOutput.contentType: ContentType
