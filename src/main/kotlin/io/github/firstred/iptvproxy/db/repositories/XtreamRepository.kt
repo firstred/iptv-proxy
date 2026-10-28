@@ -379,7 +379,7 @@ class XtreamRepository : KoinComponent {
                     JoinType.INNER,
                     onColumn = LiveStreamTable.externalStreamId,
                     otherColumn = ChannelTable.xtreamStreamId,
-                    additionalConstraint = { ChannelTable.server eq ChannelTable.server },
+                    additionalConstraint = { LiveStreamTable.server eq ChannelTable.server },
                 )
                 .select(
                     LiveStreamTable.num,

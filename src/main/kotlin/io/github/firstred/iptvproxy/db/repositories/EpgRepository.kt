@@ -113,6 +113,7 @@ class EpgRepository {
                     this[EpgChannelTable.icon] = channel.icon?.src
                     this[EpgChannelTable.name] = channel.displayNames?.firstOrNull { null == it.language }?.text
                         ?: channel.displayNames?.firstOrNull()?.text ?: ""
+                    this[EpgChannelTable.updatedAt] = Clock.System.now()
                 }
 
                 // Upsert the XMLTV channel display names
