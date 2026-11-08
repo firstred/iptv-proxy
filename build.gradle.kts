@@ -101,9 +101,9 @@ if ((localProperties["org.opencontainers.image.title"] as String).isNotEmpty()) 
             "-server",
             "-Djava.awt.headless=true",
             "-XX:+UseZGC",
-            "-XX:+ZGenerational",
-            "-XX:+AlwaysPreTouch",
             "-XX:+UseStringDeduplication",
+            "-XX:MaxRAMPercentage=75",
+            "-XX:+ExitOnOutOfMemoryError",
         )
         user = "1000"
         group = "1000"
