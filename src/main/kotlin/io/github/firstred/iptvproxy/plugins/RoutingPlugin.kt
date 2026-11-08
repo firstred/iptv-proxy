@@ -41,7 +41,9 @@ import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import io.sentry.Sentry
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.io.IOException
 import kotlinx.io.readByteArray
 import org.koin.core.qualifier.named
@@ -52,6 +54,9 @@ import java.io.File
 import java.io.OutputStream
 import java.net.URI
 import java.net.URISyntaxException
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.StandardCopyOption
 import kotlin.text.Charsets.UTF_8
 
 private val LOG = LoggerFactory.getLogger("RoutingPlugin")
@@ -425,6 +430,13 @@ fun Route.proxyRemoteHlsStream() {
     }
 }
 
+private fun createTemporaryVideoChunkFile(): File? = try {
+    File.createTempFile("video-chunk-", ".tmp", File(config.getLargeFileSinkDirectory("video_chunks")))
+} catch (e: IOException) {
+    LOG.warn("Unable to create a temporary file to cache a video chunk", e)
+    null
+}
+
 private suspend fun RoutingContext.streamRemoteVideoChunk(
     user: IptvUser,
     channel: IptvChannel,
@@ -510,41 +522,80 @@ private suspend fun RoutingContext.streamRemoteVideoChunk(
                             ) {
                                 val output = this
 
-                                var totalCache = byteArrayOf()
-                                val channel = response.bodyAsChannel()
-
-                                // Keep reading and pushing to temp cache + output until exhausted
-                                while (!channel.exhausted()) {
-                                    val chunk = channel.readRemaining(131_072).readByteArray()
-                                    if (totalCache.size < maxCacheableVideoChunkSize) totalCache += chunk
-                                    output.writeFully(chunk)
-                                }
-
-                                // Immediately release the connection after the read channel is closed
-                                releaseConnectionEarly()
-
-                                // Flush any remaining data in the buffer
-                                output.flush()
-
-                                if (
-                                    totalCache.size < maxCacheableVideoChunkSize
+                                // Video chunks are written to a temporary file on disk while streaming, so they
+                                // never have to be kept in memory in order to be cached
+                                var cacheFile: File? = if (
+                                    config.cache.enabled
                                     && "video/mp2t" == response.headers["Content-Type"]?.lowercase()
                                 ) {
-                                    // Cache the video chunk
-                                    responseURI.let { responseURI -> totalCache.let { totalCache ->
-                                        cacheCoroutineScope.launch { videoChunkCache.putAsync(responseURI.toString()) { fileName ->
-                                            val file = File(fileName)
-                                            file.writeBytes(totalCache)
+                                    createTemporaryVideoChunkFile()
+                                } else null
+                                var cacheOutput: OutputStream? = cacheFile?.outputStream()?.buffered()
+                                var cachedSize = 0L
 
-                                            cacheTimers.add(
-                                                responseURI.toString(),
-                                                "video-chunks",
-                                                config.cache.ttl.videoChunks.inWholeMilliseconds,
-                                            )
+                                try {
+                                    val channel = response.bodyAsChannel()
 
-                                            true
-                                        } }
-                                    } }
+                                    // Keep reading and pushing to temp cache file + output until exhausted
+                                    while (!channel.exhausted()) {
+                                        val chunk = channel.readRemaining(131_072).readByteArray()
+                                        cacheOutput?.let { cacheOutputStream ->
+                                            if (cachedSize + chunk.size <= maxCacheableVideoChunkSize) {
+                                                withContext(Dispatchers.IO) { cacheOutputStream.write(chunk) }
+                                                cachedSize += chunk.size
+                                            } else {
+                                                // Too large to cache, stop writing the temporary file
+                                                cacheOutputStream.close()
+                                                cacheOutput = null
+                                                cacheFile?.delete()
+                                                cacheFile = null
+                                            }
+                                        }
+                                        output.writeFully(chunk)
+                                    }
+
+                                    // Immediately release the connection after the read channel is closed
+                                    releaseConnectionEarly()
+
+                                    // Flush any remaining data in the buffer
+                                    output.flush()
+
+                                    withContext(Dispatchers.IO) { cacheOutput?.close() }
+                                    cacheOutput = null
+
+                                    cacheFile?.let { temporaryFile ->
+                                        // The temporary file is handed over to the cache, which moves it in place
+                                        cacheFile = null
+                                        val cacheKey = responseURI.toString()
+                                        cacheCoroutineScope.launch(Dispatchers.IO) {
+                                            try {
+                                                videoChunkCache.put(cacheKey) { fileName ->
+                                                    Files.move(
+                                                        temporaryFile.toPath(),
+                                                        Path.of(fileName),
+                                                        StandardCopyOption.REPLACE_EXISTING,
+                                                    )
+
+                                                    cacheTimers.add(
+                                                        cacheKey,
+                                                        "video-chunks",
+                                                        config.cache.ttl.videoChunks.inWholeMilliseconds,
+                                                    )
+
+                                                    true
+                                                }
+                                            } finally {
+                                                temporaryFile.delete()
+                                            }
+                                        }
+                                    }
+                                } finally {
+                                    try {
+                                        cacheOutput?.close()
+                                    } catch (_: IOException) {
+                                        // Ignore, the file is removed anyway
+                                    }
+                                    cacheFile?.delete()
                                 }
                             }
                         } catch (_: IOException) {

@@ -1,5 +1,6 @@
 package io.github.firstred.iptvproxy.di.modules
 
+import io.github.firstred.iptvproxy.classes.DiskCacheStorage
 import io.github.firstred.iptvproxy.classes.IptvServerConnection
 import io.github.firstred.iptvproxy.config
 import io.github.firstred.iptvproxy.di.hooksOf
@@ -12,18 +13,17 @@ import io.ktor.client.engine.*
 import io.ktor.client.engine.okhttp.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.cache.*
-import io.ktor.client.plugins.cache.storage.*
 import io.ktor.client.plugins.compression.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.plugins.logging.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.io.IOException
+import kotlinx.io.files.Path
 import okhttp3.Dispatcher
 import org.koin.core.qualifier.named
 import org.koin.dsl.binds
 import org.koin.dsl.module
-import java.io.File
 import java.net.URI
 
 val httpClientModule = module {
@@ -62,7 +62,8 @@ val httpClientModule = module {
             followRedirects = true
 
             if (config.cache.enabled) install(HttpCache) {
-                publicStorage(FileStorage(File(config.getHttpCacheDirectory("images"))))
+                // Cached images are only kept on disk, Ktor's FileStorage would also keep all of them in memory
+                publicStorage(DiskCacheStorage(Path(config.getHttpCacheDirectory("images"))))
             }
             install(HttpRequestRetry) {
                 defaultRetryHandler {

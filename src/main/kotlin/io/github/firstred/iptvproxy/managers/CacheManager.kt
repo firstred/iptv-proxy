@@ -67,6 +67,13 @@ class CacheManager : KoinComponent, HasApplicationOnStartHook {
             File(config.getHttpCacheDirectory("images")),
             config.cache.ttl.images.inWholeMilliseconds,
         )
+
+        // Temporary video chunk files are moved into the cache right after streaming, leftovers are from interrupted
+        // streams or a crash
+        cleanDirectory(
+            File(config.getLargeFileSinkDirectory("video_chunks")),
+            TimeUnit.HOURS.toMillis(1),
+        )
     }
 
     /**
